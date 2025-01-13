@@ -3,36 +3,128 @@
 [![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
+[![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved) 
 
- [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved) 
+This code can be used to download NESO solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
 
-This code can be used to download NESO forecast and save them to a datbase
+## Requirements
 
-TODO add link
+- Docker
+- Docker Compose
 
-## Installation
+## Installation & Running
 
-TODO
+1. Clone the repository:
+```bash
+git clone https://github.com/openclimatefix/neso-solar-consumer.git
+cd neso-solar-consumer
+```
 
+2. Copy the example environment file:
+```bash
+cp .env.example .env
+```
 
-## Example usage
-TODO
+3. Update the `.env` file with your NESO API configuration:
+```env
+# NESO API Configuration
+NESO_RESOURCE_ID=your_resource_id
+NESO_LIMIT=100
+NESO_MODEL_TAG=your_model_tag
+
+# Optional Settings
+LOG_LEVEL=INFO
+BATCH_SIZE=1000
+```
+
+4. Start the application:
+```bash
+docker compose up -d
+```
+
+The above command will:
+- Start a PostgreSQL database container
+- Build and start the NESO Solar Consumer application
+- Configure all necessary networking between containers
+
+To stop the application:
+```bash
+docker compose down
+```
+
+To view logs:
+```bash
+docker compose logs -f
+```
+
+> **Note**: The PostgreSQL data is persisted in a Docker volume. To completely reset the database, use:
+> ```bash
+> docker compose down -v
+> ```
+
 ## Documentation
 
-TODO
+The package provides three main functionalities:
 
+1. **Data Fetching**: Retrieves solar forecast data from the NESO API
+2. **Data Formatting**: Processes the data into standardized forecast objects
+3. **Data Storage**: Saves the formatted forecasts to a PostgreSQL database
 
-## FAQ
+### Key Components:
 
-TODO
+- `fetch_data.py`: Handles API data retrieval
+- `format_forecast.py`: Converts raw data into forecast objects
+- `save_forecast.py`: Manages database operations
+- `app.py`: Orchestrates the entire pipeline
 
 ## Development
 
-TODO
-### Running the test suite
+1. Set up the development environment:
+```bash
+pip install ".[dev]"
+```
 
-TODO
- 
+2. Run tests:
+```bash
+pytest
+```
+
+3. Format code:
+```bash
+black .
+```
+
+4. Run linter:
+```bash
+ruff .
+```
+
+### Running the Test Suite
+
+The test suite includes unit tests and integration tests:
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_fetch_data.py
+
+# Run with coverage
+pytest --cov=neso_solar_consumer
+```
+
+## FAQ
+
+**Q: What format is the data stored in?**
+A: The data is stored in PostgreSQL using SQLAlchemy models, with timestamps in UTC and power values in megawatts.
+
+**Q: How often should I run the consumer?**
+A: This depends on your use case and the NESO API update frequency. The consumer can be scheduled using cron jobs or other scheduling tools.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing and community
 
@@ -58,6 +150,7 @@ TODO
       <td align="center" valign="top" width="14.28%"><a href="http://siddharth7113.github.io"><img src="https://avatars.githubusercontent.com/u/114160268?v=4?s=100" width="100px;" alt="Siddharth"/><br /><sub><b>Siddharth</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/pulls?q=is%3Apr+reviewed-by%3Asiddharth7113" title="Reviewed Pull Requests">👀</a> <a href="#infra-siddharth7113" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=siddharth7113" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Conor0Callaghan"><img src="https://avatars.githubusercontent.com/u/4090256?v=4?s=100" width="100px;" alt="Conor O Callaghan"/><br /><sub><b>Conor O Callaghan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Conor0Callaghan" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alirashidAR"><img src="https://avatars.githubusercontent.com/u/110668489?v=4?s=100" width="100px;" alt="Ali Rashid"/><br /><sub><b>Ali Rashid</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=alirashidAR" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/anxkhn"><img src="https://avatars.githubusercontent.com/u/83116240?v=4?s=100" width="100px;" alt="Anas Khan"/><br /><sub><b>Anas Khan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=anxkhn" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
@@ -69,3 +162,4 @@ TODO
 *Part of the [Open Climate Fix](https://github.com/orgs/openclimatefix/people) community.*
 
 [![OCF Logo](https://cdn.prod.website-files.com/62d92550f6774db58d441cca/6324a2038936ecda71599a8b_OCF_Logo_black_trans.png)](https://openclimatefix.org)
+
