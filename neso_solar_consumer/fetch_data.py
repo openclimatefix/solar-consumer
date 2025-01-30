@@ -11,29 +11,25 @@ import json
 import pandas as pd
 
 
-def fetch_data(resource_id: str, limit: int) -> pd.DataFrame:
+def fetch_data() -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
-
-    Parameters:
-        resource_id (str): The unique resource ID for the dataset in the API.
-        limit (int): The number of records to fetch.
 
     Returns:
         pd.DataFrame: A DataFrame containing two columns:
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-    base_url = "https://api.neso.energy/api/3/action/datastore_search"
-    url = f"{base_url}?resource_id={resource_id}&limit={limit}"
 
     try:
-        response = urllib.request.urlopen(url)
+        meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+        response = urllib.request.urlopen(meta_url)
         data = json.loads(response.read().decode("utf-8"))
-        records = data["result"]["records"]
 
-        # Create DataFrame from records
-        df = pd.DataFrame(records)
+        # we take the latest path, which is the most recent forecast
+        url = data["result"]['resources'][0]['path']
+
+        df = pd.read_csv(url)
 
         # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
         df["Datetime_GMT"] = pd.to_datetime(
@@ -43,7 +39,7 @@ def fetch_data(resource_id: str, limit: int) -> pd.DataFrame:
         ).dt.tz_localize("UTC")
 
         # Rename and select necessary columns
-        df = df.rename(columns={"EMBEDDED_SOLAR_FORECAST": "solar_forecast_kw"})
+        df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"]*1000
         df = df[["Datetime_GMT", "solar_forecast_kw"]]
 
         # Drop rows with invalid Datetime_GMT

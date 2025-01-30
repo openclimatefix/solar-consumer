@@ -63,7 +63,7 @@ def test_fetch_data_mock_success(test_config):
         mock_urlopen.return_value.read.return_value = json.dumps(mock_response).encode(
             "utf-8"
         )
-        df = fetch_data(test_config["resource_id"], test_config["limit"])
+        df = fetch_data()
 
         # Assertions
         assert not df.empty, "Expected non-empty DataFrame for successful API response!"
@@ -84,7 +84,7 @@ def test_fetch_data_mock_failure(test_config):
     """
     with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("API failure simulated")
-        df = fetch_data(test_config["resource_id"], test_config["limit"])
+        df = fetch_data()
 
         # Assertions
         assert df.empty, "Expected an empty DataFrame when API call fails!"
