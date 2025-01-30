@@ -26,9 +26,9 @@ cp .env.example .env
 ```
 
 3. Update the `.env` file with your NESO API configuration:
-```env
+```sh
 # NESO API Configuration
-NESO_RESOURCE_ID=your_resource_id
+NESO_RESOURCE_ID=db6c038f-98af-4570-ab60-24d71ebd0ae5
 NESO_LIMIT=100
 NESO_MODEL_TAG=your_model_tag
 
