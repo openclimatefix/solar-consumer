@@ -29,10 +29,8 @@ def test_real_forecasts(db_session, test_config):
     forecasts.
     """
     # Step 1: Fetch data from the NESO API
-    df = fetch_data(
-        resource_id=test_config["resource_id"],
-        limit=test_config["limit"],
-    )
+    df = fetch_data()
+
     assert not df.empty, "fetch_data returned an empty DataFrame!"
     assert set(df.columns) == {
         "Datetime_GMT",

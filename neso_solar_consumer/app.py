@@ -15,7 +15,6 @@ from neso_solar_consumer.save_forecast import save_forecasts_to_db
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from neso_solar_consumer import __version__  # Import version from __init__.py
-from neso_solar_consumer.config import Neso
 
 # Configure logging
 logging.basicConfig(
@@ -34,9 +33,7 @@ def app(db_url: str):
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
     # Use the `Neso` class for hardcoded configuration
-    resource_id = Neso.RESOURCE_ID
-    limit = Neso.LIMIT
-    model_tag = Neso.MODEL_TAG
+    model_tag = "neso-solar-forecast"
 
     # Initialize database connection
     connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
@@ -45,7 +42,7 @@ def app(db_url: str):
         with connection.get_session() as session:
             # Step 1: Fetch forecast data
             logger.info("Fetching forecast data.")
-            forecast_data = fetch_data(resource_id, limit)
+            forecast_data = fetch_data()
 
             if forecast_data.empty:
                 logger.warning("No data fetched. Exiting the pipeline.")
