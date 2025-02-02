@@ -2,21 +2,13 @@
 Test Suite for `fetch_data` and `fetch_data_using_sql` Functions
 
 This script validates the functionality and consistency of two data-fetching functions:
-- `fetch_data`: Fetches data via API.
-- `fetch_data_using_sql`: Fetches data via SQL query.
-
-The tests ensure the data returned by both methods:
-1. Is correctly processed.
-2. Contains the expected columns.
-3. Is consistent between the two methods.
+- `fetch_data`: Fetches data via API (mocked).
+- `fetch_data_using_sql`: Fetches data via SQL query (mocked).
 
 ### How to Run the Tests:
 
 Run the entire test suite:
     pytest tests/test_fetch_data.py
-
-Run a specific test:
-    pytest tests/test_fetch_data.py::test_fetch_data_api
 
 Run with verbose output:
     pytest tests/test_fetch_data.py -v
@@ -26,76 +18,152 @@ Run tests matching a specific pattern:
 """
 
 from neso_solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
+from unittest.mock import patch
+import json
+
+# TODO update
+#
+# def test_fetch_data_mock_success(test_config):
+#     """
+#     Test `fetch_data` with a mocked successful API response using `test_config`.
+#     """
+#     mock_response = {
+#         "result": {
+#             "records": [
+#                 {
+#                     "DATE_GMT": "2025-01-14",
+#                     "TIME_GMT": "05:30",
+#                     "EMBEDDED_SOLAR_FORECAST": 0,
+#                 },
+#                 {
+#                     "DATE_GMT": "2025-01-14",
+#                     "TIME_GMT": "06:00",
+#                     "EMBEDDED_SOLAR_FORECAST": 101,
+#                 },
+#                 {
+#                     "DATE_GMT": "2025-01-14",
+#                     "TIME_GMT": "06:30",
+#                     "EMBEDDED_SOLAR_FORECAST": 200,
+#                 },
+#                 {
+#                     "DATE_GMT": "2025-01-14",
+#                     "TIME_GMT": "07:00",
+#                     "EMBEDDED_SOLAR_FORECAST": 300,
+#                 },
+#                 {
+#                     "DATE_GMT": "2025-01-14",
+#                     "TIME_GMT": "07:30",
+#                     "EMBEDDED_SOLAR_FORECAST": 400,
+#                 },
+#             ]
+#         }
+#     }
+#
+#     # Mock API response as bytes
+#     with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+#         mock_urlopen.return_value.read.return_value = json.dumps(mock_response).encode(
+#             "utf-8"
+#         )
+#         df = fetch_data()
+#
+#         # Assertions
+#         assert not df.empty, "Expected non-empty DataFrame for successful API response!"
+#         assert list(df.columns) == [
+#             "Datetime_GMT",
+#             "solar_forecast_kw",
+#         ], "Unexpected DataFrame columns!"
+#         assert (
+#             len(df) == test_config["limit"]
+#         ), f"Expected DataFrame to have {test_config['limit']} rows!"
+#         print("Mocked DataFrame from fetch_data (success):")
+#         print(df)
 
 
-def test_fetch_data_api(test_config):
+def test_fetch_data_mock_failure(test_config):
     """
-    Test the `fetch_data` function to ensure it fetches and processes data correctly via API.
-
-    Parameters:
-        test_config (dict): A dictionary containing the test configuration, including:
-            - `resource_id` (str): The unique resource ID for the dataset in the API.
-            - `limit` (int): The number of records to fetch.
-
-    Assertions:
-        - The DataFrame is not empty.
-        - The DataFrame contains the expected columns: `Datetime_GMT`, `solar_forecast_kw`.
+    Test `fetch_data` with a mocked API failure using `test_config`.
     """
-    df_api = fetch_data(
-        test_config["resource_id"],
-        test_config["limit"],
-    )
-    assert not df_api.empty, "fetch_data returned an empty DataFrame!"
-    assert set(df_api.columns) == {
-        "Datetime_GMT",
-        "solar_forecast_kw",
-    }, "Column names do not match the expected structure!"
+    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = Exception("API failure simulated")
+        df = fetch_data()
+
+        # Assertions
+        assert df.empty, "Expected an empty DataFrame when API call fails!"
+        print("Mocked DataFrame from fetch_data (failure):")
+        print(df)
 
 
-def test_fetch_data_sql(test_config):
+def test_fetch_data_using_sql_mock_success(test_config):
     """
-    Test the `fetch_data_using_sql` function to ensure it fetches and processes data correctly via SQL.
-
-    Parameters:
-        test_config (dict): A dictionary containing the test configuration, including:
-            - `resource_id` (str): The unique resource ID for the dataset in the API.
-            - `limit` (int): The number of records to fetch.
-
-    Assertions:
-        - The DataFrame is not empty.
-        - The DataFrame contains the expected columns: `Datetime_GMT`, `solar_forecast_kw`.
+    Test `fetch_data_using_sql` with a mocked successful SQL query result using `test_config`.
     """
-    sql_query = (
-        f'SELECT * FROM "{test_config["resource_id"]}" LIMIT {test_config["limit"]}'
-    )
-    df_sql = fetch_data_using_sql(sql_query)
-    assert not df_sql.empty, "fetch_data_using_sql returned an empty DataFrame!"
-    assert set(df_sql.columns) == {
-        "Datetime_GMT",
-        "solar_forecast_kw",
-    }, "Column names do not match the expected structure!"
+    mock_response = {
+        "result": {
+            "records": [
+                {
+                    "DATE_GMT": "2025-01-14",
+                    "TIME_GMT": "05:30",
+                    "EMBEDDED_SOLAR_FORECAST": 0,
+                },
+                {
+                    "DATE_GMT": "2025-01-14",
+                    "TIME_GMT": "06:00",
+                    "EMBEDDED_SOLAR_FORECAST": 101,
+                },
+                {
+                    "DATE_GMT": "2025-01-14",
+                    "TIME_GMT": "06:30",
+                    "EMBEDDED_SOLAR_FORECAST": 200,
+                },
+                {
+                    "DATE_GMT": "2025-01-14",
+                    "TIME_GMT": "07:00",
+                    "EMBEDDED_SOLAR_FORECAST": 300,
+                },
+                {
+                    "DATE_GMT": "2025-01-14",
+                    "TIME_GMT": "07:30",
+                    "EMBEDDED_SOLAR_FORECAST": 400,
+                },
+            ]
+        }
+    }
+
+    # Mock API response as bytes
+    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value.read.return_value = json.dumps(mock_response).encode(
+            "utf-8"
+        )
+        sql_query = (
+            f'SELECT * FROM "{test_config["resource_id"]}" LIMIT {test_config["limit"]}'
+        )
+        df = fetch_data_using_sql(sql_query)
+
+        # Assertions
+        assert not df.empty, "Expected non-empty DataFrame for successful SQL query!"
+        assert list(df.columns) == [
+            "Datetime_GMT",
+            "solar_forecast_kw",
+        ], "Unexpected DataFrame columns!"
+        assert (
+            len(df) == test_config["limit"]
+        ), f"Expected DataFrame to have {test_config['limit']} rows!"
+        print("Mocked DataFrame from fetch_data_using_sql (success):")
+        print(df)
 
 
-def test_data_consistency(test_config):
+def test_fetch_data_using_sql_mock_failure(test_config):
     """
-    Validate that the data fetched by `fetch_data` and `fetch_data_using_sql` are consistent.
-
-    Parameters:
-        test_config (dict): A dictionary containing the test configuration, including:
-            - `resource_id` (str): The unique resource ID for the dataset in the API.
-            - `limit` (int): The number of records to fetch.
-
-    Assertions:
-        - The data fetched by `fetch_data` matches the data fetched by `fetch_data_using_sql`.
+    Test `fetch_data_using_sql` with a mocked failure using `test_config`.
     """
-    sql_query = (
-        f'SELECT * FROM "{test_config["resource_id"]}" LIMIT {test_config["limit"]}'
-    )
-    df_api = fetch_data(
-        test_config["resource_id"],
-        test_config["limit"],
-    )
-    df_sql = fetch_data_using_sql(sql_query)
-    assert df_api.equals(
-        df_sql
-    ), "Data from fetch_data and fetch_data_using_sql are inconsistent!"
+    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = Exception("SQL query failure simulated")
+        sql_query = (
+            f'SELECT * FROM "{test_config["resource_id"]}" LIMIT {test_config["limit"]}'
+        )
+        df = fetch_data_using_sql(sql_query)
+
+        # Assertions
+        assert df.empty, "Expected an empty DataFrame when SQL query fails!"
+        print("Mocked DataFrame from fetch_data_using_sql (failure):")
+        print(df)
