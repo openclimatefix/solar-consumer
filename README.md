@@ -25,17 +25,14 @@ cd neso-solar-consumer
 cp .env.example .env
 ```
 
-3. Update the `.env` file with your NESO API configuration:
-```sh
-# NESO API Configuration
-NESO_RESOURCE_ID=db6c038f-98af-4570-ab60-24d71ebd0ae5
-NESO_LIMIT=100
-NESO_MODEL_TAG=your_model_tag
+3. Update the `neso_solar_consumer/config.py` file with your NESO API configuration:
 
-# Optional Settings
-LOG_LEVEL=INFO
-BATCH_SIZE=1000
+```py
+RESOURCE_ID = "db6c038f-98af-4570-ab60-24d71ebd0ae5"
+LIMIT = 100
+MODEL_TAG = "neso-solar-forecast"
 ```
+  and `.example.env` with `DATABASE_URL`.
 
 4. Start the application:
 ```bash
@@ -150,7 +147,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       <td align="center" valign="top" width="14.28%"><a href="http://siddharth7113.github.io"><img src="https://avatars.githubusercontent.com/u/114160268?v=4?s=100" width="100px;" alt="Siddharth"/><br /><sub><b>Siddharth</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/pulls?q=is%3Apr+reviewed-by%3Asiddharth7113" title="Reviewed Pull Requests">👀</a> <a href="#infra-siddharth7113" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=siddharth7113" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Conor0Callaghan"><img src="https://avatars.githubusercontent.com/u/4090256?v=4?s=100" width="100px;" alt="Conor O Callaghan"/><br /><sub><b>Conor O Callaghan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Conor0Callaghan" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alirashidAR"><img src="https://avatars.githubusercontent.com/u/110668489?v=4?s=100" width="100px;" alt="Ali Rashid"/><br /><sub><b>Ali Rashid</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=alirashidAR" title="Tests">⚠️</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/anxkhn"><img src="https://avatars.githubusercontent.com/u/83116240?v=4?s=100" width="100px;" alt="Anas Khan"/><br /><sub><b>Anas Khan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=anxkhn" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
