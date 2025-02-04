@@ -75,10 +75,10 @@ def app(db_url: str):
 
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
-    db_url = os.getenv("DATABASE_URL")
+    db_url = os.getenv("DB_URL") # Change from "DATABASE_URL" to "DB_URL"
 
     if not db_url:
-        logger.error("DATABASE_URL environment variable is not set. Exiting.")
+        logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 
     # Step 2: Run the application
