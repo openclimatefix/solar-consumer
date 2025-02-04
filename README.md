@@ -1,6 +1,6 @@
 # NESO Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-6-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 
@@ -58,6 +58,7 @@ TODO
       <td align="center" valign="top" width="14.28%"><a href="http://siddharth7113.github.io"><img src="https://avatars.githubusercontent.com/u/114160268?v=4?s=100" width="100px;" alt="Siddharth"/><br /><sub><b>Siddharth</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/pulls?q=is%3Apr+reviewed-by%3Asiddharth7113" title="Reviewed Pull Requests">👀</a> <a href="#infra-siddharth7113" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=siddharth7113" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Conor0Callaghan"><img src="https://avatars.githubusercontent.com/u/4090256?v=4?s=100" width="100px;" alt="Conor O Callaghan"/><br /><sub><b>Conor O Callaghan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Conor0Callaghan" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/alirashidAR"><img src="https://avatars.githubusercontent.com/u/110668489?v=4?s=100" width="100px;" alt="Ali Rashid"/><br /><sub><b>Ali Rashid</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=alirashidAR" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ManzoorAhmedShaikh"><img src="https://avatars.githubusercontent.com/u/110716002?v=4?s=100" width="100px;" alt="Manzoor Ahmed Shaikh"/><br /><sub><b>Manzoor Ahmed Shaikh</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=ManzoorAhmedShaikh" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
