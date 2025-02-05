@@ -3,36 +3,125 @@
 [![All Contributors](https://img.shields.io/badge/all_contributors-6-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
+[![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved) 
 
- [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved) 
+This code can be used to download NESO solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
 
-This code can be used to download NESO forecast and save them to a datbase
+## Requirements
 
-TODO add link
+- Docker
+- Docker Compose
 
-## Installation
+## Installation & Running
 
-TODO
+1. Clone the repository:
+```bash
+git clone https://github.com/openclimatefix/neso-solar-consumer.git
+cd neso-solar-consumer
+```
 
+2. Copy the example environment file:
+```bash
+cp .env.example .env
+```
 
-## Example usage
-TODO
+3. Update the `neso_solar_consumer/config.py` file with your NESO API configuration:
+
+```py
+RESOURCE_ID = "db6c038f-98af-4570-ab60-24d71ebd0ae5"
+LIMIT = 100
+MODEL_TAG = "neso-solar-forecast"
+```
+  and `.example.env` with `DATABASE_URL`.
+
+4. Start the application:
+```bash
+docker compose up -d
+```
+
+The above command will:
+- Start a PostgreSQL database container
+- Build and start the NESO Solar Consumer application
+- Configure all necessary networking between containers
+
+To stop the application:
+```bash
+docker compose down
+```
+
+To view logs:
+```bash
+docker compose logs -f
+```
+
+> **Note**: The PostgreSQL data is persisted in a Docker volume. To completely reset the database, use:
+> ```bash
+> docker compose down -v
+> ```
+
 ## Documentation
 
-TODO
+The package provides three main functionalities:
 
+1. **Data Fetching**: Retrieves solar forecast data from the NESO API
+2. **Data Formatting**: Processes the data into standardized forecast objects
+3. **Data Storage**: Saves the formatted forecasts to a PostgreSQL database
 
-## FAQ
+### Key Components:
 
-TODO
+- `fetch_data.py`: Handles API data retrieval
+- `format_forecast.py`: Converts raw data into forecast objects
+- `save_forecast.py`: Manages database operations
+- `app.py`: Orchestrates the entire pipeline
 
 ## Development
 
-TODO
-### Running the test suite
+1. Set up the development environment:
+```bash
+pip install ".[dev]"
+```
 
-TODO
- 
+2. Run tests:
+```bash
+pytest
+```
+
+3. Format code:
+```bash
+black .
+```
+
+4. Run linter:
+```bash
+ruff .
+```
+
+### Running the Test Suite
+
+The test suite includes unit tests and integration tests:
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_fetch_data.py
+
+# Run with coverage
+pytest --cov=neso_solar_consumer
+```
+
+## FAQ
+
+**Q: What format is the data stored in?**
+A: The data is stored in PostgreSQL using SQLAlchemy models, with timestamps in UTC and power values in megawatts.
+
+**Q: How often should I run the consumer?**
+A: This depends on your use case and the NESO API update frequency. The consumer can be scheduled using cron jobs or other scheduling tools.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing and community
 
@@ -70,3 +159,4 @@ TODO
 *Part of the [Open Climate Fix](https://github.com/orgs/openclimatefix/people) community.*
 
 [![OCF Logo](https://cdn.prod.website-files.com/62d92550f6774db58d441cca/6324a2038936ecda71599a8b_OCF_Logo_black_trans.png)](https://openclimatefix.org)
+
