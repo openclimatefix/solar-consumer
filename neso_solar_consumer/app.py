@@ -11,7 +11,7 @@ import os
 import logging
 from neso_solar_consumer.fetch_data import fetch_data
 from neso_solar_consumer.format_forecast import format_to_forecast_sql
-from neso_solar_consumer.save_forecast import save_forecasts_to_db
+from neso_solar_consumer.save_forecast import save_forecasts
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from neso_solar_consumer import __version__  # Import version from __init__.py
@@ -65,7 +65,7 @@ def app(db_url: str):
 
             # Step 3: Save forecasts to the database
             logger.info("Saving forecasts to the database.")
-            save_forecasts_to_db(forecasts, session)
+            save_forecasts(forecasts, session)
 
             logger.info("Forecast pipeline completed successfully.")
     except Exception as e:
@@ -77,9 +77,17 @@ if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL") # Change from "DATABASE_URL" to "DB_URL"
 
+    save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
+    csv_dir = os.getenv("CSV_DIR")
+    
+    
+    if save_method == "csv" and not csv_dir:
+        logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
+        exit(1)
+
     if not db_url:
         logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 
     # Step 2: Run the application
-    app(db_url=db_url)
+    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir)
