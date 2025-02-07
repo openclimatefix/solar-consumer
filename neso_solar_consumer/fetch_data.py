@@ -1,7 +1,7 @@
 """
 Script to fetch NESO Solar Forecast Data
 This script provides functions to fetch solar forecast data from the NESO API.
-The data includes solar generation estimates for embedded solar farms and combines 
+The data includes solar generation estimates for embedded solar farms and combines
 date and time fields into a single timestamp for further analysis.
 """
 
@@ -27,7 +27,7 @@ def fetch_data() -> pd.DataFrame:
         data = json.loads(response.read().decode("utf-8"))
 
         # we take the latest path, which is the most recent forecast
-        url = data["result"]['resources'][0]['path']
+        url = data["result"]["resources"][0]["path"]
 
         df = pd.read_csv(url)
 
@@ -39,7 +39,7 @@ def fetch_data() -> pd.DataFrame:
         ).dt.tz_localize("UTC")
 
         # Rename and select necessary columns
-        df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"]*1000
+        df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
         df = df[["Datetime_GMT", "solar_forecast_kw"]]
 
         # Drop rows with invalid Datetime_GMT

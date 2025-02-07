@@ -75,7 +75,7 @@ def app(db_url: str):
 
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
-    db_url = os.getenv("DB_URL") # Change from "DATABASE_URL" to "DB_URL"
+    db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
 
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
