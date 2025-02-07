@@ -19,7 +19,7 @@ import pytest
 from nowcasting_datamodel.models import ForecastSQL
 from neso_solar_consumer.fetch_data import fetch_data
 from neso_solar_consumer.format_forecast import format_to_forecast_sql
-from neso_solar_consumer.save_forecast import save_forecasts_to_db
+from neso_solar_consumer.save_forecast import save_forecasts
 
 
 @pytest.mark.integration
@@ -52,7 +52,7 @@ def test_real_forecasts(db_session, test_config):
     )
 
     # Step 3: Save formatted forecasts to the database
-    save_forecasts_to_db(forecasts=forecasts, session=db_session)
+    save_forecasts(forecasts=forecasts, session=db_session)
 
     # Step 4: Validate that the forecasts were saved correctly
     saved_forecast = db_session.query(ForecastSQL).first()
