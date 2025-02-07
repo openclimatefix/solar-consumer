@@ -71,6 +71,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "pjireland",
+      "name": "Peter Ireland",
+      "avatar_url": "https://avatars.githubusercontent.com/u/16693035?v=4",
+      "profile": "https://github.com/pjireland",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
