@@ -3,7 +3,7 @@
 [![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-[![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved) 
+[![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
 
 This code can be used to download NESO solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
 
@@ -22,19 +22,10 @@ cd neso-solar-consumer
 
 2. Copy the example environment file:
 ```bash
-cp .env.example .env
+cp .example.env .env
 ```
 
-3. Update the `neso_solar_consumer/config.py` file with your NESO API configuration:
-
-```py
-RESOURCE_ID = "db6c038f-98af-4570-ab60-24d71ebd0ae5"
-LIMIT = 100
-MODEL_TAG = "neso-solar-forecast"
-```
-  and `.example.env` with `DATABASE_URL`.
-
-4. Start the application:
+3. Start the application:
 ```bash
 docker compose up -d
 ```
@@ -93,7 +84,7 @@ black .
 
 4. Run linter:
 ```bash
-ruff .
+ruff check .
 ```
 
 ### Running the Test Suite
@@ -160,4 +151,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 *Part of the [Open Climate Fix](https://github.com/orgs/openclimatefix/people) community.*
 
 [![OCF Logo](https://cdn.prod.website-files.com/62d92550f6774db58d441cca/6324a2038936ecda71599a8b_OCF_Logo_black_trans.png)](https://openclimatefix.org)
-
