@@ -158,4 +158,5 @@ def nl_data(csv_dir: str = "../data"):
     logger.info(f"Final DataFrame shape: {all_data.shape}")
     all_data.head()
     logger.info(f"Saved the data fetched from API at {csv_path}")
-    all_data.to_csv(csv_path, index=False)
+    #all_data.to_csv(csv_path, index=False)
+    return all_data
