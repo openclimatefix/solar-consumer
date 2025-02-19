@@ -3,7 +3,6 @@ import requests
 from datetime import datetime, timedelta
 import json
 import pandas as pd
-from tqdm import tqdm
 import time
 import argparse
 import dotenv
@@ -82,7 +81,7 @@ def nl_data():
     total_days = (end_date - start_date).days
 
     # Create progress bar
-    for _ in tqdm(range(total_days), desc="Processing dates"):
+    for _ in range(total_days):
         # Calculate next day
         next_date = current_date + timedelta(days=2)
         
