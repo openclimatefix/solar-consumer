@@ -9,8 +9,8 @@ import urllib.request
 import urllib.parse
 import json
 import pandas as pd
-from neso_solar_consumer.script.fetch_nl_data import nl_data
-from neso_solar_consumer.script.fetch_gp_data import gb_data
+from neso_solar_consumer.data.fetch_nl_data import nl_data
+from neso_solar_consumer.data.fetch_gp_data import gb_data
 
 def fetch_data(country:str = 'gb') -> pd.DataFrame:
 
