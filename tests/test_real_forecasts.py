@@ -3,7 +3,7 @@ Integration Test for Fetching, Formatting, and Saving Forecast Data
 
 This test validates the complete pipeline:
 1. Fetch data from the NESO API.
-2. Format the data into `ForecastSQL` objects.
+2. Format the data into ForecastSQL objects.
 3. Save the formatted forecasts to the database.
 4. Verify that the forecasts were correctly saved.
 
@@ -18,7 +18,7 @@ To view detailed logs during execution, use:
 import pytest
 from nowcasting_datamodel.models import ForecastSQL
 from neso_solar_consumer.fetch_data import fetch_data
-from neso_solar_consumer.format_forecast import format_to_forecast_sql
+from neso_solar_consumer.format_forecast import format_forecast
 from neso_solar_consumer.save_forecast import save_forecasts
 
 
@@ -37,8 +37,8 @@ def test_real_forecasts(db_session, test_config):
         "solar_forecast_kw",
     }, "Unexpected DataFrame columns!"
 
-    # Step 2: Format the fetched data into ForecastSQL objects
-    forecasts = format_to_forecast_sql(
+    # Step 2: Format the fetched data into ForecastSQL objects using the updated function
+    forecasts = format_forecast(
         data=df,
         model_tag=test_config["model_name"],
         model_version=test_config["model_version"],

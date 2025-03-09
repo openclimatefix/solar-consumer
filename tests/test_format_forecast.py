@@ -1,12 +1,12 @@
 from neso_solar_consumer.fetch_data import fetch_data
-from neso_solar_consumer.format_forecast import format_to_forecast_sql
+from neso_solar_consumer.format_forecast import format_forecast
 from unittest.mock import patch
 import pandas as pd
 
 
-def test_format_to_forecast_sql_real(db_session, test_config):
+def test_format_forecast_real(db_session, test_config):
     """
-    Test `format_to_forecast_sql` with mocked API data and real PostgreSQL interactions.
+    Test `format_forecast` with mocked API data and real PostgreSQL interactions.
 
     Steps:
     1. Mock the `fetch_data` function to return controlled input data.
@@ -26,9 +26,7 @@ def test_format_to_forecast_sql_real(db_session, test_config):
                         "2025-01-14 07:30:00",
                     ]
                 )
-            ).dt.tz_localize(
-                "UTC"
-            ),  # Ensure UTC timezone matches `fetch_data`
+            ).dt.tz_localize("UTC"),  # Ensure UTC timezone matches `fetch_data`
             "solar_forecast_kw": [0, 101, 200, 300, 400],
         }
     )
@@ -44,8 +42,8 @@ def test_format_to_forecast_sql_real(db_session, test_config):
             "solar_forecast_kw",
         }, "Unexpected DataFrame columns!"
 
-        # Step 2: Format the data into a ForecastSQL object
-        forecasts = format_to_forecast_sql(
+        # Step 2: Format the data into a ForecastSQL object using the updated function
+        forecasts = format_forecast(
             data, test_config["model_name"], test_config["model_version"], db_session
         )
         assert (
