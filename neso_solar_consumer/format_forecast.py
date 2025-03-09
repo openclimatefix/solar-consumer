@@ -1,25 +1,16 @@
 import logging
-from datetime import datetime, timezone
 import pandas as pd
-from nowcasting_datamodel.models import ForecastSQL, ForecastValue
-from nowcasting_datamodel.read.read import (
-    get_latest_input_data_last_updated,
-    get_location,
-)
+from datetime import datetime, timezone
+from nowcasting_datamodel.read.read import get_latest_input_data_last_updated, get_location
 from nowcasting_datamodel.read.read_models import get_model
 
-# Configure logging (set to INFO for production; use DEBUG during debugging)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-
-def format_to_forecast_sql(
-    data: pd.DataFrame, model_tag: str, model_version: str, session
-) -> list:
+def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, session) -> pd.DataFrame:
     """
-    Format solar forecast data into a ForecastSQL object.
+    Format solar forecast data into a standardized Pandas DataFrame.
 
     Parameters:
         data (pd.DataFrame): DataFrame containing `Datetime_GMT` (UTC) and `solar_forecast_kw`.
@@ -28,46 +19,36 @@ def format_to_forecast_sql(
         session: Database session.
 
     Returns:
-        list: A list containing a single ForecastSQL object.
+        pd.DataFrame: Formatted DataFrame with additional metadata.
     """
-    logger.info("Starting format_to_forecast_sql process...")
+    logger.info("Starting forecast formatting process...")
 
-    # Step 1: Retrieve model metadata
+    # Ensure required columns exist
+    required_columns = {"Datetime_GMT", "solar_forecast_kw"}
+    if not required_columns.issubset(data.columns):
+        raise ValueError(f"Missing required columns: {required_columns - set(data.columns)}")
+
+    # Retrieve metadata
     model = get_model(name=model_tag, version=model_version, session=session)
     input_data_last_updated = get_latest_input_data_last_updated(session=session)
-
-    # Step 2: Fetch or create the location
     location = get_location(session=session, gsp_id=0)  # National forecast
 
-    # Step 3: Process all rows into ForecastValue objects
-    forecast_values = []
-    for _, row in data.iterrows():
-        if pd.isnull(row["Datetime_GMT"]) or pd.isnull(row["solar_forecast_kw"]):
-            logger.warning(f"Skipping row due to missing data: {row}")
-            continue
+    # Drop rows with missing values
+    data = data.dropna(subset=["Datetime_GMT", "solar_forecast_kw"])
 
-        target_time = row["Datetime_GMT"]
+    # Ensure Datetime_GMT is in datetime format
+    data["Datetime_GMT"] = pd.to_datetime(data["Datetime_GMT"], utc=True)
 
-        # Create ForecastValue object
-        forecast_value = ForecastValue(
-            target_time=target_time,
-            expected_power_generation_megawatts=row["solar_forecast_kw"]
-            / 1000,  # Convert to MW
-        ).to_orm()
-        forecast_values.append(forecast_value)
+    # Convert power to MW and add as a new column
+    data["solar_forecast_mw"] = data["solar_forecast_kw"] / 1000  
+    data.drop(columns=["solar_forecast_kw"], inplace=True)
 
-    # Step 4: Create a single ForecastSQL object
-    forecast = ForecastSQL(
-        model=model,
-        forecast_creation_time=datetime.now(tz=timezone.utc),
-        location=location,
-        input_data_last_updated=input_data_last_updated,
-        forecast_values=forecast_values,
-        historic=False,
-    )
-    logger.info(
-        f"Created ForecastSQL object with {len(forecast_values)} forecast values."
-    )
+    # Add metadata columns
+    data["model_name"] = model.name
+    data["model_version"] = model.version
+    data["forecast_creation_time"] = datetime.now(tz=timezone.utc)
+    data["location"] = location.name
+    data["input_data_last_updated"] = input_data_last_updated
 
-    # Return a single ForecastSQL object in a list
-    return [forecast]
+    logger.info(f"Formatted forecast data with {len(data)} entries.")
+    return data
