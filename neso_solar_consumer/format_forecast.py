@@ -1,22 +1,14 @@
 import logging
 import pandas as pd
 from datetime import datetime, timezone
-from nowcasting_datamodel.read.read import (
-    get_latest_input_data_last_updated,
-    get_location,
-)
+from nowcasting_datamodel.read.read import get_latest_input_data_last_updated, get_location
 from nowcasting_datamodel.read.read_models import get_model
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-
-def format_forecast(
-    data: pd.DataFrame, model_tag: str, model_version: str, session
-) -> pd.DataFrame:
+def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, session) -> pd.DataFrame:
     """
     Format solar forecast data into a standardized Pandas DataFrame.
 
@@ -34,9 +26,7 @@ def format_forecast(
     # Ensure required columns exist
     required_columns = {"Datetime_GMT", "solar_forecast_kw"}
     if not required_columns.issubset(data.columns):
-        raise ValueError(
-            f"Missing required columns: {required_columns - set(data.columns)}"
-        )
+        raise ValueError(f"Missing required columns: {required_columns - set(data.columns)}")
 
     # Retrieve metadata
     model = get_model(name=model_tag, version=model_version, session=session)
@@ -50,7 +40,7 @@ def format_forecast(
     data["Datetime_GMT"] = pd.to_datetime(data["Datetime_GMT"], utc=True)
 
     # Convert power to MW and add as a new column
-    data["solar_forecast_mw"] = data["solar_forecast_kw"] / 1000
+    data["solar_forecast_mw"] = data["solar_forecast_kw"] / 1000  
     data.drop(columns=["solar_forecast_kw"], inplace=True)
 
     # Add metadata columns

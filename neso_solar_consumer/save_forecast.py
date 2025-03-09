@@ -6,18 +6,10 @@ from nowcasting_datamodel.save.save import save
 from nowcasting_datamodel.models import ForecastSQL
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-
-def save_forecasts(
-    df: pd.DataFrame,
-    session: Session = None,
-    save_method: str = "db",
-    csv_dir: str = None,
-):
+def save_forecasts(df: pd.DataFrame, session: Session = None, save_method: str = "db", csv_dir: str = None):
     """
     Save forecasts either to the database or as a CSV file.
 
@@ -42,7 +34,6 @@ def save_forecasts(
     else:
         raise ValueError(f"Unsupported save method: {save_method}")
 
-
 def save_to_db(df: pd.DataFrame, session: Session):
     """Convert DataFrame to ForecastSQL objects and save to DB."""
     try:
@@ -53,7 +44,6 @@ def save_to_db(df: pd.DataFrame, session: Session):
     except Exception as e:
         logger.error(f"An error occurred while saving forecasts to DB: {e}")
         raise e
-
 
 def save_to_csv(df: pd.DataFrame, csv_dir: str):
     """Save forecasts DataFrame to CSV."""

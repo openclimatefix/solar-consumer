@@ -10,17 +10,12 @@ import pandas as pd
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 BASE_API_URL = "https://api.neso.energy/api/3/action/"
 
-
-def fetch_data(
-    forecast_type: str = "embedded-wind-and-solar-forecasts",
-) -> pd.DataFrame:
+def fetch_data(forecast_type: str = "embedded-wind-and-solar-forecasts") -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
 
@@ -35,7 +30,7 @@ def fetch_data(
     try:
         meta_url = f"{BASE_API_URL}datapackage_show?id={forecast_type}"
         logger.info(f"Fetching metadata from {meta_url}...")
-
+        
         response = urllib.request.urlopen(meta_url)
         data = json.loads(response.read().decode("utf-8"))
 
