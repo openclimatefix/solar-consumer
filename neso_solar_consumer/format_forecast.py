@@ -47,8 +47,16 @@ def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, sess
     data["model_name"] = model.name
     data["model_version"] = model.version
     data["forecast_creation_time"] = datetime.now(tz=timezone.utc)
-    data["location"] = location.name
-    data["input_data_last_updated"] = input_data_last_updated
+    
+    # Set location: if the location object lacks a 'name' attribute, use its string representation.
+    try:
+        data["location"] = location.name
+    except AttributeError:
+        data["location"] = str(location)
 
     logger.info(f"Formatted forecast data with {len(data)} entries.")
+    
     return data
+
+# Backward-compatible alias for the old function name
+format_to_forecast_sql = format_forecast
