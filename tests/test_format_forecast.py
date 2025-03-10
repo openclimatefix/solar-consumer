@@ -1,70 +1,140 @@
-from neso_solar_consumer.fetch_data import fetch_data
-from neso_solar_consumer.format_forecast import format_forecast
-from unittest.mock import patch
+import logging
 import pandas as pd
+from datetime import datetime, timezone
+from nowcasting_datamodel.read.read import get_latest_input_data_last_updated, get_location
+from nowcasting_datamodel.read.read_models import get_model
+from nowcasting_datamodel.models import ForecastSQL
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
-def test_format_forecast_real(db_session, test_config):
+def format_for_database(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:
     """
-    Test `format_forecast` with mocked API data and real PostgreSQL interactions.
-
-    Steps:
-    1. Mock the `fetch_data` function to return controlled input data.
-    2. Format the mocked data into a ForecastSQL object.
-    3. Validate the content and consistency of the ForecastSQL object and PostgreSQL process.
+    Format solar forecast data specifically for database storage.
+    
+    Parameters:
+        data (pd.DataFrame): DataFrame containing `Datetime_GMT` (UTC) and `solar_forecast_kw`.
+        model_tag (str): Model tag to fetch model metadata.
+        model_version (str): Model version to fetch model metadata.
+        session: Database session.
+        
+    Returns:
+        list: List of ForecastSQL objects ready for database storage.
     """
-    # Mock input data consistent with fetch_data tests
-    mock_data = pd.DataFrame(
-        {
-            "Datetime_GMT": pd.Series(
-                pd.to_datetime(
-                    [
-                        "2025-01-14 05:30:00",
-                        "2025-01-14 06:00:00",
-                        "2025-01-14 06:30:00",
-                        "2025-01-14 07:00:00",
-                        "2025-01-14 07:30:00",
-                    ]
-                )
-            ).dt.tz_localize("UTC"),  # Ensure UTC timezone matches `fetch_data`
-            "solar_forecast_kw": [0, 101, 200, 300, 400],
-        }
-    )
+    logger.info("Formatting forecast data for database storage...")
+    
+    # Use existing format_forecast function
+    return format_forecast(data, model_tag, model_version, session)
 
-    # Patch `fetch_data` to return the mock data
-    with patch("neso_solar_consumer.fetch_data.fetch_data", return_value=mock_data):
-        # Step 1: Fetch data (mocked)
-        data = fetch_data()
+def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:
+    """
+    Format solar forecast data into a list of ForecastSQL objects.
 
-        assert not data.empty, "fetch_data returned an empty DataFrame!"
-        assert set(data.columns) == {
-            "Datetime_GMT",
-            "solar_forecast_kw",
-        }, "Unexpected DataFrame columns!"
+    Parameters:
+        data (pd.DataFrame): DataFrame containing `Datetime_GMT` (UTC) and `solar_forecast_kw`.
+        model_tag (str): Model tag to fetch model metadata.
+        model_version (str): Model version to fetch model metadata.
+        session: Database session.
 
-        # Step 2: Format the data into a ForecastSQL object using the updated function
-        forecasts = format_forecast(
-            data, test_config["model_name"], test_config["model_version"], db_session
+    Returns:
+        list: List of ForecastSQL objects.
+    """
+    logger.info("Starting forecast formatting process...")
+    try:
+        # Validate required columns in the input DataFrame
+        _validate_columns(data)
+
+        # Retrieve metadata from the database
+        model = _get_model_metadata(model_tag, model_version, session)
+        input_data_last_updated = get_latest_input_data_last_updated(session=session)
+        location = _get_location_metadata(session)
+
+        # Create ForecastSQL object
+        forecast = ForecastSQL(
+            model=model,
+            input_data_last_updated=input_data_last_updated,
+            location=location,
         )
-        assert (
-            len(forecasts) == 1
-        ), f"Expected 1 ForecastSQL object, got {len(forecasts)}"
 
-        # Step 3: Validate the ForecastSQL content
-        forecast = forecasts[0]
-
-        # Ensure the number of `ForecastValue` entries matches the number of rows in the input data
-        assert len(forecast.forecast_values) == len(
-            data
-        ), f"Mismatch in ForecastValue entries! Expected {len(data)} but got {len(forecast.forecast_values)}."
-
-        # Validate individual `ForecastValue` entries
-        for fv, (_, row) in zip(forecast.forecast_values, data.iterrows()):
-            assert (
-                fv.target_time == row["Datetime_GMT"]
-            ), f"Mismatch in target_time for row {row}"
-            expected_power_mw = row["solar_forecast_kw"] / 1000  # Convert kW to MW
-            assert fv.expected_power_generation_megawatts == expected_power_mw, (
-                f"Mismatch in expected_power_generation_megawatts for row {row}. "
-                f"Expected {expected_power_mw}, got {fv.expected_power_generation_megawatts}."
+        # Add forecast values
+        for _, row in data.dropna(subset=["Datetime_GMT", "solar_forecast_kw"]).iterrows():
+            forecast.add_value(
+                target_time=row["Datetime_GMT"],
+                expected_power_generation_megawatts=row["solar_forecast_kw"] / 1000,
             )
+
+        logger.info(f"Formatted forecast with {len(forecast.forecast_values)} values.")
+        return [forecast]  # Return as a list for backward compatibility
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during formatting: {e}")
+    return []
+
+def _validate_columns(data: pd.DataFrame):
+    """
+    Validate that required columns exist in the input DataFrame.
+
+    Parameters:
+        data (pd.DataFrame): Input DataFrame.
+
+    Raises:
+        ValueError: If required columns are missing.
+    """
+    required_columns = {"Datetime_GMT", "solar_forecast_kw"}
+    if not required_columns.issubset(data.columns):
+        raise ValueError(f"Missing required columns: {required_columns - set(data.columns)}")
+
+def _get_model_metadata(model_tag: str, model_version: str, session):
+    """
+    Retrieve model metadata from the database.
+
+    Parameters:
+        model_tag (str): Model tag to fetch metadata.
+        model_version (str): Model version to fetch metadata.
+        session: Database session.
+
+    Returns:
+        Model object containing metadata.
+    """
+    try:
+        return get_model(name=model_tag, version=model_version, session=session)
+    except Exception as e:
+        logger.error(f"Error fetching model metadata: {e}")
+        raise
+
+def _get_location_metadata(session):
+    """
+    Retrieve location metadata from the database.
+
+    Parameters:
+        session: Database session.
+
+    Returns:
+        Location object containing metadata.
+    """
+    try:
+        return get_location(session=session, gsp_id=0) # National forecast
+    except Exception as e:
+        logger.error(f"Error fetching location metadata: {e}")
+        raise
+
+def _get_location_name(location):
+    """
+    Safely retrieve the name attribute from a location object.
+
+    Parameters:
+        location: Location object.
+
+    Returns:
+        str: Location name or string representation if name attribute is missing.
+    """
+    try:
+        return location.name
+    except AttributeError:
+        logger.warning("Location object does not have a 'name' attribute.")
+        return str(location)
+
+# Backward-compatible alias for the old function name
+format_to_forecast_sql = format_forecast

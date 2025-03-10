@@ -1,5 +1,6 @@
 """
 Script to fetch NESO Solar Forecast Data
+
 This script provides functions to fetch solar forecast data from the NESO API.
 """
 
@@ -24,47 +25,34 @@ def fetch_data(forecast_type: str = "embedded-wind-and-solar-forecasts") -> pd.D
 
     Returns:
         pd.DataFrame: A DataFrame containing:
-                      - `Datetime_GMT`: Combined date and time in UTC.
-                      - `solar_forecast_kw`: Estimated solar forecast in kW.
+        - `Datetime_GMT`: Combined date and time in UTC.
+        - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
     try:
+        # Fetch metadata to get the latest dataset URL
         meta_url = f"{BASE_API_URL}datapackage_show?id={forecast_type}"
         logger.info(f"Fetching metadata from {meta_url}...")
-        
         response = urllib.request.urlopen(meta_url)
-        data = json.loads(response.read().decode("utf-8"))
+        metadata = json.loads(response.read().decode("utf-8"))
 
-        # We take the latest path, which is the most recent forecast file
-        url = data["result"]["resources"][0]["path"]
+        # Extract the latest forecast file URL
+        url = metadata["result"]["resources"][0]["path"]
         logger.info(f"Fetching forecast data from {url}...")
 
+        # Load data into a Pandas DataFrame
         df = pd.read_csv(url)
 
-        # Parse and combine DATE_GMT and TIME_GMT into a single timestamp
-        df["Datetime_GMT"] = pd.to_datetime(
-            df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
-            format="%Y-%m-%d %H:%M",
-            errors="coerce",
-        ).dt.tz_localize("UTC")
-
-        # Convert solar forecast to kW
-        df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
-
-        # Select only the required columns and drop rows with missing values
-        df = df[["Datetime_GMT", "solar_forecast_kw"]].dropna()
-
+        # Process and clean the data
+        df = _process_forecast_data(df)
         logger.info(f"Successfully fetched {len(df)} forecast records.")
         return df
-
     except urllib.error.URLError as e:
         logger.error(f"Network error while fetching data: {e}")
-    except KeyError:
-        logger.error("Unexpected API response format. Check NESO API structure.")
+    except KeyError as e:
+        logger.error(f"Unexpected API response format or missing key: {e}")
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
-
+        logger.error(f"An unexpected error occurred: {e}")
     return pd.DataFrame()
-
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
     """
@@ -75,39 +63,60 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: A DataFrame containing:
-                      - `Datetime_GMT`: Combined date and time in UTC.
-                      - `solar_forecast_kw`: Estimated solar forecast in kW.
+        - `Datetime_GMT`: Combined date and time in UTC.
+        - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
     try:
+        # Encode and construct SQL query URL
         encoded_query = urllib.parse.quote(sql_query)
         url = f"{BASE_API_URL}datastore_search_sql?sql={encoded_query}"
         logger.info(f"Fetching data using SQL query from {url}...")
-
         response = urllib.request.urlopen(url)
         data = json.loads(response.read().decode("utf-8"))
-        records = data["result"]["records"]
 
+        # Convert records into a DataFrame
+        records = data["result"]["records"]
         df = pd.DataFrame(records)
 
-        # Convert and clean timestamp fields
+        # Process and clean the data
+        df = _process_forecast_data(df)
+        logger.info(f"Successfully fetched {len(df)} forecast records.")
+        return df
+    except urllib.error.URLError as e:
+        logger.error(f"Network error while fetching SQL data: {e}")
+    except KeyError as e:
+        logger.error(f"Unexpected API response format or missing key: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+    return pd.DataFrame()
+
+def _process_forecast_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Process raw forecast data by cleaning and formatting it.
+
+    Parameters:
+        df (pd.DataFrame): Raw DataFrame containing forecast data.
+
+    Returns:
+        pd.DataFrame: Processed DataFrame with cleaned columns.
+    """
+    try:
+        # Parse and combine DATE_GMT and TIME_GMT into a single timestamp column
         df["Datetime_GMT"] = pd.to_datetime(
             df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
             format="%Y-%m-%d %H:%M",
-            errors="coerce",
+            errors="coerce"
         ).dt.tz_localize("UTC")
 
-        # Rename forecast column and clean data
-        df = df.rename(columns={"EMBEDDED_SOLAR_FORECAST": "solar_forecast_kw"})
-        df = df[["Datetime_GMT", "solar_forecast_kw"]].dropna()
+        # Convert solar forecast values to kW
+        if "EMBEDDED_SOLAR_FORECAST" in df.columns:
+            df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
+            # Select required columns and drop rows with missing values
+            df = df[["Datetime_GMT", "solar_forecast_kw"]].dropna()
+        else:
+            raise KeyError("Column 'EMBEDDED_SOLAR_FORECAST' not found in dataset.")
 
-        logger.info(f"Successfully fetched {len(df)} forecast records.")
         return df
-
-    except urllib.error.URLError as e:
-        logger.error(f"Network error while fetching SQL data: {e}")
-    except KeyError:
-        logger.error("Unexpected API response format. Check NESO API structure.")
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
-
-    return pd.DataFrame()
+        logger.error(f"An error occurred while processing forecast data: {e}")
+        return pd.DataFrame()
