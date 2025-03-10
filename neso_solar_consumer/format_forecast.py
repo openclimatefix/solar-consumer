@@ -3,12 +3,13 @@ import pandas as pd
 from datetime import datetime, timezone
 from nowcasting_datamodel.read.read import get_latest_input_data_last_updated, get_location
 from nowcasting_datamodel.read.read_models import get_model
+from nowcasting_datamodel.models import ForecastSQL
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-def format_for_database(data: pd.DataFrame, model_tag: str, model_version: str, session) -> pd.DataFrame:
+def format_for_database(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:
     """
     Format solar forecast data specifically for database storage.
     
@@ -19,16 +20,16 @@ def format_for_database(data: pd.DataFrame, model_tag: str, model_version: str, 
         session: Database session.
         
     Returns:
-        pd.DataFrame: Formatted DataFrame ready for database storage.
+        list: List of ForecastSQL objects ready for database storage.
     """
     logger.info("Formatting forecast data for database storage...")
     
     # Use existing format_forecast function
     return format_forecast(data, model_tag, model_version, session)
 
-def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, session) -> pd.DataFrame:
+def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:
     """
-    Format solar forecast data into a standardized Pandas DataFrame.
+    Format solar forecast data into a list of ForecastSQL objects.
 
     Parameters:
         data (pd.DataFrame): DataFrame containing `Datetime_GMT` (UTC) and `solar_forecast_kw`.
@@ -37,7 +38,7 @@ def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, sess
         session: Database session.
 
     Returns:
-        pd.DataFrame: Formatted DataFrame with additional metadata.
+        list: List of ForecastSQL objects.
     """
     logger.info("Starting forecast formatting process...")
     try:
@@ -49,29 +50,27 @@ def format_forecast(data: pd.DataFrame, model_tag: str, model_version: str, sess
         input_data_last_updated = get_latest_input_data_last_updated(session=session)
         location = _get_location_metadata(session)
 
-        # Drop rows with missing values
-        data = data.dropna(subset=["Datetime_GMT", "solar_forecast_kw"])
+        # Create ForecastSQL object
+        forecast = ForecastSQL(
+            model=model,
+            input_data_last_updated=input_data_last_updated,
+            location=location,
+        )
 
-        # Ensure Datetime_GMT is in datetime format
-        data["Datetime_GMT"] = pd.to_datetime(data["Datetime_GMT"], utc=True)
+        # Add forecast values
+        for _, row in data.dropna(subset=["Datetime_GMT", "solar_forecast_kw"]).iterrows():
+            forecast.add_value(
+                target_time=row["Datetime_GMT"],
+                expected_power_generation_megawatts=row["solar_forecast_kw"] / 1000,
+            )
 
-        # Convert power to MW and add as a new column
-        data["solar_forecast_mw"] = data["solar_forecast_kw"] / 1000
-        data.drop(columns=["solar_forecast_kw"], inplace=True)
-
-        # Add metadata columns
-        data["model_name"] = model.name
-        data["model_version"] = model.version
-        data["forecast_creation_time"] = datetime.now(tz=timezone.utc)
-        data["location"] = _get_location_name(location)
-
-        logger.info(f"Formatted forecast data with {len(data)} entries.")
-        return data
+        logger.info(f"Formatted forecast with {len(forecast.forecast_values)} values.")
+        return [forecast]  # Return as a list for backward compatibility
     except ValueError as e:
         logger.error(f"Validation error: {e}")
     except Exception as e:
         logger.error(f"An unexpected error occurred during formatting: {e}")
-    return pd.DataFrame()
+    return []
 
 def _validate_columns(data: pd.DataFrame):
     """
