@@ -9,47 +9,24 @@ import urllib.request
 import urllib.parse
 import json
 import pandas as pd
+from neso_solar_consumer.data.fetch_gb_data import fetch_gb_data
 
 
-def fetch_data() -> pd.DataFrame:
-    """
-    Fetch data from the NESO API and process it into a Pandas DataFrame.
+def fetch_data(country: str = "gb") -> pd.DataFrame:
 
-    Returns:
-        pd.DataFrame: A DataFrame containing two columns:
-                      - `Datetime_GMT`: Combined date and time in UTC.
-                      - `solar_forecast_kw`: Estimated solar forecast in kW.
-    """
+    if country == "gb":
+        try:
+            df = fetch_gb_data()
 
-    try:
-        meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
-        response = urllib.request.urlopen(meta_url)
-        data = json.loads(response.read().decode("utf-8"))
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return pd.DataFrame()
 
-        # we take the latest path, which is the most recent forecast
-        url = data["result"]["resources"][0]["path"]
+    else:
+        error = "Only UK and Netherlands data can be fetched at the moment"
+        print(error)
 
-        df = pd.read_csv(url)
-
-        # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
-        df["Datetime_GMT"] = pd.to_datetime(
-            df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
-            format="%Y-%m-%d %H:%M",
-            errors="coerce",
-        ).dt.tz_localize("UTC")
-
-        # Rename and select necessary columns
-        df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
-        df = df[["Datetime_GMT", "solar_forecast_kw"]]
-
-        # Drop rows with invalid Datetime_GMT
-        df = df.dropna(subset=["Datetime_GMT"])
-
-        return df
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return pd.DataFrame()
+    return df
 
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
