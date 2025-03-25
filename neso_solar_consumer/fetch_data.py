@@ -12,17 +12,16 @@ import pandas as pd
 from neso_solar_consumer.data.fetch_gp_data import gb_data
 
 
+def fetch_data(country: str = "gb") -> pd.DataFrame:
 
-def fetch_data(country:str = 'gb') -> pd.DataFrame:
-
-    if country == 'gb':
+    if country == "gb":
         try:
             df = gb_data()
 
         except Exception as e:
             print(f"An error occurred: {e}")
             return pd.DataFrame()
-    
+
     else:
         error = "Only UK and Netherlands data can be fetched at the moment"
         print(error)

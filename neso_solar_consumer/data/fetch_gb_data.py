@@ -3,6 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 
+
 def gb_data():
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
@@ -12,7 +13,7 @@ def gb_data():
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-        
+
     meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
     response = urllib.request.urlopen(meta_url)
     data = json.loads(response.read().decode("utf-8"))
