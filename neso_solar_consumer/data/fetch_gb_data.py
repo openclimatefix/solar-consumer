@@ -4,7 +4,7 @@ import urllib.parse
 import json
 
 
-def gb_data():
+def fetch_gb_data():
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
 

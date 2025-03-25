@@ -9,14 +9,14 @@ import urllib.request
 import urllib.parse
 import json
 import pandas as pd
-from neso_solar_consumer.data.fetch_gb_data import gb_data
+from neso_solar_consumer.data.fetch_gb_data import fetch_gb_data
 
 
 def fetch_data(country: str = "gb") -> pd.DataFrame:
 
     if country == "gb":
         try:
-            df = gb_data()
+            df = fetch_gb_data()
 
         except Exception as e:
             print(f"An error occurred: {e}")
