@@ -22,18 +22,12 @@ def fetch_data(country:str = 'gb') -> pd.DataFrame:
         except Exception as e:
             print(f"An error occurred: {e}")
             return pd.DataFrame()
-        
-    elif country == 'nl':
-        try:
-            df = nl_data()
-
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return pd.DataFrame()
     
     else:
         error = "Only UK and Netherlands data can be fetched at the moment"
         print(error)
+
+    return df
 
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
