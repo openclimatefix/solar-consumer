@@ -9,7 +9,8 @@ dependencies = [
     "pandas",
     "sqlalchemy",
     "nowcasting_datamodel==1.5.56",
-    "testcontainers"
+    "testcontainers",
+    "tqdm"
 ]
 
 [project.optional-dependencies]
