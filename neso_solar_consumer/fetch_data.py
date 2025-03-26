@@ -10,21 +10,25 @@ import urllib.parse
 import json
 import pandas as pd
 from neso_solar_consumer.data.fetch_gb_data import fetch_gb_data
+from neso_solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 
 def fetch_data(country: str = "gb") -> pd.DataFrame:
 
-    if country == "gb":
-        try:
+    try:
+        if country == "gb":
             df = fetch_gb_data()
 
-        except Exception as e:
-            print(f"An error occurred: {e}")
-            return pd.DataFrame()
+        elif country == "nl":
+            df = fetch_nl_data()
 
-    else:
-        error = "Only UK and Netherlands data can be fetched at the moment"
-        print(error)
+        else:
+            error = "Only UK and Netherlands data can be fetched at the moment"
+            print(error)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return pd.DataFrame()
 
     return df
 
