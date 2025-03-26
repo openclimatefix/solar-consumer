@@ -14,23 +14,18 @@ from neso_solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 
 def fetch_data(country: str = "gb") -> pd.DataFrame:
+    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
 
-    try:
-        if country == "gb":
-            df = fetch_gb_data()
+    if country in country_data_functions:
+        try:
+            return country_data_functions[country]()
+        except Exception as e:
+            print(f"An error occurred while fetching data for {country}: {e}")
 
-        elif country == "nl":
-            df = fetch_nl_data()
+    else:
+        print("Only UK and Netherlands data can be fetched at the moment")
 
-        else:
-            error = "Only UK and Netherlands data can be fetched at the moment"
-            print(error)
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return pd.DataFrame()
-
-    return df
+    return pd.DataFrame()  # Always return a DataFrame (never None)
 
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
