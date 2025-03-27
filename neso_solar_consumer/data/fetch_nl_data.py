@@ -5,6 +5,7 @@ import pandas as pd
 import time
 import dotenv
 import logging
+from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(
@@ -80,7 +81,7 @@ def fetch_nl_data():
     total_days = (end_date - start_date).days
 
     # Create progress bar
-    for _ in range(total_days):
+    for _ in tqdm(range(total_days), desc="Processing dates"):
         # Calculate next day
         next_date = current_date + timedelta(days=2)
 
