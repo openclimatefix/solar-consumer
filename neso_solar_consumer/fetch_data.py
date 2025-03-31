@@ -8,13 +8,18 @@ import urllib.request
 import urllib.parse
 import json
 import pandas as pd
+
 import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+from neso_solar_consumer.data.fetch_gb_data import fetch_gb_data
+
+
 BASE_API_URL = "https://api.neso.energy/api/3/action/"
+
 
 def fetch_data(forecast_type: str = "embedded-wind-and-solar-forecasts") -> pd.DataFrame:
     """
@@ -53,6 +58,24 @@ def fetch_data(forecast_type: str = "embedded-wind-and-solar-forecasts") -> pd.D
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
     return pd.DataFrame()
+
+def fetch_data(country: str = "gb") -> pd.DataFrame:
+
+    if country == "gb":
+        try:
+            df = fetch_gb_data()
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return pd.DataFrame()
+
+    else:
+        error = "Only UK and Netherlands data can be fetched at the moment"
+        print(error)
+
+    return df
+
+
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
     """
