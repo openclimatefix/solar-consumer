@@ -21,7 +21,7 @@ def save_forecasts(
     Save forecasts either to the database or as a CSV file.
 
     Parameters:
-        forecasts (any): Forecast data to be saved. Can be a list of ForecastSQL objects or a DataFrame.
+        forecasts (list[ForecastSQL] | pd.DataFrame): Forecast data to be saved; can be a list of ForecastSQL objects or a DataFrame.
         session (Session): SQLAlchemy session for database access.
         save_method (str): "db" to save in database, "csv" to save as CSV.
         csv_dir (str, optional): Directory to save CSV files if `save_method` is "csv".
