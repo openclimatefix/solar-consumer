@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def save_forecasts(
-    forecasts: any, session: Session, save_method: str = "db", csv_dir: str = None
+    forecasts: list | pd.DataFrame,
+    session: Session,
+    save_method: str = "db",
+    csv_dir: str = None,
 ):
     """
     Save forecasts either to the database or as a CSV file.
