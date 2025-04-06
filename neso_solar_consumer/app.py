@@ -23,12 +23,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def app(db_url: str):
+def app(db_url: str, save_method: str, csv_dir: str = None):
     """
     Main application function to fetch, format, and save solar forecast data.
 
     Parameters:
         db_url (str): Database connection URL from an environment variable.
+        save_method (str): Method to save the forecast data. Options are "db" or "csv".
+        csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
@@ -40,7 +42,7 @@ def app(db_url: str):
 
     try:
         with connection.get_session() as session:
-            # Step 1: Fetch forecast data
+            # Step 1: Fetch forecast data (returns as pd.Dataframe)
             logger.info("Fetching forecast data.")
             forecast_data = fetch_data()
 
@@ -48,24 +50,40 @@ def app(db_url: str):
                 logger.warning("No data fetched. Exiting the pipeline.")
                 return
 
-            # Step 2: Format forecast data
-            logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
-            forecasts = format_to_forecast_sql(
-                data=forecast_data,
-                model_tag=model_tag,
-                model_version=__version__,  # Use the version from __init__.py
-                session=session,
-            )
+            # Step 2: Formate and save the forecast data
+            # A. Format forecast to database object and save
+            if save_method == "db":
+                logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
+                forecasts = format_to_forecast_sql(
+                    data=forecast_data,
+                    model_tag=model_tag,
+                    model_version=__version__,  # Use the version from __init__.py
+                    session=session,
+                )
 
-            if not forecasts:
-                logger.warning("No forecasts generated. Exiting the pipeline.")
+                if not forecasts:
+                    logger.warning("No forecasts generated. Exiting the pipeline.")
+                    return
+
+                logger.info(f"Generated {len(forecasts)} ForecastSQL objects.")
+
+                # Saving formatted forecasts to the database
+                logger.info("Saving forecasts to the database.")
+                save_forecasts(forecasts, session, save_method="db")
+
+            # B. Save directly to CSV
+            elif save_method == "csv":
+                logger.info(
+                    f"Saving {len(forecast_data)} rows of forecast data directly to CSV."
+                )
+                save_forecasts(
+                    forecast_data, session, save_method="csv", csv_dir=csv_dir
+                )
+
+            # C. TODO: Potential new save methods
+            else:
+                logger.error(f"Unsupported save method: {save_method}. Exiting.")
                 return
-
-            logger.info(f"Generated {len(forecasts)} ForecastSQL objects.")
-
-            # Step 3: Save forecasts to the database
-            logger.info("Saving forecasts to the database.")
-            save_forecasts(forecasts, session)
 
             logger.info("Forecast pipeline completed successfully.")
     except Exception as e:
@@ -79,10 +97,11 @@ if __name__ == "__main__":
 
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
-    
-    
+
     if save_method == "csv" and not csv_dir:
-        logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
+        logger.error(
+            "CSV_DIR environment variable is required for CSV saving. Exiting."
+        )
         exit(1)
 
     if not db_url:
