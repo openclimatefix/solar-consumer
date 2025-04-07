@@ -1,6 +1,6 @@
 # NESO Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-10-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-11-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
@@ -145,6 +145,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/pjireland"><img src="https://avatars.githubusercontent.com/u/16693035?v=4?s=100" width="100px;" alt="Peter Ireland"/><br /><sub><b>Peter Ireland</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=pjireland" title="Documentation">📖</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/vashisthrahul13"><img src="https://avatars.githubusercontent.com/u/182660137?v=4?s=100" width="100px;" alt="vashisthrahul13"/><br /><sub><b>vashisthrahul13</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=vashisthrahul13" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/rahul-ahuja"><img src="https://avatars.githubusercontent.com/u/21355015?v=4?s=100" width="100px;" alt="rahul-ahuja"/><br /><sub><b>rahul-ahuja</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=rahul-ahuja" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://rahul-joon.github.io/My-Website/"><img src="https://avatars.githubusercontent.com/u/61495262?v=4?s=100" width="100px;" alt="Rahul Joon"/><br /><sub><b>Rahul Joon</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Rahul-JOON" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
