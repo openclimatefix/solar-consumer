@@ -16,6 +16,8 @@ To view detailed logs during execution, use:
 """
 
 import pytest
+import os
+import pandas as pd
 from nowcasting_datamodel.models import ForecastSQL
 from neso_solar_consumer.fetch_data import fetch_data
 from neso_solar_consumer.format_forecast import format_to_forecast_sql
@@ -51,16 +53,31 @@ def test_real_forecasts(db_session, test_config):
         f"but got {len(forecast.forecast_values)}."
     )
 
-    # Step 3: Save formatted forecasts to the database
-    save_forecasts(forecasts=forecasts, session=db_session)
+    # Step 3A: Save formatted forecasts to the database
+    save_forecasts(forecasts=forecasts, session=db_session, save_method="db")
 
-    # Step 4: Validate that the forecasts were saved correctly
+    # Step 3B: Directly save to CSV
+    csv_dir = test_config["csv_dir"]
+    save_forecasts(
+        forecasts=df,
+        session=db_session,
+        save_method="csv",
+        csv_dir=csv_dir,
+    )
+
+    # Step 4A: Validate that the forecasts were saved correctly in the database
     saved_forecast = db_session.query(ForecastSQL).first()
     assert saved_forecast is not None, "No forecast was saved to the database!"
     assert (
         saved_forecast.model.name == test_config["model_name"]
     ), "Model name mismatch!"
     assert len(saved_forecast.forecast_values) > 0, "No forecast values were saved!"
+
+    # Step 4B: Validate that the CSV file were saved correctly
+    csv_path = f"{csv_dir}/forecast_data.csv"
+    assert os.path.exists(csv_path), "CSV file was not created!"
+    csv_data = pd.read_csv(csv_path)
+    assert not csv_data.empty, "CSV file is empty!"
 
     # Additional assertions for saved data consistency
     saved_values = saved_forecast.forecast_values
@@ -71,5 +88,17 @@ def test_real_forecasts(db_session, test_config):
         assert saved_value.expected_power_generation_megawatts == pytest.approx(
             original_row.solar_forecast_kw / 1000
         ), "Mismatch in expected power generation!"
+    # CSV data validation
+    for original_row, csv_row in zip(df.itertuples(), csv_data.itertuples()):
+        assert (
+            pd.Timestamp(csv_row.Datetime_GMT) == original_row.Datetime_GMT
+        ), "Mismatch in Datetime_GMT!"
+        assert (
+            csv_row.solar_forecast_kw == original_row.solar_forecast_kw
+        ), "Mismatch in solar_forecast_kw!"
+
+    # Cleanup: Remove the CSV file after the test
+    os.remove(csv_path)
+    os.rmdir(csv_dir)
 
     print("\nIntegration test completed successfully.")
