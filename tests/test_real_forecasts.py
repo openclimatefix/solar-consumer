@@ -21,7 +21,10 @@ import pandas as pd
 from nowcasting_datamodel.models import ForecastSQL
 from neso_solar_consumer.fetch_data import fetch_data
 from neso_solar_consumer.format_forecast import format_to_forecast_sql
-from neso_solar_consumer.save_forecast import save_forecasts
+from neso_solar_consumer.save_forecast import (
+    save_forecasts_to_csv,
+    save_forecasts_to_db,
+)
 
 
 @pytest.mark.integration
@@ -54,14 +57,12 @@ def test_real_forecasts(db_session, test_config):
     )
 
     # Step 3A: Save formatted forecasts to the database
-    save_forecasts(forecasts=forecasts, session=db_session, save_method="db")
+    save_forecasts_to_db(forecasts=forecasts, session=db_session)
 
     # Step 3B: Directly save to CSV
     csv_dir = test_config["csv_dir"]
-    save_forecasts(
+    save_forecasts_to_csv(
         forecasts=df,
-        session=db_session,
-        save_method="csv",
         csv_dir=csv_dir,
     )
 

@@ -11,7 +11,10 @@ import os
 import logging
 from neso_solar_consumer.fetch_data import fetch_data
 from neso_solar_consumer.format_forecast import format_to_forecast_sql
-from neso_solar_consumer.save_forecast import save_forecasts
+from neso_solar_consumer.save_forecast import (
+    save_forecasts_to_csv,
+    save_forecasts_to_db,
+)
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from neso_solar_consumer import __version__  # Import version from __init__.py
@@ -69,16 +72,14 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
 
                 # Saving formatted forecasts to the database
                 logger.info("Saving forecasts to the database.")
-                save_forecasts(forecasts, session, save_method="db")
+                save_forecasts_to_db(forecasts, session)
 
             # B. Save directly to CSV
             elif save_method == "csv":
                 logger.info(
                     f"Saving {len(forecast_data)} rows of forecast data directly to CSV."
                 )
-                save_forecasts(
-                    forecast_data, session, save_method="csv", csv_dir=csv_dir
-                )
+                save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
 
             # C. TODO: Potential new save methods
             else:
