@@ -76,4 +76,5 @@ def test_config():
         "limit": LIMIT,
         "model_name": MODEL_NAME,
         "model_version": MODEL_VERSION,
+        "csv_dir": "test_csv",  # Directory for CSV saving
     }
