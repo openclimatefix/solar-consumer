@@ -22,7 +22,6 @@ from unittest.mock import patch, Mock
 import json
 import pandas as pd
 from neso_solar_consumer.data.fetch_nl_data import fetch_nl_data
-from datetime import datetime, timedelta
 
 # TODO update
 #
@@ -171,9 +170,10 @@ def test_fetch_data_using_sql_mock_failure(test_config):
         print("Mocked DataFrame from fetch_data_using_sql (failure):")
         print(df)
 
+
 @patch("neso_solar_consumer.data.fetch_nl_data.requests.Session.get")
 def test_fetch_nl_data(mock_api, nl_mock_data):
-    
+
     # Configure the mock to return a response with the mock data
     mock_response = Mock()
     mock_response.status_code = 200
