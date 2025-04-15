@@ -25,7 +25,6 @@ def fetch_data(country: str = "gb") -> pd.DataFrame:
 
     country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
 
-
     if country in country_data_functions:
         try:
             data = country_data_functions[country]()
@@ -36,7 +35,7 @@ def fetch_data(country: str = "gb") -> pd.DataFrame:
             return data
 
         except Exception as e:
-            print(f"An error occurred while fetching data for {country}: {e}")
+            raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
         print("Only UK and Netherlands data can be fetched at the moment")

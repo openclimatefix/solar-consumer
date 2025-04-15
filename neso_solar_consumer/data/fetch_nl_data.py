@@ -1,6 +1,6 @@
 import os
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import time
 import dotenv
@@ -68,12 +68,14 @@ def fetch_nl_data():
         csv_dir (str, optional): Directory to save CSV files
     """
 
+    logger.info("Fetching data from the Ned NL API")
+
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
 
     # Define date range
 
-    end_date = datetime.now()
+    end_date = datetime.now(tz=timezone.utc)  # Use UTC timezone
     start_date = end_date - timedelta(days=2)
     current_date = start_date
 
@@ -155,12 +157,15 @@ def fetch_nl_data():
     all_data.head()
 
     # rename columns to match the schema
-    all_data["solar_forecast_kw"] = all_data["volume (kWh)"] / 2
+    all_data["solar_generation_kw"] = all_data["volume (kWh)"] / 2
     all_data.rename(
         columns={
             "validfrom (UTC)": "target_datetime_utc",
         },
         inplace=True,
     )
+
+    # remove any future data
+    all_data = all_data[all_data["target_datetime_utc"] <= end_date]
 
     return all_data

@@ -14,6 +14,7 @@ from neso_solar_consumer.format_forecast import format_to_forecast_sql
 from neso_solar_consumer.save_forecast import (
     save_forecasts_to_csv,
     save_forecasts_to_db,
+    save_generation_to_site_db,
 )
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
@@ -47,8 +48,8 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country:str='uk'):
     try:
         with connection.get_session() as session:
             # Step 1: Fetch forecast data (returns as pd.Dataframe)
-            logger.info("Fetching forecast data.")
-            forecast_data = fetch_data()
+            logger.info(f"Fetching forecast data for {country}.")
+            forecast_data = fetch_data(country=country)
 
             if forecast_data.empty:
                 logger.warning("No data fetched. Exiting the pipeline.")
@@ -85,8 +86,13 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country:str='uk'):
             # C. TODO: Potential new save methods
             elif save_method == "site-db":
                 logger.info("Saving forecasts to the site database.")
-                #
-                pass
+
+                save_generation_to_site_db(
+                    session=session,
+                    generation_data=forecast_data,
+                    country=country,
+                )
+
             else:
                 logger.error(f"Unsupported save method: {save_method}. Exiting.")
                 return
@@ -110,8 +116,7 @@ if __name__ == "__main__":
             "CSV_DIR environment variable is required for CSV saving. Exiting."
         )
         exit(1)
-
-    if not db_url:
+    if (save_method in ['db','site-db']) and (db_url is None):
         logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 
