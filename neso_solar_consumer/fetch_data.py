@@ -13,6 +13,14 @@ from neso_solar_consumer.data.fetch_gb_data import fetch_gb_data
 
 
 def fetch_data(country: str = "gb") -> pd.DataFrame:
+    """
+    Get data from different countries
+
+    :param country: "gb", or "nl"
+    :return: Pandas dataframe with the following columns:
+        target_datetime_utc: Combined date and time in UTC.
+        solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
+    """
 
     if country == "gb":
         try:
@@ -26,6 +34,10 @@ def fetch_data(country: str = "gb") -> pd.DataFrame:
         error = "Only UK and Netherlands data can be fetched at the moment"
         print(error)
 
+    # Check Dataframe has correct columns
+    assert "target_datetime_utc" in df.columns
+    assert "solar_generation_kw" in df.columns
+
     return df
 
 
@@ -38,8 +50,8 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: A DataFrame containing two columns:
-                      - `Datetime_GMT`: Combined date and time in UTC.
-                      - `solar_forecast_kw`: Estimated solar forecast in kW.
+                      - `target_datetime_utc`: Combined date and time in UTC.
+                      - `solar_generation_kw`: Estimated solar forecast in kW.
     """
     base_url = "https://api.neso.energy/api/3/action/datastore_search_sql"
     encoded_query = urllib.parse.quote(sql_query)
@@ -66,6 +78,15 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
 
         # Drop rows with invalid Datetime_GMT
         df = df.dropna(subset=["Datetime_GMT"])
+
+        # rename columns to match the schema
+        df.rename(
+            columns={
+                "solar_forecast_kw": "solar_generation_kw",
+                "Datetime_GMT": "target_datetime_utc",
+            },
+            inplace=True,
+        )
 
         return df
 

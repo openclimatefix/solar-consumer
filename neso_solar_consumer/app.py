@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def app(db_url: str, save_method: str, csv_dir: str = None):
+def app(db_url: str, save_method: str, csv_dir: str = None, forecast_or_generation: str = "forecast"):
     """
     Main application function to fetch, format, and save solar forecast data.
 
@@ -34,6 +34,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
         db_url (str): Database connection URL from an environment variable.
         save_method (str): Method to save the forecast data. Options are "db" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
+        forecast_or_generation: (str): Type of data to fetch. Options are "forecast" or "generation".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
@@ -82,6 +83,10 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
                 save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
 
             # C. TODO: Potential new save methods
+            elif save_method == "site-db":
+                logger.info("Saving forecasts to the site database.")
+                #
+                pass
             else:
                 logger.error(f"Unsupported save method: {save_method}. Exiting.")
                 return
@@ -95,6 +100,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
+    forecast_or_generation = os.getenv("FORECAST_OR_GENERATION", "forecast")
 
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
@@ -110,4 +116,4 @@ if __name__ == "__main__":
         exit(1)
 
     # Step 2: Run the application
-    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir)
+    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir, forecast_or_generation=forecast_or_generation)

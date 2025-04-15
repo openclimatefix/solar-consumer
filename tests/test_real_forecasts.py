@@ -38,8 +38,8 @@ def test_real_forecasts(db_session, test_config):
 
     assert not df.empty, "fetch_data returned an empty DataFrame!"
     assert set(df.columns) == {
-        "Datetime_GMT",
-        "solar_forecast_kw",
+        "target_datetime_utc",
+        "solar_generation_kw",
     }, "Unexpected DataFrame columns!"
 
     # Step 2: Format the fetched data into ForecastSQL objects
@@ -84,19 +84,19 @@ def test_real_forecasts(db_session, test_config):
     saved_values = saved_forecast.forecast_values
     for original_row, saved_value in zip(df.itertuples(), saved_values):
         assert (
-            saved_value.target_time == original_row.Datetime_GMT
+            saved_value.target_time == original_row.target_datetime_utc
         ), "Mismatch in target_time!"
         assert saved_value.expected_power_generation_megawatts == pytest.approx(
-            original_row.solar_forecast_kw / 1000
+            original_row.solar_generation_kw / 1000
         ), "Mismatch in expected power generation!"
     # CSV data validation
     for original_row, csv_row in zip(df.itertuples(), csv_data.itertuples()):
         assert (
-            pd.Timestamp(csv_row.Datetime_GMT) == original_row.Datetime_GMT
+            pd.Timestamp(csv_row.target_datetime_utc) == original_row.target_datetime_utc
         ), "Mismatch in Datetime_GMT!"
         assert (
-            csv_row.solar_forecast_kw == original_row.solar_forecast_kw
-        ), "Mismatch in solar_forecast_kw!"
+            csv_row.solar_generation_kw == original_row.solar_generation_kw
+        ), "Mismatch in solar_generation_kw!"
 
     # Cleanup: Remove the CSV file after the test
     os.remove(csv_path)

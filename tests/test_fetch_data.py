@@ -142,8 +142,8 @@ def test_fetch_data_using_sql_mock_success(test_config):
         # Assertions
         assert not df.empty, "Expected non-empty DataFrame for successful SQL query!"
         assert list(df.columns) == [
-            "Datetime_GMT",
-            "solar_forecast_kw",
+            "target_datetime_utc",
+            "solar_generation_kw",
         ], "Unexpected DataFrame columns!"
         assert (
             len(df) == test_config["limit"]

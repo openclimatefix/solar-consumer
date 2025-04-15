@@ -37,4 +37,13 @@ def fetch_gb_data():
     # Drop rows with invalid Datetime_GMT
     df = df.dropna(subset=["Datetime_GMT"])
 
+    # rename columns to match the schema
+    df.rename(
+        columns={
+            "solar_forecast_kw": "solar_generation_kw",
+            "Datetime_GMT": "target_datetime_utc",
+        },
+        inplace=True,
+    )
+
     return df

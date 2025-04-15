@@ -42,16 +42,16 @@ def format_to_forecast_sql(
     # Step 3: Process all rows into ForecastValue objects
     forecast_values = []
     for _, row in data.iterrows():
-        if pd.isnull(row["Datetime_GMT"]) or pd.isnull(row["solar_forecast_kw"]):
+        if pd.isnull(row["target_datetime_utc"]) or pd.isnull(row["solar_generation_kw"]):
             logger.warning(f"Skipping row due to missing data: {row}")
             continue
 
-        target_time = row["Datetime_GMT"]
+        target_time = row["target_datetime_utc"]
 
         # Create ForecastValue object
         forecast_value = ForecastValue(
             target_time=target_time,
-            expected_power_generation_megawatts=row["solar_forecast_kw"]
+            expected_power_generation_megawatts=row["solar_generation_kw"]
             / 1000,  # Convert to MW
         ).to_orm()
         forecast_values.append(forecast_value)

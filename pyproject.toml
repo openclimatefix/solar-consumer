@@ -9,6 +9,7 @@ dependencies = [
     "pandas",
     "sqlalchemy",
     "nowcasting_datamodel==1.5.56",
+    "pvsite-datamodel==1.0.55",
     "testcontainers"
 ]
 
