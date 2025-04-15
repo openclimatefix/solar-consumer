@@ -9,15 +9,11 @@ from nowcasting_datamodel.read.read import (
 from nowcasting_datamodel.read.read_models import get_model
 
 # Configure logging (set to INFO for production; use DEBUG during debugging)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def format_to_forecast_sql(
-    data: pd.DataFrame, model_tag: str, model_version: str, session
-) -> list:
+def format_to_forecast_sql(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:
     """
     Format solar forecast data into a ForecastSQL object.
 
@@ -51,8 +47,7 @@ def format_to_forecast_sql(
         # Create ForecastValue object
         forecast_value = ForecastValue(
             target_time=target_time,
-            expected_power_generation_megawatts=row["solar_generation_kw"]
-            / 1000,  # Convert to MW
+            expected_power_generation_megawatts=row["solar_generation_kw"] / 1000,  # Convert to MW
         ).to_orm()
         forecast_values.append(forecast_value)
 
@@ -65,9 +60,7 @@ def format_to_forecast_sql(
         forecast_values=forecast_values,
         historic=False,
     )
-    logger.info(
-        f"Created ForecastSQL object with {len(forecast_values)} forecast values."
-    )
+    logger.info(f"Created ForecastSQL object with {len(forecast_values)} forecast values.")
 
     # Return a single ForecastSQL object in a list
     return [forecast]

@@ -9,16 +9,16 @@ import os
 import pandas as pd
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
 
 
-def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, country: str = "nl"):
+def save_generation_to_site_db(
+    generation_data: pd.DataFrame, session: Session, country: str = "nl"
+):
     """Save generation data to the database.
 
     Parameters:
@@ -35,7 +35,7 @@ def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, 
         logger.warning("No generation data provided to save!")
         return
 
-    if country != 'nl':
+    if country != "nl":
         raise Exception("Only NL generation data is supported when saving (atm).")
 
     try:
@@ -46,7 +46,7 @@ def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, 
             site = get_site_by_client_site_name(
                 session=session,
                 client_site_name=nl_national.client_site_name,
-                client_name=nl_national.client_site_name, # this is not used
+                client_name=nl_national.client_site_name,  # this is not used
             )
         except Exception:
             logger.info(f"Creating site {nl_national.client_site_name} in the database.")
@@ -56,10 +56,10 @@ def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, 
                 longitude=nl_national.longitude,
                 client_site_name=nl_national.client_site_name,
                 client_site_id=1,
-                country='nl',
+                country="nl",
                 capacity_kw=20_000_000,
-                dno='',  # these are UK specific things
-                gsp='',  # these are UK specific things
+                dno="",  # these are UK specific things
+                gsp="",  # these are UK specific things
             )
 
         # add site_uuid to the generation data
@@ -84,12 +84,14 @@ def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, 
         session.commit()
 
         # update capacity
-        if generation_data['power_kw'].max() > site.capacity_kw:
+        if generation_data["power_kw"].max() > site.capacity_kw:
             old_site_capacity_kw = site.capacity_kw
-            site.capacity_kw = generation_data['power_kw'].max()
+            site.capacity_kw = generation_data["power_kw"].max()
             session.commit()
-            logger.info(f"Updated site {nl_national.client_site_name} capacity "
-                        f"from {old_site_capacity_kw} to {site.capacity_kw} kW.")
+            logger.info(
+                f"Updated site {nl_national.client_site_name} capacity "
+                f"from {old_site_capacity_kw} to {site.capacity_kw} kW."
+            )
 
         logger.info(f"Successfully saved {len(generation_data)} rows of generation data.")
     except Exception as e:

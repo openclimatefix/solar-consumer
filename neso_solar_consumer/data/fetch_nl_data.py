@@ -43,7 +43,7 @@ def fetch_with_retry(
                 return response.json()
 
             if response.status_code == 429:
-                wait_time = initial_delay * (2**attempt)  # exponential backoff
+                wait_time = initial_delay * (2 ** attempt)  # exponential backoff
                 logger.warning(f"Rate limit hit. Waiting {wait_time} seconds...")
                 time.sleep(wait_time)
                 continue

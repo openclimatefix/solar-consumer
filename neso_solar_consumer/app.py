@@ -21,13 +21,11 @@ from nowcasting_datamodel.models import Base_Forecast
 from neso_solar_consumer import __version__  # Import version from __init__.py
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def app(db_url: str, save_method: str, csv_dir: str = None, country:str='uk'):
+def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk"):
     """
     Main application function to fetch, format, and save solar forecast data.
 
@@ -78,9 +76,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country:str='uk'):
 
             # B. Save directly to CSV
             elif save_method == "csv":
-                logger.info(
-                    f"Saving {len(forecast_data)} rows of forecast data directly to CSV."
-                )
+                logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
                 save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
 
             # C. TODO: Potential new save methods
@@ -112,13 +108,11 @@ if __name__ == "__main__":
     csv_dir = os.getenv("CSV_DIR")
 
     if save_method == "csv" and not csv_dir:
-        logger.error(
-            "CSV_DIR environment variable is required for CSV saving. Exiting."
-        )
+        logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
         exit(1)
-    if (save_method in ['db','site-db']) and (db_url is None):
+    if (save_method in ["db", "site-db"]) and (db_url is None):
         logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 
     # Step 2: Run the application
-    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir,country=country)
+    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir, country=country)
