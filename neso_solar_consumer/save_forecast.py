@@ -81,6 +81,7 @@ def save_generation_to_site_db(generation_data: pd.DataFrame, session: Session, 
             session=session,
             df=generation_data,
         )
+        session.commit()
 
         # update capacity
         if generation_data['power_kw'].max() > site.capacity_kw:
