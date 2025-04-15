@@ -14,7 +14,9 @@ def fetch_gb_data():
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
 
-    meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+    meta_url = (
+        "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+    )
     response = urllib.request.urlopen(meta_url)
     data = json.loads(response.read().decode("utf-8"))
 
@@ -36,5 +38,14 @@ def fetch_gb_data():
 
     # Drop rows with invalid Datetime_GMT
     df = df.dropna(subset=["Datetime_GMT"])
+
+    # rename columns to match the schema
+    df.rename(
+        columns={
+            "solar_forecast_kw": "solar_generation_kw",
+            "Datetime_GMT": "target_datetime_utc",
+        },
+        inplace=True,
+    )
 
     return df

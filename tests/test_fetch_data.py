@@ -16,6 +16,7 @@ Run with verbose output:
 Run tests matching a specific pattern:
     pytest tests/test_fetch_data.py -k "fetch_data"
 """
+import pytest
 
 from neso_solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
 from unittest.mock import patch, Mock
@@ -87,12 +88,10 @@ def test_fetch_data_mock_failure(test_config):
     """
     with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("API failure simulated")
-        df = fetch_data()
 
-        # Assertions
-        assert df.empty, "Expected an empty DataFrame when API call fails!"
-        print("Mocked DataFrame from fetch_data (failure):")
-        print(df)
+        with pytest.raises(Exception):
+            _ = fetch_data()
+
 
 
 def test_fetch_data_using_sql_mock_success(test_config):
@@ -144,8 +143,8 @@ def test_fetch_data_using_sql_mock_success(test_config):
         # Assertions
         assert not df.empty, "Expected non-empty DataFrame for successful SQL query!"
         assert list(df.columns) == [
-            "Datetime_GMT",
-            "solar_forecast_kw",
+            "target_datetime_utc",
+            "solar_generation_kw",
         ], "Unexpected DataFrame columns!"
         assert (
             len(df) == test_config["limit"]

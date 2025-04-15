@@ -5,7 +5,8 @@
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
 
-This code can be used to download NESO solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
+This code can be used to download solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
+Forecast can be retreived from NESO, generation values can be retreived from Ned NL. 
 
 ## Requirements
 

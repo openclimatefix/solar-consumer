@@ -16,7 +16,7 @@ def test_format_to_forecast_sql_real(db_session, test_config):
     # Mock input data consistent with fetch_data tests
     mock_data = pd.DataFrame(
         {
-            "Datetime_GMT": pd.Series(
+            "target_datetime_utc": pd.Series(
                 pd.to_datetime(
                     [
                         "2025-01-14 05:30:00",
@@ -29,7 +29,7 @@ def test_format_to_forecast_sql_real(db_session, test_config):
             ).dt.tz_localize(
                 "UTC"
             ),  # Ensure UTC timezone matches `fetch_data`
-            "solar_forecast_kw": [0, 101, 200, 300, 400],
+            "solar_generation_kw": [0, 101, 200, 300, 400],
         }
     )
 
@@ -40,8 +40,8 @@ def test_format_to_forecast_sql_real(db_session, test_config):
 
         assert not data.empty, "fetch_data returned an empty DataFrame!"
         assert set(data.columns) == {
-            "Datetime_GMT",
-            "solar_forecast_kw",
+            "target_datetime_utc",
+            "solar_generation_kw",
         }, "Unexpected DataFrame columns!"
 
         # Step 2: Format the data into a ForecastSQL object
@@ -63,9 +63,9 @@ def test_format_to_forecast_sql_real(db_session, test_config):
         # Validate individual `ForecastValue` entries
         for fv, (_, row) in zip(forecast.forecast_values, data.iterrows()):
             assert (
-                fv.target_time == row["Datetime_GMT"]
+                fv.target_time == row["target_datetime_utc"]
             ), f"Mismatch in target_time for row {row}"
-            expected_power_mw = row["solar_forecast_kw"] / 1000  # Convert kW to MW
+            expected_power_mw = row["solar_generation_kw"] / 1000  # Convert kW to MW
             assert fv.expected_power_generation_megawatts == expected_power_mw, (
                 f"Mismatch in expected_power_generation_megawatts for row {row}. "
                 f"Expected {expected_power_mw}, got {fv.expected_power_generation_megawatts}."

@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from nowcasting_datamodel.models.base import Base_Forecast
 from nowcasting_datamodel.models import MLModelSQL
+from pvsite_datamodel.sqlmodels import Base
 from testcontainers.postgres import PostgresContainer
 
 # Shared Test Configuration Constants
@@ -55,6 +56,38 @@ def db_session(postgres_container) -> Generator:
     model = MLModelSQL(name=MODEL_NAME, version=MODEL_VERSION)
     session.add(model)
     session.commit()
+
+    yield session  # Provide the session to the test
+
+    # Cleanup: close session and dispose of engine
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_site_session(postgres_container) -> Generator:
+    """
+    Fixture to set up and tear down a PostgreSQL database session for testing.
+    This fixture:
+    - Connects to the PostgreSQL container provided by `postgres_container`.
+    - Creates a fresh database schema before each test.
+    - Adds a dummy ML model for test purposes.
+    - Tears down the database session and cleans up resources after each test.
+
+    Args:
+        postgres_container (str): The dynamic connection URL provided by PostgresContainer.
+
+    Returns:
+        Generator: A SQLAlchemy session object.
+    """
+    # Use the dynamic connection URL
+    engine = create_engine(postgres_container)
+    Base.metadata.drop_all(engine)  # Drop all tables to ensure a clean slate
+    Base.metadata.create_all(engine)  # Recreate the tables
+
+    # Establish session
+    Session = sessionmaker(bind=engine)
+    session = Session()
 
     yield session  # Provide the session to the test
 

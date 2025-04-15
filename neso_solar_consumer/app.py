@@ -14,19 +14,18 @@ from neso_solar_consumer.format_forecast import format_to_forecast_sql
 from neso_solar_consumer.save_forecast import (
     save_forecasts_to_csv,
     save_forecasts_to_db,
+    save_generation_to_site_db,
 )
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from neso_solar_consumer import __version__  # Import version from __init__.py
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def app(db_url: str, save_method: str, csv_dir: str = None):
+def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk"):
     """
     Main application function to fetch, format, and save solar forecast data.
 
@@ -34,6 +33,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
         db_url (str): Database connection URL from an environment variable.
         save_method (str): Method to save the forecast data. Options are "db" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
+        country (str): Country code for fetching data. Default is "uk".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
@@ -46,8 +46,8 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
     try:
         with connection.get_session() as session:
             # Step 1: Fetch forecast data (returns as pd.Dataframe)
-            logger.info("Fetching forecast data.")
-            forecast_data = fetch_data()
+            logger.info(f"Fetching forecast data for {country}.")
+            forecast_data = fetch_data(country=country)
 
             if forecast_data.empty:
                 logger.warning("No data fetched. Exiting the pipeline.")
@@ -76,12 +76,19 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
 
             # B. Save directly to CSV
             elif save_method == "csv":
-                logger.info(
-                    f"Saving {len(forecast_data)} rows of forecast data directly to CSV."
-                )
+                logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
                 save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
 
             # C. TODO: Potential new save methods
+            elif save_method == "site-db":
+                logger.info("Saving generations to the site database.")
+
+                save_generation_to_site_db(
+                    session=session,
+                    generation_data=forecast_data,
+                    country=country,
+                )
+
             else:
                 logger.error(f"Unsupported save method: {save_method}. Exiting.")
                 return
@@ -95,19 +102,17 @@ def app(db_url: str, save_method: str, csv_dir: str = None):
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
+    country = os.getenv("COUNTRY", "uk")
 
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
 
     if save_method == "csv" and not csv_dir:
-        logger.error(
-            "CSV_DIR environment variable is required for CSV saving. Exiting."
-        )
+        logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
         exit(1)
-
-    if not db_url:
+    if (save_method in ["db", "site-db"]) and (db_url is None):
         logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 
     # Step 2: Run the application
-    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir)
+    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir, country=country)
