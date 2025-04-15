@@ -13,11 +13,12 @@ from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 
-def fetch_data(country: str = "gb") -> pd.DataFrame:
+def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Get data from different countries
 
     :param country: "gb", or "nl"
+    :param historic_or_forecast: "generation" or "forecast"
     :return: Pandas dataframe with the following columns:
         target_datetime_utc: Combined date and time in UTC.
         solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
@@ -27,7 +28,7 @@ def fetch_data(country: str = "gb") -> pd.DataFrame:
 
     if country in country_data_functions:
         try:
-            data = country_data_functions[country]()
+            data = country_data_functions[country](historic_or_forecast=historic_or_forecast)
 
             assert "target_datetime_utc" in data.columns
             assert "solar_generation_kw" in data.columns

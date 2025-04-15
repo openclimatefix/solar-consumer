@@ -60,23 +60,29 @@ def fetch_with_retry(
     return None
 
 
-def fetch_nl_data():
+def fetch_nl_data(historic_or_forecast: str = "generation"):
     """
     Save fetched API data to a CSV file
 
     Parameters:
-        csv_dir (str, optional): Directory to save CSV files
+        historic_or_forecast (str): Type of data to fetch. Default is "generation".
     """
 
     logger.info("Fetching data from the Ned NL API")
 
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
+    now = datetime.now(tz=timezone.utc)  # Use UTC timezone
 
     # Define date range
+    if historic_or_forecast == "generation":
+        end_date = now
+        start_date = end_date - timedelta(days=2)
+    else:
+        # For forecast data, set start_date to the current date
+        end_date = now + timedelta(days=7)
+        start_date = now
 
-    end_date = datetime.now(tz=timezone.utc)  # Use UTC timezone
-    start_date = end_date - timedelta(days=2)
     current_date = start_date
 
     # Calculate total number of days for progress bar

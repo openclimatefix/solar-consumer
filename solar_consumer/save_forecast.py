@@ -1,6 +1,7 @@
 import logging
 from nowcasting_datamodel.save.save import save
 from pvsite_datamodel.write.generation import insert_generation_values
+from pvsite_datamodel.write.forecast import insert_forecast_values
 from pvsite_datamodel.read.site import get_site_by_client_site_name
 from pvsite_datamodel.write.user_and_site import create_site
 from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
@@ -27,8 +28,6 @@ def save_generation_to_site_db(
         session (Session): SQLAlchemy session for database access.
         country: (str): Country code for the generation data. Currently only 'nl' is supported.
 
-    Return:
-        None
     """
     # Check if generation_data is empty
     if generation_data.empty:
@@ -42,25 +41,7 @@ def save_generation_to_site_db(
         logger.info("Saving generation data to the database.")
 
         # get site uuid
-        try:
-            site = get_site_by_client_site_name(
-                session=session,
-                client_site_name=nl_national.client_site_name,
-                client_name=nl_national.client_site_name,  # this is not used
-            )
-        except Exception:
-            logger.info(f"Creating site {nl_national.client_site_name} in the database.")
-            site, _ = create_site(
-                session=session,
-                latitude=nl_national.latitude,
-                longitude=nl_national.longitude,
-                client_site_name=nl_national.client_site_name,
-                client_site_id=1,
-                country="nl",
-                capacity_kw=20_000_000,
-                dno="",  # these are UK specific things
-                gsp="",  # these are UK specific things
-            )
+        site = get_or_create_site(session)
 
         # add site_uuid to the generation data
         generation_data["site_uuid"] = site.site_uuid
@@ -97,6 +78,79 @@ def save_generation_to_site_db(
     except Exception as e:
         logger.error(f"An error occurred while saving generation data: {e}")
         raise e
+
+
+def get_or_create_site(session):
+    """Get or create a site in the database."""
+    try:
+        site = get_site_by_client_site_name(
+            session=session,
+            client_site_name=nl_national.client_site_name,
+            client_name=nl_national.client_site_name,  # this is not used
+        )
+    except Exception:
+        logger.info(f"Creating site {nl_national.client_site_name} in the database.")
+        site, _ = create_site(
+            session=session,
+            latitude=nl_national.latitude,
+            longitude=nl_national.longitude,
+            client_site_name=nl_national.client_site_name,
+            client_site_id=1,
+            country="nl",
+            capacity_kw=20_000_000,
+            dno="",  # these are UK specific things
+            gsp="",  # these are UK specific things
+        )
+    return site
+
+
+def save_forecasts_to_site_db(
+    forecast_data: pd.DataFrame,
+    session: Session,
+    model_tag: str,
+    model_version: str,
+    country: str = "nl",
+):
+    """Save generation data to the database.
+
+    Parameters:
+        forecast_data (pd.DataFrame): DataFrame containing generation data to save.
+            The following columns must be present: solar_generation_kw and target_datetime_utc
+        session (Session): SQLAlchemy session for database access.
+        model_tag (str): Model tag to fetch model metadata.
+        model_version (str): Model version to fetch model metadata.
+        country: (str): Country code for the generation data. Currently only 'nl' is supported.
+
+    """
+
+    if country != "nl":
+        raise Exception("Only NL generation data is supported when saving (atm).")
+
+    site = get_or_create_site(session)
+
+    forecast_meta = {
+        "site_uuid": site.site_uuid,
+        "timestamp_utc": pd.Timestamp.now(tz="UTC"),
+        "forecast_version": model_version,
+    }
+
+    forecast_data.rename(
+        columns={
+            "solar_generation_kw": "forecast_power_kw",
+            "target_datetime_utc": "start_utc",
+        },
+        inplace=True,
+    )
+
+    forecast_data["end_utc"] = forecast_data["start_utc"] + pd.Timedelta(hours=0.25)
+
+    insert_forecast_values(
+        forecast_values_df=forecast_data,
+        forecast_meta=forecast_meta,
+        ml_model_name=model_tag,
+        ml_model_version=model_version,
+        session=session,
+    )
 
 
 def save_forecasts_to_db(forecasts: list, session: Session):
