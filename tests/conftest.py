@@ -111,3 +111,25 @@ def test_config():
         "model_version": MODEL_VERSION,
         "csv_dir": "test_csv",  # Directory for CSV saving
     }
+
+# Mocking the NL response data
+@pytest.fixture(scope="function")
+def nl_mock_data():
+    return {
+    "hydra:member": [
+        {
+            "id": 1,
+            "point": 0,
+            "type": 2,
+            "granularity": 4,
+            "activity": 1,
+            "classification": 2,
+            "capacity": 1000,
+            "volume": 500,
+            "percentage": 50,
+            "validfrom": "2025-04-01T00:00:00+00:00",
+            "validto": "2025-04-01T01:00:00+00:00",
+            "lastupdate": "2025-04-01T01:30:00+00:00"
+        }
+    ]
+}
