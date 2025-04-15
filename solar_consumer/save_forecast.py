@@ -128,9 +128,11 @@ def save_forecasts_to_site_db(
 
     site = get_or_create_site(session)
 
+    timestamp_utc = pd.Timestamp.now(tz="UTC").floor("15min")
+
     forecast_meta = {
         "site_uuid": site.site_uuid,
-        "timestamp_utc": pd.Timestamp.now(tz="UTC"),
+        "timestamp_utc": timestamp_utc,
         "forecast_version": model_version,
     }
 
@@ -142,7 +144,14 @@ def save_forecasts_to_site_db(
         inplace=True,
     )
 
+    # drop other rows and add end_utc
+    forecast_data = forecast_data[["forecast_power_kw", "start_utc"]]
     forecast_data["end_utc"] = forecast_data["start_utc"] + pd.Timedelta(hours=0.25)
+
+    # calculate horizon minutes
+    forecast_data["horizon_minutes"] = (
+        forecast_data["start_utc"] - timestamp_utc.replace(tzinfo=None)
+    ).dt.total_seconds() / 60
 
     insert_forecast_values(
         forecast_values_df=forecast_data,

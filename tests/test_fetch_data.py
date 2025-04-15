@@ -179,7 +179,7 @@ def test_fetch_nl_data(mock_api, nl_mock_data):
     mock_response.json.return_value = nl_mock_data
     mock_api.return_value = mock_response
 
-    df = fetch_nl_data()
+    df = fetch_nl_data(historic_or_forecast='historic')
 
     assert isinstance(df, pd.DataFrame)
     assert not df.empty

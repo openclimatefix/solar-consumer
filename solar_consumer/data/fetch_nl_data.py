@@ -83,6 +83,8 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         end_date = now + timedelta(days=7)
         start_date = now
 
+    logger.debug(f"Fetching data from {start_date} to {end_date} for {historic_or_forecast} data.")
+
     current_date = start_date
 
     # Calculate total number of days for progress bar
@@ -173,5 +175,8 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # remove any future data
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
+    # all_data = all_data[all_data["target_datetime_utc"] >= start_date]
+
+    logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
 
     return all_data
