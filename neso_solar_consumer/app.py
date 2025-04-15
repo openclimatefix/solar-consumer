@@ -85,7 +85,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country:str='uk'):
 
             # C. TODO: Potential new save methods
             elif save_method == "site-db":
-                logger.info("Saving forecasts to the site database.")
+                logger.info("Saving generations to the site database.")
 
                 save_generation_to_site_db(
                     session=session,
