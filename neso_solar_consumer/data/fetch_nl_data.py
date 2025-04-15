@@ -157,7 +157,7 @@ def fetch_nl_data():
     all_data.head()
 
     # rename columns to match the schema
-    all_data["solar_generation_kw"] = all_data["volume (kWh)"] / 2
+    all_data["solar_generation_kw"] = all_data["volume (kWh)"] * 4
     all_data.rename(
         columns={
             "validfrom (UTC)": "target_datetime_utc",
