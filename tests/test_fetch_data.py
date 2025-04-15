@@ -18,11 +18,11 @@ Run tests matching a specific pattern:
 """
 import pytest
 
-from neso_solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
+from solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
 from unittest.mock import patch, Mock
 import json
 import pandas as pd
-from neso_solar_consumer.data.fetch_nl_data import fetch_nl_data
+from solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 # TODO update
 #
