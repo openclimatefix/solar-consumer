@@ -9,9 +9,9 @@ This script orchestrates the following steps:
 
 import os
 import logging
-from neso_solar_consumer.fetch_data import fetch_data
-from neso_solar_consumer.format_forecast import format_to_forecast_sql
-from neso_solar_consumer.save_forecast import (
+from solar_consumer.fetch_data import fetch_data
+from solar_consumer.format_forecast import format_to_forecast_sql
+from solar_consumer.save_forecast import (
     save_forecasts_to_csv,
     save_forecasts_to_db,
     save_generation_to_site_db,

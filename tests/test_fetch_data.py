@@ -86,7 +86,7 @@ def test_fetch_data_mock_failure(test_config):
     """
     Test `fetch_data` with a mocked API failure using `test_config`.
     """
-    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+    with patch("solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("API failure simulated")
 
         with pytest.raises(Exception):
@@ -131,7 +131,7 @@ def test_fetch_data_using_sql_mock_success(test_config):
     }
 
     # Mock API response as bytes
-    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+    with patch("solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.return_value.read.return_value = json.dumps(mock_response).encode(
             "utf-8"
         )
@@ -157,7 +157,7 @@ def test_fetch_data_using_sql_mock_failure(test_config):
     """
     Test `fetch_data_using_sql` with a mocked failure using `test_config`.
     """
-    with patch("neso_solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
+    with patch("solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("SQL query failure simulated")
         sql_query = (
             f'SELECT * FROM "{test_config["resource_id"]}" LIMIT {test_config["limit"]}'
@@ -170,7 +170,7 @@ def test_fetch_data_using_sql_mock_failure(test_config):
         print(df)
 
 
-@patch("neso_solar_consumer.data.fetch_nl_data.requests.Session.get")
+@patch("solar_consumer.data.fetch_nl_data.requests.Session.get")
 def test_fetch_nl_data(mock_api, nl_mock_data):
 
     # Configure the mock to return a response with the mock data

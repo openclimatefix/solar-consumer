@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir .
 COPY . /app
 
 # Set the entry point for the container
-CMD ["python", "-m", "neso_solar_consumer.app"]
+CMD ["python", "-m", "solar_consumer.app"]
