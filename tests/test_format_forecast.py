@@ -1,5 +1,5 @@
-from neso_solar_consumer.fetch_data import fetch_data
-from neso_solar_consumer.format_forecast import format_to_forecast_sql
+from solar_consumer.fetch_data import fetch_data
+from solar_consumer.format_forecast import format_to_forecast_sql
 from unittest.mock import patch
 import pandas as pd
 
@@ -34,7 +34,7 @@ def test_format_to_forecast_sql_real(db_session, test_config):
     )
 
     # Patch `fetch_data` to return the mock data
-    with patch("neso_solar_consumer.fetch_data.fetch_data", return_value=mock_data):
+    with patch("solar_consumer.fetch_data.fetch_data", return_value=mock_data):
         # Step 1: Fetch data (mocked)
         data = fetch_data()
 

@@ -1,4 +1,4 @@
-from neso_solar_consumer.save_forecast import save_generation_to_site_db
+from solar_consumer.save_forecast import save_generation_to_site_db
 from pvsite_datamodel.sqlmodels import GenerationSQL
 import pandas as pd
 

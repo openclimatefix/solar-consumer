@@ -12,4 +12,4 @@ jobs:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
     with:
-      image_base_name: neso_solar_consumer_api
+      image_base_name: solar_consumer
