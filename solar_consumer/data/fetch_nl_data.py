@@ -93,7 +93,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Create progress bar
     for _ in tqdm(range(total_days), desc="Processing dates"):
         # Calculate next day
-        next_date = current_date + timedelta(days=2)
+        next_date = current_date + timedelta(days=1)
 
         # Use existing session and BASE_URL from above
         url = f"{BASE_URL}/utilizations"
