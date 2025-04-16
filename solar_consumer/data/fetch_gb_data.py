@@ -4,7 +4,7 @@ import urllib.parse
 import json
 
 
-def fetch_gb_data():
+def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
 
@@ -13,6 +13,11 @@ def fetch_gb_data():
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
+
+    assert (
+        historic_or_forecast == "forecast"
+    ), "Only forecast data is available at the moment for GB. " \
+       "Please set historic_or_forecast to 'forecast'"
 
     meta_url = (
         "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
