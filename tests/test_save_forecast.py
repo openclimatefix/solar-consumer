@@ -36,7 +36,7 @@ def test_save_forecasts_to_site_db(db_site_session):
     """
     # Prepare mock data
     forecast_data = {
-        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
+        "target_datetime_utc": ["2023-10-01 00:00:00+00:00", "2023-10-01 01:00:00+00:00"],
         "solar_generation_kw": [100, 150],
     }
 
