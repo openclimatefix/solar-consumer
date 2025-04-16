@@ -150,7 +150,7 @@ def save_forecasts_to_site_db(
 
     # calculate horizon minutes
     forecast_data["horizon_minutes"] = (
-        forecast_data["start_utc"] - timestamp_utc.replace(tzinfo=None)
+        forecast_data["start_utc"] - timestamp_utc
     ).dt.total_seconds() / 60
 
     insert_forecast_values(

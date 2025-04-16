@@ -98,12 +98,15 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         # Use existing session and BASE_URL from above
         url = f"{BASE_URL}/utilizations"
 
+        # should be 2 for generation, 3 for forecast
+        classification = 2 if historic_or_forecast == "generation" else 1
+
         params = {
             "point": 0,
-            "type": 2,
+            "type": 2,  # solar
             "granularity": 4,
             "granularitytimezone": 0,
-            "classification": 2,
+            "classification": classification,
             "activity": 1,
             "validfrom[strictly_before]": next_date.strftime("%Y-%m-%d"),
             "validfrom[after]": current_date.strftime("%Y-%m-%d"),
