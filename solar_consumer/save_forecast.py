@@ -24,7 +24,7 @@ def save_generation_to_site_db(
 
     Parameters:
         generation_data (pd.DataFrame): DataFrame containing generation data to save.
-            The following columns must be present: solar_generation_kw and target_datetime_utc
+            The following columns must be present: solar_generation_kw, target_datetime_utc and capacity_kw
         session (Session): SQLAlchemy session for database access.
         country: (str): Country code for the generation data. Currently only 'nl' is supported.
 
@@ -65,7 +65,7 @@ def save_generation_to_site_db(
         session.commit()
 
         # update capacity
-        if generation_data["power_kw"].max() > site.capacity_kw:
+        if generation_data["capacity_kw"].max() > site.capacity_kw:
             old_site_capacity_kw = site.capacity_kw
             site.capacity_kw = generation_data["power_kw"].max()
             session.commit()

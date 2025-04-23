@@ -151,6 +151,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Sort final DataFrame by timestamp
     all_data = all_data.sort_values("validfrom (UTC)")
 
+    # get the total site capacity
+    all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
+
     # Drop unnecessary columns
     all_data = all_data.drop(
         columns=[
