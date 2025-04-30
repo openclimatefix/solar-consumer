@@ -67,7 +67,7 @@ def save_generation_to_site_db(
         # update capacity
         if generation_data["capacity_kw"].max() > site.capacity_kw:
             old_site_capacity_kw = site.capacity_kw
-            site.capacity_kw = generation_data["power_kw"].max()
+            site.capacity_kw = int(generation_data["power_kw"].max())
             session.commit()
             logger.info(
                 f"Updated site {nl_national.client_site_name} capacity "
