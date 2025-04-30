@@ -15,6 +15,7 @@ from solar_consumer.save_forecast import (
     save_forecasts_to_csv,
     save_forecasts_to_db,
     save_generation_to_site_db,
+    save_forecasts_to_site_db,
 )
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
@@ -25,7 +26,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
-def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk", historic_or_forecast: str = "forecast"):
+def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk"):
     """
     Main application function to fetch, format, and save solar forecast data.
 
@@ -34,11 +35,15 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk",
         save_method (str): Method to save the forecast data. Options are "db" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
         country (str): Country code for fetching data. Default is "uk".
+        historic_or_forecast: (str): Type of data to fetch. Default is "generation".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
-    # Use the `Neso` class for hardcoded configuration
-    model_tag = "neso-solar-forecast"
+    # Use the `Neso` class for hardcoded configuration]
+    if country == "uk":
+        model_tag = "neso-solar-forecast"
+    elif country == "nl":
+        model_tag = "ned-nl-national"
 
     # Initialize database connection
     connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
@@ -47,8 +52,7 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk",
         with connection.get_session() as session:
             # Step 1: Fetch forecast data (returns as pd.Dataframe)
             logger.info(f"Fetching forecast data for {country}.")
-            forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
-
+            forecast_data = fetch_data(country=country)
 
             if forecast_data.empty:
                 logger.warning("No data fetched. Exiting the pipeline.")
@@ -83,12 +87,22 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk",
             # C. TODO: Potential new save methods
             elif save_method == "site-db":
                 logger.info("Saving generations to the site database.")
+                if historic_or_forecast == "generation":
+                    save_generation_to_site_db(
+                        session=session,
+                        generation_data=forecast_data,
+                        country=country,
+                    )
 
-                save_generation_to_site_db(
-                    session=session,
-                    generation_data=forecast_data,
-                    country=country,
-                )
+                elif historic_or_forecast == "forecast":
+                    logger.info("Saving forecasts to the site database.")
+                    save_forecasts_to_site_db(
+                        session=session,
+                        forecast_data=forecast_data,
+                        country=country,
+                        model_tag=model_tag,
+                        model_version=__version__,
+                    )
 
             else:
                 logger.error(f"Unsupported save method: {save_method}. Exiting.")
@@ -103,9 +117,9 @@ def app(db_url: str, save_method: str, csv_dir: str = None, country: str = "uk",
 if __name__ == "__main__":
     db_url = os.getenv("DB_URL")
     country = os.getenv("COUNTRY", "uk")
-    save_method = os.getenv("SAVE_METHOD", "db").lower()
+
+    save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
-    historic_or_forecast = os.getenv("HISTORIC_OR_FORECAST", "forecast")
 
     if save_method == "csv" and not csv_dir:
         logger.error("CSV_DIR is required for CSV saving. Exiting.")
@@ -115,10 +129,5 @@ if __name__ == "__main__":
         logger.error("DB_URL is required for DB saving. Exiting.")
         exit(1)
 
-    app(
-        db_url=db_url,
-        save_method=save_method,
-        csv_dir=csv_dir,
-        country=country,
-        historic_or_forecast=historic_or_forecast,
-    )
+    # Step 2: Run the application
+    app(db_url=db_url, save_method=save_method, csv_dir=csv_dir, country=country)

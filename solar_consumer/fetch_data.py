@@ -13,37 +13,29 @@ from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_in_data import fetch_in_data
 
-def fetch_data(country: str, historic_or_forecast: str):
+def fetch_data(country: str = "gb") -> pd.DataFrame:
     """
     Fetch data based on the country and whether it's forecast or generation data.
 
-    Args:
-        country (str): Country code ('gb', 'nl', or 'in').
-        historic_or_forecast (str): 'forecast' or 'generation'
-
-    Returns:
-        pd.DataFrame: Fetched data with standardized columns:
-            - target_datetime_utc (datetime)
-            - solar_generation_kw (float)
+    :param country: "gb", or "nl"
+    :return: Pandas dataframe with the following columns:
+        target_datetime_utc: Combined date and time in UTC.
+        solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
     """
 
-    country = country.lower()
+    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
 
-    if country in ("gb", "uk"):
-        # Only forecast available for GB
-        if historic_or_forecast != "forecast":
-            raise ValueError("Only forecast data is supported for GB (UK)!")
-        return fetch_gb_data(historic_or_forecast=historic_or_forecast)
+    if country in country_data_functions:
+        try:
+            data = country_data_functions[country]()
 
-    elif country in ("nl", "netherlands"):
-        # Both forecast and generation supported
-        return fetch_nl_data(historic_or_forecast=historic_or_forecast)
+            assert "target_datetime_utc" in data.columns
+            assert "solar_generation_kw" in data.columns
 
-    elif country in ("in", "india"): # Currently only collecting data for Uttar Pradesh
-        # Only generation (real-time) data supported currently
-        if historic_or_forecast != "generation":
-            raise ValueError("Only generation (real-time) data is supported for India (UPSLDC)!")
-        return fetch_in_data(historic_or_forecast=historic_or_forecast)
+            return data
+
+        except Exception as e:
+            raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
         raise ValueError(f"Unsupported country: {country}. Supported countries are 'gb', 'nl', 'in'.")

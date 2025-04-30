@@ -60,23 +60,31 @@ def fetch_with_retry(
     return None
 
 
-def fetch_nl_data():
+def fetch_nl_data(historic_or_forecast: str = "generation"):
     """
     Save fetched API data to a CSV file
 
     Parameters:
-        csv_dir (str, optional): Directory to save CSV files
+        historic_or_forecast (str): Type of data to fetch. Default is "generation".
     """
 
     logger.info("Fetching data from the Ned NL API")
 
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
+    now = datetime.now(tz=timezone.utc)  # Use UTC timezone
 
     # Define date range
+    if historic_or_forecast == "generation":
+        end_date = now
+        start_date = end_date - timedelta(days=2)
+    else:
+        # For forecast data, set start_date to the current date
+        end_date = now + timedelta(days=7)
+        start_date = now
 
-    end_date = datetime.now(tz=timezone.utc)  # Use UTC timezone
-    start_date = end_date - timedelta(days=2)
+    logger.debug(f"Fetching data from {start_date} to {end_date} for {historic_or_forecast} data.")
+
     current_date = start_date
 
     # Calculate total number of days for progress bar
@@ -85,17 +93,20 @@ def fetch_nl_data():
     # Create progress bar
     for _ in tqdm(range(total_days), desc="Processing dates"):
         # Calculate next day
-        next_date = current_date + timedelta(days=2)
+        next_date = current_date + timedelta(days=1)
 
         # Use existing session and BASE_URL from above
         url = f"{BASE_URL}/utilizations"
 
+        # should be 2 for generation, 3 for forecast
+        classification = 2 if historic_or_forecast == "generation" else 1
+
         params = {
             "point": 0,
-            "type": 2,
+            "type": 2,  # solar
             "granularity": 4,
             "granularitytimezone": 0,
-            "classification": 2,
+            "classification": classification,
             "activity": 1,
             "validfrom[strictly_before]": next_date.strftime("%Y-%m-%d"),
             "validfrom[after]": current_date.strftime("%Y-%m-%d"),
@@ -140,6 +151,9 @@ def fetch_nl_data():
     # Sort final DataFrame by timestamp
     all_data = all_data.sort_values("validfrom (UTC)")
 
+    # get the total site capacity
+    all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
+
     # Drop unnecessary columns
     all_data = all_data.drop(
         columns=[
@@ -167,5 +181,8 @@ def fetch_nl_data():
 
     # remove any future data
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
+    # all_data = all_data[all_data["target_datetime_utc"] >= start_date]
+
+    logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
 
     return all_data
