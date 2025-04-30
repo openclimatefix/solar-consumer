@@ -1,3 +1,4 @@
+""" Get Ned NL forecast and generation """
 import os
 import requests
 from datetime import datetime, timedelta, timezone
