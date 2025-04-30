@@ -11,36 +11,42 @@ import json
 import pandas as pd
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
+from solar_consumer.data.fetch_in_data import fetch_in_data
 
-
-def fetch_data(country: str = "gb") -> pd.DataFrame:
+def fetch_data(country: str, historic_or_forecast: str):
     """
-    Get data from different countries
+    Fetch data based on the country and whether it's forecast or generation data.
 
-    :param country: "gb", or "nl"
-    :return: Pandas dataframe with the following columns:
-        target_datetime_utc: Combined date and time in UTC.
-        solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
+    Args:
+        country (str): Country code ('gb', 'nl', or 'in').
+        historic_or_forecast (str): 'forecast' or 'generation'
+
+    Returns:
+        pd.DataFrame: Fetched data with standardized columns:
+            - target_datetime_utc (datetime)
+            - solar_generation_kw (float)
     """
 
-    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
+    country = country.lower()
 
-    if country in country_data_functions:
-        try:
-            data = country_data_functions[country]()
+    if country in ("gb", "uk"):
+        # Only forecast available for GB
+        if historic_or_forecast != "forecast":
+            raise ValueError("Only forecast data is supported for GB (UK)!")
+        return fetch_gb_data(historic_or_forecast=historic_or_forecast)
 
-            assert "target_datetime_utc" in data.columns
-            assert "solar_generation_kw" in data.columns
+    elif country in ("nl", "netherlands"):
+        # Both forecast and generation supported
+        return fetch_nl_data(historic_or_forecast=historic_or_forecast)
 
-            return data
-
-        except Exception as e:
-            raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
+    elif country in ("in", "india"): # Currently only collecting data for Uttar Pradesh
+        # Only generation (real-time) data supported currently
+        if historic_or_forecast != "generation":
+            raise ValueError("Only generation (real-time) data is supported for India (UPSLDC)!")
+        return fetch_in_data(historic_or_forecast=historic_or_forecast)
 
     else:
-        print("Only UK and Netherlands data can be fetched at the moment")
-
-    return pd.DataFrame()  # Always return a DataFrame (never None)
+        raise ValueError(f"Unsupported country: {country}. Supported countries are 'gb', 'nl', 'in'.")
 
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
