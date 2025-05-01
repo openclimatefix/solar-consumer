@@ -14,6 +14,7 @@ dependencies = [
     "pyproj==3.6.1",
     "tqdm"
     "selenium"
+    
 ]
 
 [project.optional-dependencies]
