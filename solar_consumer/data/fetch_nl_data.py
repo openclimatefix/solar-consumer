@@ -5,17 +5,8 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import time
 import dotenv
-import logging
+from loguru import logger
 from tqdm import tqdm
-
-# Configure logging
-logging.basicConfig(
-    filename="fetch_api.log",
-    filemode="a",
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 # load .env variables
 dotenv.load_dotenv()

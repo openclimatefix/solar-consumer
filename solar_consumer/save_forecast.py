@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 from nowcasting_datamodel.save.save import save
 from pvsite_datamodel.write.generation import insert_generation_values
 from pvsite_datamodel.write.forecast import insert_forecast_values
@@ -8,10 +8,6 @@ from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
 from sqlalchemy.orm.session import Session
 import os
 import pandas as pd
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger(__name__)
 
 
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")

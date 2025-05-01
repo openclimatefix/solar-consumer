@@ -8,7 +8,7 @@ This script orchestrates the following steps:
 """
 
 import os
-import logging
+from loguru import logger
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.format_forecast import format_to_forecast_sql
 from solar_consumer.save_forecast import (
@@ -20,10 +20,6 @@ from solar_consumer.save_forecast import (
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger(__name__)
 
 
 def app(
