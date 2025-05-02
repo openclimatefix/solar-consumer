@@ -68,7 +68,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # Define date range
     if historic_or_forecast == "generation":
-        end_date = now
+        end_date = now.replace(hour=0) + timedelta(days=1)  # to ~ midnight tonight
         start_date = end_date - timedelta(days=2)
     else:
         # For forecast data, set start_date to the current date
@@ -160,8 +160,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     )  # , 'emission', 'emissionfactor'])
 
     logger.info(f"Final DataFrame shape: {all_data.shape}")
-    all_data.head()
-
     # rename columns to match the schema
     all_data["solar_generation_kw"] = all_data["capacity (kW)"]
     all_data.rename(
@@ -176,5 +174,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
+    logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
+                 f"to {all_data['target_datetime_utc'].max()}")
 
     return all_data
