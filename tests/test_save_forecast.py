@@ -29,6 +29,9 @@ def test_save_generation_to_site_db(db_site_session):
 
     assert len(saved_data) == len(generation_df)
 
+    site = db_site_session.query(SiteSQL).first()
+    assert site.capacity_kw == 201
+
 
 def test_save_forecasts_to_site_db(db_site_session):
 
@@ -60,5 +63,3 @@ def test_save_forecasts_to_site_db(db_site_session):
 
     assert len(saved_data) == len(forecast_df)
 
-    site = db_site_session.query(SiteSQL).first()
-    assert site.capacity_kw == 201
