@@ -1,5 +1,5 @@
 from solar_consumer.save_forecast import save_generation_to_site_db, save_forecasts_to_site_db
-from pvsite_datamodel.sqlmodels import GenerationSQL, ForecastSQL, ForecastValueSQL
+from pvsite_datamodel.sqlmodels import GenerationSQL, ForecastSQL, ForecastValueSQL, SiteSQL
 import pandas as pd
 
 
@@ -59,3 +59,6 @@ def test_save_forecasts_to_site_db(db_site_session):
     saved_data = db_site_session.query(ForecastValueSQL).all()
 
     assert len(saved_data) == len(forecast_df)
+
+    site = db_site_session.query(SiteSQL).first()
+    assert site.capacity_kw == 201
