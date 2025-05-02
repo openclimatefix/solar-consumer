@@ -53,7 +53,7 @@ def app(
     try:
         with connection.get_session() as session:
             # Step 1: Fetch forecast data (returns as pd.Dataframe)
-            logger.info(f"Fetching forecast data for {country}.")
+            logger.info(f"Fetching {historic_or_forecast} data for {country}.")
             forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
 
             if forecast_data.empty:
