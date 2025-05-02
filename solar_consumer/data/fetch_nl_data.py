@@ -60,7 +60,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         historic_or_forecast (str): Type of data to fetch. Default is "generation".
     """
 
-    logger.info("Fetching data from the Ned NL API")
+    logger.info(f"Fetching data from the Ned NL API for {historic_or_forecast} data.")
 
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
