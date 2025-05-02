@@ -47,22 +47,27 @@ def app(
     elif country == "nl":
         model_tag = "ned-nl-national"
 
-    # Initialize database connection
-    connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
+    # Step 1: Fetch forecast data (returns as pd.Dataframe)
+    logger.info(f"Fetching {historic_or_forecast} data for {country}.")
+    forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
+
 
     try:
-        with connection.get_session() as session:
-            # Step 1: Fetch forecast data (returns as pd.Dataframe)
-            logger.info(f"Fetching {historic_or_forecast} data for {country}.")
-            forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
 
-            if forecast_data.empty:
-                logger.warning("No data fetched. Exiting the pipeline.")
-                return
+        if forecast_data.empty:
+            logger.warning("No data fetched. Exiting the pipeline.")
+            return
+        # Step 2: Formate and save the forecast data
+        # A. Format forecast to database object and save
+        if save_method == "db":
+
+            # Initialize database connection
+            connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
+
+            with connection.get_session() as session:
 
             # Step 2: Formate and save the forecast data
             # A. Format forecast to database object and save
-            if save_method == "db":
                 logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
                 forecasts = format_to_forecast_sql(
                     data=forecast_data,
@@ -81,13 +86,19 @@ def app(
                 logger.info("Saving forecasts to the database.")
                 save_forecasts_to_db(forecasts, session)
 
-            # B. Save directly to CSV
-            elif save_method == "csv":
-                logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
-                save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
+        # B. Save directly to CSV
+        elif save_method == "csv":
+            logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
+            save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
 
-            # C. TODO: Potential new save methods
-            elif save_method == "site-db":
+        # C. TODO: Potential new save methods
+        elif save_method == "site-db":
+
+            # Initialize database connection
+            connection = DatabaseConnection(url=db_url, echo=False)
+
+            with connection.get_session() as session:
+
                 logger.info("Saving generations to the site database.")
                 if historic_or_forecast == "generation":
                     save_generation_to_site_db(
@@ -106,9 +117,9 @@ def app(
                         model_version=__version__,
                     )
 
-            else:
-                logger.error(f"Unsupported save method: {save_method}. Exiting.")
-                return
+        else:
+            logger.error(f"Unsupported save method: {save_method}. Exiting.")
+            return
 
             logger.info("Forecast pipeline completed successfully.")
     except Exception as e:
