@@ -110,6 +110,13 @@ pytest tests/test_fetch_data.py
 pytest --cov=neso_solar_consumer
 ```
 
+### Continuous Integration (CI)
+
+This reposistory has 2 main CI workflows - `branch-ci` and `merged-ci`. 
+
+- `branch-ci` is triggered on all pushes to any branch except `main`, and on any pull request that is opened, reopened or updated. It runs the tests suite, lints the project, and builds and pushes a dev image.
+- `merged-ci` is triggered on any pull request merged into `main`. It bumps the git tag, and builds and pushes a container with that tag.
+
 ## FAQ
 
 **Q: What format is the data stored in?**
