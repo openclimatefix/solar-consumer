@@ -1,0 +1,15 @@
+name: Default Branch PR Merged CI
+
+on:
+  pull_request_target:
+    types: ["closed"]
+    branches: [ "main" ]
+
+# Bumps the git tag and builds and pushes a container with that tag
+jobs:
+  merged-ci:
+    uses: openclimatefix/.github/.github/workflows/default_branch_pr_merged_ci.yml@main
+    secrets: inherit
+    with:
+      containerfile: Dockerfile
+      enable_pypi: false

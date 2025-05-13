@@ -16,7 +16,7 @@ dependencies = [
     "loguru==0.7.3",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "black",
