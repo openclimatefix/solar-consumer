@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 import pandas as pd
 from nowcasting_datamodel.models import ForecastSQL, ForecastValue
@@ -7,10 +7,6 @@ from nowcasting_datamodel.read.read import (
     get_location,
 )
 from nowcasting_datamodel.read.read_models import get_model
-
-# Configure logging (set to INFO for production; use DEBUG during debugging)
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger(__name__)
 
 
 def format_to_forecast_sql(data: pd.DataFrame, model_tag: str, model_version: str, session) -> list:

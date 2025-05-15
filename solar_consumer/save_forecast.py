@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 from nowcasting_datamodel.save.save import save
 from pvsite_datamodel.write.generation import insert_generation_values
 from pvsite_datamodel.write.forecast import insert_forecast_values
@@ -8,10 +8,6 @@ from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
 from sqlalchemy.orm.session import Session
 import os
 import pandas as pd
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger(__name__)
 
 
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
@@ -63,18 +59,20 @@ def save_generation_to_site_db(
             df=generation_data,
         )
         session.commit()
+        logger.info(f"Successfully saved {len(generation_data)} rows of generation data.")
 
         # update capacity
-        if generation_data["capacity_kw"].max() > site.capacity_kw:
-            old_site_capacity_kw = site.capacity_kw
-            site.capacity_kw = generation_data["power_kw"].max()
-            session.commit()
-            logger.info(
-                f"Updated site {nl_national.client_site_name} capacity "
-                f"from {old_site_capacity_kw} to {site.capacity_kw} kW."
-            )
+        if "capacity_kw" in generation_data.columns:
+            capacity_kw = int(generation_data["capacity_kw"].max())
+            if capacity_kw > site.capacity_kw + 1.0:
+                old_site_capacity_kw = site.capacity_kw
+                site.capacity_kw = capacity_kw
+                session.commit()
+                logger.info(
+                    f"Updated site {nl_national.client_site_name} capacity "
+                    f"from {old_site_capacity_kw} to {site.capacity_kw} kW."
+                )
 
-        logger.info(f"Successfully saved {len(generation_data)} rows of generation data.")
     except Exception as e:
         logger.error(f"An error occurred while saving generation data: {e}")
         raise e

@@ -12,12 +12,11 @@ dependencies = [
     "pvsite-datamodel==1.0.55",
     "testcontainers",
     "pyproj==3.6.1",
-    "tqdm"
-    "selenium"
-    
-]
+    "tqdm",
+    "loguru==0.7.3",
 
-[project.optional-dependencies]
+
+[dependency-groups]
 dev = [
     "pytest",
     "black",
