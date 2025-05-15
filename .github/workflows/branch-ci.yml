@@ -1,0 +1,21 @@
+name: Non-Default Branch Push CI (Python)
+
+on:
+  push:
+    branches-ignore: ['main']
+    paths-ignore: ['README.md']
+  pull_request:
+    types: [opened, reopened, synchronize]  
+    paths-ignore: ['README.md']
+
+# Run tests, lints, builds and pushes Docker image
+jobs:
+  branch-ci:
+    uses: openclimatefix/.github/.github/workflows/nondefault_branch_push_ci_python.yml@main
+    secrets: inherit
+    with:
+      enable_linting: true
+      enable_typechecking: false # TODO: enable typechecking - requires mypy in dev dependencies
+      tests_folder: tests
+      tests_runner: pytest
+      containerfile: Dockerfile

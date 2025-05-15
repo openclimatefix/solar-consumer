@@ -1,6 +1,6 @@
 # Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-11-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-12-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
@@ -110,6 +110,13 @@ pytest tests/test_fetch_data.py
 pytest --cov=neso_solar_consumer
 ```
 
+### Continuous Integration (CI)
+
+This reposistory has 2 main CI workflows - `branch-ci` and `merged-ci`. 
+
+- `branch-ci` is triggered on all pushes to any branch except `main`, and on any pull request that is opened, reopened or updated. It runs the tests suite, lints the project, and builds and pushes a dev image.
+- `merged-ci` is triggered on any pull request merged into `main`. It bumps the git tag, and builds and pushes a container with that tag.
+
 ## FAQ
 
 **Q: What format is the data stored in?**
@@ -142,18 +149,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/peterdudfield"><img src="https://avatars.githubusercontent.com/u/34686298?v=4?s=100" width="100px;" alt="Peter Dudfield"/><br /><sub><b>Peter Dudfield</b></sub></a><br /><a href="#ideas-peterdudfield" title="Ideas, Planning, & Feedback">🤔</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Seao7"><img src="https://avatars.githubusercontent.com/u/100257888?v=4?s=100" width="100px;" alt="Seao7"/><br /><sub><b>Seao7</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Seao7" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://siddharth7113.github.io"><img src="https://avatars.githubusercontent.com/u/114160268?v=4?s=100" width="100px;" alt="Siddharth"/><br /><sub><b>Siddharth</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/pulls?q=is%3Apr+reviewed-by%3Asiddharth7113" title="Reviewed Pull Requests">👀</a> <a href="#infra-siddharth7113" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=siddharth7113" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Conor0Callaghan"><img src="https://avatars.githubusercontent.com/u/4090256?v=4?s=100" width="100px;" alt="Conor O Callaghan"/><br /><sub><b>Conor O Callaghan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Conor0Callaghan" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/alirashidAR"><img src="https://avatars.githubusercontent.com/u/110668489?v=4?s=100" width="100px;" alt="Ali Rashid"/><br /><sub><b>Ali Rashid</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=alirashidAR" title="Tests">⚠️</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ManzoorAhmedShaikh"><img src="https://avatars.githubusercontent.com/u/110716002?v=4?s=100" width="100px;" alt="Manzoor Ahmed Shaikh"/><br /><sub><b>Manzoor Ahmed Shaikh</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=ManzoorAhmedShaikh" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="http://anaskhan.me"><img src="https://avatars.githubusercontent.com/u/83116240?v=4?s=100" width="100px;" alt="Anas Khan"/><br /><sub><b>Anas Khan</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=anxkhn" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Seao7"><img src="https://avatars.githubusercontent.com/u/100257888?v=4?s=100" width="100px;" alt="Seao7"/><br /><sub><b>Seao7</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Seao7" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://siddharth7113.github.io"><img src="https://avatars.githubusercontent.com/u/114160268?v=4?s=100" width="100px;" alt="Siddharth"/><br /><sub><b>Siddharth</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/pulls?q=is%3Apr+reviewed-by%3Asiddharth7113" title="Reviewed Pull Requests">👀</a> <a href="#infra-siddharth7113" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/openclimatefix/solar-consumer/commits?author=siddharth7113" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Conor0Callaghan"><img src="https://avatars.githubusercontent.com/u/4090256?v=4?s=100" width="100px;" alt="Conor O Callaghan"/><br /><sub><b>Conor O Callaghan</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Conor0Callaghan" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/alirashidAR"><img src="https://avatars.githubusercontent.com/u/110668489?v=4?s=100" width="100px;" alt="Ali Rashid"/><br /><sub><b>Ali Rashid</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=alirashidAR" title="Tests">⚠️</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/ManzoorAhmedShaikh"><img src="https://avatars.githubusercontent.com/u/110716002?v=4?s=100" width="100px;" alt="Manzoor Ahmed Shaikh"/><br /><sub><b>Manzoor Ahmed Shaikh</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=ManzoorAhmedShaikh" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://anaskhan.me"><img src="https://avatars.githubusercontent.com/u/83116240?v=4?s=100" width="100px;" alt="Anas Khan"/><br /><sub><b>Anas Khan</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=anxkhn" title="Documentation">📖</a></td>
     </tr>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/pjireland"><img src="https://avatars.githubusercontent.com/u/16693035?v=4?s=100" width="100px;" alt="Peter Ireland"/><br /><sub><b>Peter Ireland</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=pjireland" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/vashisthrahul13"><img src="https://avatars.githubusercontent.com/u/182660137?v=4?s=100" width="100px;" alt="vashisthrahul13"/><br /><sub><b>vashisthrahul13</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=vashisthrahul13" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/rahul-ahuja"><img src="https://avatars.githubusercontent.com/u/21355015?v=4?s=100" width="100px;" alt="rahul-ahuja"/><br /><sub><b>rahul-ahuja</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=rahul-ahuja" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://rahul-joon.github.io/My-Website/"><img src="https://avatars.githubusercontent.com/u/61495262?v=4?s=100" width="100px;" alt="Rahul Joon"/><br /><sub><b>Rahul Joon</b></sub></a><br /><a href="https://github.com/openclimatefix/neso-solar-consumer/commits?author=Rahul-JOON" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/pjireland"><img src="https://avatars.githubusercontent.com/u/16693035?v=4?s=100" width="100px;" alt="Peter Ireland"/><br /><sub><b>Peter Ireland</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=pjireland" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/vashisthrahul13"><img src="https://avatars.githubusercontent.com/u/182660137?v=4?s=100" width="100px;" alt="vashisthrahul13"/><br /><sub><b>vashisthrahul13</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=vashisthrahul13" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/rahul-ahuja"><img src="https://avatars.githubusercontent.com/u/21355015?v=4?s=100" width="100px;" alt="rahul-ahuja"/><br /><sub><b>rahul-ahuja</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=rahul-ahuja" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://rahul-joon.github.io/My-Website/"><img src="https://avatars.githubusercontent.com/u/61495262?v=4?s=100" width="100px;" alt="Rahul Joon"/><br /><sub><b>Rahul Joon</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Rahul-JOON" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/michael-gendy"><img src="https://avatars.githubusercontent.com/u/64384201?v=4?s=100" width="100px;" alt="michael-gendy"/><br /><sub><b>michael-gendy</b></sub></a><br /><a href="#infra-michael-gendy" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
     </tr>
   </tbody>
 </table>
