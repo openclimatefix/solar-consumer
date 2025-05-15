@@ -1,44 +1,50 @@
 """
 Script to fetch NESO Solar Forecast Data
-This script provides functions to fetch solar forecast data from the NESO API.
-The data includes solar generation estimates for embedded solar farms and combines
-date and time fields into a single timestamp for further analysis.
+This script provides functions to fetch solar forecast data from the NESO API
+or other country-specific sources like UPSLDC (India).
 """
 
 import urllib.request
 import urllib.parse
 import json
 import pandas as pd
+
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_in_data import fetch_in_data
 
-def fetch_data(country: str = "gb") -> pd.DataFrame:
+
+def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Fetch data based on the country and whether it's forecast or generation data.
 
-    :param country: "gb", or "nl"
-    :return: Pandas dataframe with the following columns:
-        target_datetime_utc: Combined date and time in UTC.
-        solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
+    Args:
+        country (str): Country code ('gb', 'nl', or 'in').
+        historic_or_forecast (str): 'forecast' or 'generation'
+
+    Returns:
+        pd.DataFrame: Fetched data with standardized columns:
+            - target_datetime_utc (datetime)
+            - solar_generation_kw (float)
     """
 
-    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
+    country = country.lower()
 
-    if country in country_data_functions:
-        try:
-            data = country_data_functions[country]()
+    if country in ("gb", "uk"):
+        if historic_or_forecast != "forecast":
+            raise ValueError("Only forecast data is supported for GB (UK).")
+        return fetch_gb_data(historic_or_forecast=historic_or_forecast)
 
-            assert "target_datetime_utc" in data.columns
-            assert "solar_generation_kw" in data.columns
+    elif country in ("nl", "netherlands"):
+        return fetch_nl_data(historic_or_forecast=historic_or_forecast)
 
-            return data
-
-        except Exception as e:
-            raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
+    elif country in ("in", "india"):
+        if historic_or_forecast != "generation":
+            raise ValueError("Only generation data is supported for India.")
+        return fetch_in_data(historic_or_forecast=historic_or_forecast)
 
     else:
-        raise ValueError(f"Unsupported country: {country}. Supported countries are 'gb', 'nl', 'in'.")
+        raise ValueError(f"Unsupported country: {country}. Supported: 'gb', 'nl', 'in'.")
 
 
 def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
@@ -49,9 +55,9 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
         sql_query (str): The SQL query to fetch data from the API.
 
     Returns:
-        pd.DataFrame: A DataFrame containing two columns:
-                      - `target_datetime_utc`: Combined date and time in UTC.
-                      - `solar_generation_kw`: Estimated solar forecast in kW.
+        pd.DataFrame: A DataFrame containing:
+                      - target_datetime_utc (datetime)
+                      - solar_generation_kw (float)
     """
     base_url = "https://api.neso.energy/api/3/action/datastore_search_sql"
     encoded_query = urllib.parse.quote(sql_query)
@@ -62,24 +68,18 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
         data = json.loads(response.read().decode("utf-8"))
         records = data["result"]["records"]
 
-        # Create DataFrame from records
         df = pd.DataFrame(records)
 
-        # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
         df["Datetime_GMT"] = pd.to_datetime(
             df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
             format="%Y-%m-%d %H:%M",
             errors="coerce",
         ).dt.tz_localize("UTC")
 
-        # Rename and select necessary columns
         df = df.rename(columns={"EMBEDDED_SOLAR_FORECAST": "solar_forecast_kw"})
         df = df[["Datetime_GMT", "solar_forecast_kw"]]
-
-        # Drop rows with invalid Datetime_GMT
         df = df.dropna(subset=["Datetime_GMT"])
 
-        # rename columns to match the schema
         df.rename(
             columns={
                 "solar_forecast_kw": "solar_generation_kw",
@@ -91,5 +91,5 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
         return df
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"An error occurred while executing SQL query: {e}")
         return pd.DataFrame()
