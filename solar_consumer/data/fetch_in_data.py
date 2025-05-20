@@ -7,18 +7,19 @@ def fetch_in_data(historic_or_forecast="generation"):
     if historic_or_forecast != "generation":
         raise NotImplementedError("Only 'generation' is supported for India.")
 
-    url = (
-        "https://www.upsldc.org/real-time-data?"
-        "p_p_id=upgenerationsummary_WAR_UPSLDCDynamicDisplayportlet"
-        "&p_p_lifecycle=2"
-        "&p_p_state=normal"
-        "&p_p_mode=view"
-        "&p_p_resource_id=realtimedata"
-        "&p_p_cacheability=cacheLevelPage"
-        "&p_p_col_id=column-1"
-        "&p_p_col_count=1"
-        "&_upgenerationsummary_WAR_UPSLDCDynamicDisplayportlet_cmd=realtimedata"
-    )
+    # This is from https://www.upsldc.org/real-time-data
+    now = int(datetime.utcnow().timestamp() * 1000)
+    url = "https://www.upsldc.org/real-time-data?" \
+          "p_p_id=upgenerationsummary_WAR_UPSLDCDynamicDisplayportlet&" \
+          "p_p_lifecycle=2&" \
+          "p_p_state=normal&" \
+          "p_p_mode=view&" \
+          "p_p_resource_id=realtimedata&" \
+          "p_p_cacheability=cacheLevelPage&" \
+          "p_p_col_id=column-1&" \
+          "p_p_col_count=1&" \
+          f"_upgenerationsummary_WAR_UPSLDCDynamicDisplayportlet_time={now}&" \
+          "_upgenerationsummary_WAR_UPSLDCDynamicDisplayportlet_cmd=realtimedata"
 
     try:
         response = urllib.request.urlopen(url)
