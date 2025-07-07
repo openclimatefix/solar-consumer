@@ -71,9 +71,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         end_date = now.replace(hour=0) + timedelta(days=1)  # to ~ midnight tonight
         start_date = end_date - timedelta(days=2)
     else:
-        # For forecast data, set start_date to the current date
+        # For forecast data, set start_date to 2 hours in the past from the current time
         end_date = now + timedelta(days=7)
-        start_date = now
+        start_date = now - timedelta(hours=2)
 
     logger.debug(f"Fetching data from {start_date} to {end_date} for {historic_or_forecast} data.")
 
@@ -171,7 +171,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # remove any future data
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
-    # all_data = all_data[all_data["target_datetime_utc"] >= start_date]
+    all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "

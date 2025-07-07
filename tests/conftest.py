@@ -6,6 +6,7 @@ from nowcasting_datamodel.models.base import Base_Forecast
 from nowcasting_datamodel.models import MLModelSQL
 from pvsite_datamodel.sqlmodels import Base
 from testcontainers.postgres import PostgresContainer
+from datetime import datetime, timedelta, timezone
 
 # Shared Test Configuration Constants
 RESOURCE_ID = "db6c038f-98af-4570-ab60-24d71ebd0ae5"
@@ -115,6 +116,7 @@ def test_config():
 # Mocking the NL response data
 @pytest.fixture(scope="function")
 def nl_mock_data():
+    now = datetime.now(timezone.utc)
     return {
     "hydra:member": [
         {
@@ -127,9 +129,9 @@ def nl_mock_data():
             "capacity": 1000,
             "volume": 500,
             "percentage": 50,
-            "validfrom": "2025-04-01T00:00:00+00:00",
-            "validto": "2025-04-01T01:00:00+00:00",
-            "lastupdate": "2025-04-01T01:30:00+00:00"
+            "validfrom": (now - timedelta(hours=1)).isoformat(),
+            "validto": (now + timedelta(hours=1)).isoformat(),
+            "lastupdate": (now.isoformat())
         }
     ]
 }
