@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "solar_consumer"
-version = "0.1"
+dynamic = ["version"]
 dependencies = [
     "pandas",
     "sqlalchemy",
@@ -23,3 +23,7 @@ dev = [
     "ruff",
     "pandas"
 ]
+
+[tool.setuptools-git-versioning]
+enabled = true
+dirty_template = "{tag}"
