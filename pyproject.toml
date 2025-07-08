@@ -13,8 +13,10 @@ dependencies = [
     "testcontainers",
     "pyproj==3.6.1",
     "tqdm",
-    "loguru==0.7.3",
+    "loguru"
 ]
+
+
 
 [dependency-groups]
 dev = [
