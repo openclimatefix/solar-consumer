@@ -10,7 +10,7 @@ import os
 import pandas as pd
 
 
-nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+nl_national = PVSite(client_location_name="nl_national", latitude="52.15", longitude="5.23")
 
 
 def save_generation_to_site_db(
@@ -40,7 +40,7 @@ def save_generation_to_site_db(
         site = get_or_create_site(session)
 
         # add site_uuid to the generation data
-        generation_data["site_uuid"] = site.site_uuid
+        generation_data["site_uuid"] = site.location_uuid
 
         # rename columns to match the database schema
         generation_data.rename(
@@ -129,7 +129,7 @@ def save_forecasts_to_site_db(
     timestamp_utc = pd.Timestamp.now(tz="UTC").floor("15min")
 
     forecast_meta = {
-        "site_uuid": site.site_uuid,
+        "location_uuid": site.location_uuid,
         "timestamp_utc": timestamp_utc,
         "forecast_version": model_version,
     }
