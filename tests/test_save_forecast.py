@@ -32,6 +32,7 @@ def test_save_generation_to_site_db(db_site_session):
     sites = db_site_session.query(LocationSQL).all()
     assert len(sites) == 1
     assert sites[0].capacity_kw == 20_000_002
+    assert sites[0].client_location_name == "nl_national"
 
 
 def test_save_forecasts_to_site_db(db_site_session):
