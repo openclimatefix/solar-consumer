@@ -10,7 +10,7 @@ import os
 import pandas as pd
 
 
-nl_national = PVSite(client_location_name="nl_national", latitude="52.15", longitude="5.23")
+nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
 
 
 def save_generation_to_site_db(
