@@ -10,7 +10,7 @@ import os
 import pandas as pd
 
 
-nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+nl_national = PVSite(client_location_name="nl_national", latitude="52.15", longitude="5.23")
 
 
 def save_generation_to_site_db(
@@ -40,7 +40,7 @@ def save_generation_to_site_db(
         site = get_or_create_site(session)
 
         # add site_uuid to the generation data
-        generation_data["site_uuid"] = site.site_uuid
+        generation_data["site_uuid"] = site.location_uuid
 
         # rename columns to match the database schema
         generation_data.rename(
@@ -69,7 +69,7 @@ def save_generation_to_site_db(
                 site.capacity_kw = capacity_kw
                 session.commit()
                 logger.info(
-                    f"Updated site {nl_national.client_site_name} capacity "
+                    f"Updated site {nl_national.client_location_name} capacity "
                     f"from {old_site_capacity_kw} to {site.capacity_kw} kW."
                 )
 
@@ -83,16 +83,16 @@ def get_or_create_site(session):
     try:
         site = get_site_by_client_site_name(
             session=session,
-            client_site_name=nl_national.client_site_name,
-            client_name=nl_national.client_site_name,  # this is not used
+            client_site_name=nl_national.client_location_name,
+            client_name=nl_national.client_location_name,  # this is not used
         )
     except Exception:
-        logger.info(f"Creating site {nl_national.client_site_name} in the database.")
+        logger.info(f"Creating site {nl_national.client_location_name} in the database.")
         site, _ = create_site(
             session=session,
             latitude=nl_national.latitude,
             longitude=nl_national.longitude,
-            client_site_name=nl_national.client_site_name,
+            client_site_name=nl_national.client_location_name,
             client_site_id=1,
             country="nl",
             capacity_kw=20_000_000,
