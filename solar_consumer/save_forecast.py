@@ -129,7 +129,7 @@ def save_forecasts_to_site_db(
     timestamp_utc = pd.Timestamp.now(tz="UTC").floor("15min")
 
     forecast_meta = {
-        "site_uuid": site.site_uuid,
+        "location_uuid": site.location_uuid,
         "timestamp_utc": timestamp_utc,
         "forecast_version": model_version,
     }
