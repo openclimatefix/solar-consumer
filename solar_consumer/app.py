@@ -46,7 +46,7 @@ def app(
         model_tag = "neso-solar-forecast"
     elif country == "nl":
         model_tag = "ned-nl-national"
-    elif country == "nl":
+    elif country == "de":
         model_tag = "entsoe-de"
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
