@@ -1,4 +1,5 @@
-import pytest, requests, os
+import pytest
+import requests
 import pandas as pd
 from solar_consumer.data.fetch_de_data import fetch_de_data
 
@@ -74,8 +75,7 @@ def test_only_solar_rows_returned():
 def test_quantity_and_timestamp_conversion():
     df = fetch_de_data()
     # Check kilowatts conversion and timesatmps dtype check
-    row0 = df.iloc[0]
-    assert df['solar_generation_kw'].iloc[0] == 1.00 * 1000
+    assert df.iloc[0]["solar_generation_kw"] == pytest.approx(1_000)
     assert pd.api.types.is_datetime64tz_dtype(df['target_datetime_utc'])
 
 def test_assert_on_invalid_mode():
