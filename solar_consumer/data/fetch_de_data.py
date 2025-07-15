@@ -25,20 +25,22 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     assert historic_or_forecast == "generation", "Only 'generation' supported for the time being"
 
     # Fetches data from last 24 hours from current time
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     start = now - timedelta(hours=24)
     period_start = start.strftime("%Y%m%d%H%M")
     period_end = now.strftime("%Y%m%d%H%M")
 
     # Prepare request
     url = "https://web-api.tp.entsoe.eu/api" # base url for api
-    api_key = os.getenv("ENTSOE_API_KEY", "") # api key from env vars, empty string if missing
+    API_KEY = os.getenv("ENTSOE_API_KEY", "") # api key from env vars, empty string if missing
     params = {
         "documentType": "A75",    # actual generation
         "processType": "A16",     # realised output
+        "in_Domain": "10Y1001A1001A83F",
+        "psrType": "B16",
         "periodStart": period_start,
         "periodEnd": period_end,
-        "securityToken": api_key,
+        "securityToken": API_KEY,
     }
 
     # Initialise session for request
