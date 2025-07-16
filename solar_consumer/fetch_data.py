@@ -11,6 +11,7 @@ import json
 import pandas as pd
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
+from solar_consumer.data.fetch_de_data import fetch_de_data
 
 
 def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -24,7 +25,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
         solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
     """
 
-    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data}
+    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data, "de": fetch_de_data,}
 
     if country in country_data_functions:
         try:
