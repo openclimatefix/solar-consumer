@@ -8,21 +8,74 @@ from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
 from sqlalchemy.orm.session import Session
 import os
 import pandas as pd
+from typing import Optional
 
-
+# Default NL national site
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
 
+# Germany Transmission System Operators (TSOs)
+# Coords ~direct to HQs
+de_50hertz = PVSite(client_site_name="50Hertz", latitude="52.53", longitude="13.37")
+de_amprion = PVSite(client_site_name="Amprion", latitude="51.52", longitude="7.45")
+de_tennet = PVSite(client_site_name="TenneT", latitude="52.38", longitude="5.17")
+de_transnetbw = PVSite(client_site_name="TransnetBW", latitude="48.78", longitude="9.18")
+DE_TSO_SITES = {"TransnetBW": de_transnetbw, "50Hertz": de_50hertz, "TenneT": de_tennet,
+                "Amprion": de_amprion}
+# Actual installed capacities (in kW) by TSO
+# 50Hz via 2022 report, all others via 2020 OSPD dataset
+DE_TSO_CAPACITY = {"50Hertz": 18_175_000, "Amprion": 16_506_000, "TenneT": 21_882_000, 
+                      "TransnetBW": 10_770_000,
+}
+
+
+# Get or create a PVSite in the database
+def get_or_create_pvsite(session: Session, pvsite: PVSite, country: str, 
+                         capacity_override_kw: Optional[int] = None,):
+    
+    try:
+        site = get_site_by_client_site_name(
+            session=session,
+            client_site_name=pvsite.client_site_name,
+            client_name=pvsite.client_site_name, # this is not used
+        )
+    except Exception:
+        logger.info(f"Creating site {pvsite.client_site_name} in the database.")
+        
+        # Choose capacity based on country; per-TSO for de; nl only has 20GW hard‑coded)
+        if capacity_override_kw is not None:
+            capacity = capacity_override_kw
+        elif country == "de":
+            capacity = DE_TSO_CAPACITY[pvsite.client_site_name]
+        else:
+            capacity = 20_000_000
+        
+        site, _ = create_site(
+            session=session,
+            latitude=pvsite.latitude,
+            longitude=pvsite.longitude,
+            client_site_name=pvsite.client_site_name,
+            client_site_id=1,
+            country=country,
+            capacity_kw=capacity,
+            dno="", # these are UK specific things
+            gsp="", # these are UK specific things
+        )
+    return site
 
 def save_generation_to_site_db(
     generation_data: pd.DataFrame, session: Session, country: str = "nl"
-):
+) -> None:
     """Save generation data to the database.
 
     Parameters:
         generation_data (pd.DataFrame): DataFrame containing generation data to save.
-            The following columns must be present: solar_generation_kw, target_datetime_utc and capacity_kw
+            The following columns must be present: 
+            - solar_generation_kw
+            - target_datetime_utc
+            - capacity_kw (only when country="nl")
+            - tso_zone (only when country="de")
         session (Session): SQLAlchemy session for database access.
-        country: (str): Country code for the generation data. Currently only 'nl' is supported.
+        country: (str): Country code for the generation data ('nl' or 'de')
 
     """
     # Check if generation_data is empty
@@ -30,77 +83,43 @@ def save_generation_to_site_db(
         logger.warning("No generation data provided to save!")
         return
 
-    if country != "nl":
-        raise Exception("Only NL generation data is supported when saving (atm).")
+    # Determine country
+    if country == "nl":
+        country_sites = {"nl_national": nl_national}
+    elif country == "de":
+        country_sites = DE_TSO_SITES
+    else:
+        raise Exception("Only generation data from the following countries is supported \
+            when saving: 'nl', 'de'")
 
-    try:
-        logger.info("Saving generation data to the database.")
+    # Loop per site
+    for tso, pvsite in country_sites.items():
+        
+        # Filter by TSO for Germany, or use all data for NL
+        if country == "de":
+            tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
+        else:
+            tso_df = generation_data.copy()
+            
+        if tso_df.empty:
+            logger.debug(f"No rows for TSO {tso!r}, skipping")
+            continue
 
-        # get site uuid
-        site = get_or_create_site(session)
+        site = get_or_create_pvsite(session, pvsite, country)
 
-        # add site_uuid to the generation data
-        generation_data["site_uuid"] = site.location_uuid
-
-        # rename columns to match the database schema
-        generation_data.rename(
+        # Prepare DataFrame, rename and insert
+        tso_df = tso_df.rename(
             columns={
                 "solar_generation_kw": "power_kw",
                 "target_datetime_utc": "start_utc",
-            },
-            inplace=True,
+            }
         )
+        tso_df["start_utc"] = pd.to_datetime(tso_df["start_utc"])
+        tso_df["site_uuid"] = site.location_uuid
 
-        # make sure start_utc is datetime
-        generation_data["start_utc"] = pd.to_datetime(generation_data["start_utc"])
-
-        insert_generation_values(
-            session=session,
-            df=generation_data,
-        )
+        insert_generation_values(session=session, df=tso_df)
         session.commit()
-        logger.info(f"Successfully saved {len(generation_data)} rows of generation data.")
-
-        # update capacity
-        if "capacity_kw" in generation_data.columns:
-            capacity_kw = int(generation_data["capacity_kw"].max())
-            if capacity_kw > site.capacity_kw + 1.0:
-                old_site_capacity_kw = site.capacity_kw
-                site.capacity_kw = capacity_kw
-                session.commit()
-                logger.info(
-                    f"Updated site {nl_national.client_site_name} capacity "
-                    f"from {old_site_capacity_kw} to {site.capacity_kw} kW."
-                )
-
-    except Exception as e:
-        logger.error(f"An error occurred while saving generation data: {e}")
-        raise e
-
-
-def get_or_create_site(session):
-    """Get or create a site in the database."""
-    try:
-        site = get_site_by_client_site_name(
-            session=session,
-            client_site_name=nl_national.client_site_name,
-            client_name=nl_national.client_site_name,  # this is not used
-        )
-    except Exception:
-        logger.info(f"Creating site {nl_national.client_site_name} in the database.")
-        site, _ = create_site(
-            session=session,
-            latitude=nl_national.latitude,
-            longitude=nl_national.longitude,
-            client_site_name=nl_national.client_site_name,
-            client_site_id=1,
-            country="nl",
-            capacity_kw=20_000_000,
-            dno="",  # these are UK specific things
-            gsp="",  # these are UK specific things
-        )
-    return site
-
+        logger.info(f"Successfully saved {len(tso_df)} rows")
 
 def save_forecasts_to_site_db(
     forecast_data: pd.DataFrame,
@@ -122,9 +141,9 @@ def save_forecasts_to_site_db(
     """
 
     if country != "nl":
-        raise Exception("Only NL generation data is supported when saving (atm).")
+        raise Exception("Only NL forecast data is supported when saving (atm).")
 
-    site = get_or_create_site(session)
+    site = get_or_create_pvsite(session, nl_national, country)
 
     timestamp_utc = pd.Timestamp.now(tz="UTC").floor("15min")
 
