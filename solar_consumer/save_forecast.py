@@ -23,9 +23,8 @@ DE_TSO_SITES = {"TransnetBW": de_transnetbw, "50Hertz": de_50hertz, "TenneT": de
                 "Amprion": de_amprion}
 # Actual installed capacities (in kW) by TSO
 # 50Hz via 2022 report, all others via 2020 OSPD dataset
-DE_TSO_CAPACITY = {"50Hertz": 18_175_000, "Amprion": 16_506_000, "TenneT": 21_882_000, 
-                      "TransnetBW": 10_770_000,
-}
+DE_TSO_CAPACITY = {"TransnetBW": 10_770_000, "50Hertz": 18_175_000, "TenneT": 21_882_000, 
+                   "Amprion": 16_506_000}
 
 
 # Get or create a PVSite in the database
@@ -41,7 +40,7 @@ def get_or_create_pvsite(session: Session, pvsite: PVSite, country: str,
     except Exception:
         logger.info(f"Creating site {pvsite.client_site_name} in the database.")
         
-        # Choose capacity based on country; per-TSO for de; nl only has 20GW hard‑coded)
+        # Choose capacity based on country; per-TSO for de; nl only has 20GW hard‑coded
         if capacity_override_kw is not None:
             capacity = capacity_override_kw
         elif country == "de":
@@ -64,7 +63,7 @@ def get_or_create_pvsite(session: Session, pvsite: PVSite, country: str,
 
 def save_generation_to_site_db(
     generation_data: pd.DataFrame, session: Session, country: str = "nl"
-) -> None:
+):
     """Save generation data to the database.
 
     Parameters:
@@ -76,7 +75,9 @@ def save_generation_to_site_db(
             - tso_zone (only when country="de")
         session (Session): SQLAlchemy session for database access.
         country: (str): Country code for the generation data ('nl' or 'de')
-
+    
+    Return:
+        None
     """
     # Check if generation_data is empty
     if generation_data.empty:
@@ -137,7 +138,9 @@ def save_forecasts_to_site_db(
         model_tag (str): Model tag to fetch model metadata.
         model_version (str): Model version to fetch model metadata.
         country: (str): Country code for the generation data. Currently only 'nl' is supported.
-
+        
+    Return:
+        None
     """
 
     if country != "nl":
