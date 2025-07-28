@@ -98,36 +98,42 @@ def save_generation_to_site_db(
         
         # Filter by TSO for Germany, or use all data for NL
         if country == "de":
-            tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
+            generation_data_tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
         else:
-            tso_df = generation_data.copy()
+            generation_data_tso_df = generation_data.copy()
             
-        if tso_df.empty:
+        if generation_data_tso_df.empty:
             logger.debug(f"No rows for TSO {tso!r}, skipping")
             continue
 
         # Set site capacity to the max capacity_kw in generation_data (test expects this)
-        if country == "nl" and "capacity_kw" in tso_df.columns:
-            capacity_override = int(tso_df["capacity_kw"].max())
+        if country == "nl" and "capacity_kw" in generation_data_tso_df.columns:
+            capacity_override = int(generation_data_tso_df["capacity_kw"].max())
         else:
             capacity_override = None
+            
+        capacity_override = (
+            int(generation_data_tso_df["capacity_kw"].max())
+            if country == "nl" and "capacity_kw" in generation_data_tso_df.columns
+            else None
+        )
             
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
 
         # Prepare DataFrame, rename and insert
-        tso_df = tso_df.rename(
+        generation_data_tso_df = generation_data_tso_df.rename(
             columns={
                 "solar_generation_kw": "power_kw",
                 "target_datetime_utc": "start_utc",
             }
         )
-        tso_df["start_utc"] = pd.to_datetime(tso_df["start_utc"])
-        tso_df["site_uuid"] = site.location_uuid
+        generation_data_tso_df["start_utc"] = pd.to_datetime(generation_data_tso_df["start_utc"])
+        generation_data_tso_df["site_uuid"] = site.location_uuid
 
-        insert_generation_values(session=session, df=tso_df)
+        insert_generation_values(session=session, df=generation_data_tso_df)
         session.commit()
-        logger.info(f"Successfully saved {len(tso_df)} rows")
+        logger.info(f"Successfully saved {len(generation_data_tso_df)} rows")
 
 def save_forecasts_to_site_db(
     forecast_data: pd.DataFrame,
