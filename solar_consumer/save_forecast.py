@@ -27,15 +27,25 @@ DE_TSO_CAPACITY = {"TransnetBW": 10_770_000, "50Hertz": 18_175_000, "TenneT": 21
                    "Amprion": 16_506_000}
 
 
-# Get or create a PVSite in the database
 def get_or_create_pvsite(
     session: Session, pvsite: PVSite, country: str, capacity_override_kw: Optional[int] = None,
 ):
     """
-    tbd
-    """
-                           
-    
+    Retrieve PVsite record by name or create if missing
+
+    If `capacity_override_kw` is provided, that value will be used when creating the site. 
+    For Germany, the TSO’s known capacity is used if no override is given. For NL, default 20GW applied
+
+    Parameters:
+        session (Session): CurrentSQLAlchemy session
+        pvsite (PVSite): Pydantic model with site metadata
+        country (str): Country code ('nl' or 'de')
+        capacity_override_kw (Optional[int]): Force a specific capacity on creation
+
+    Returns:
+        site: The existing/created site model instance
+    """                    
+
     try:
         site = get_site_by_client_site_name(
             session=session,
@@ -70,9 +80,16 @@ def update_capacity(
     session: Session, site, capacity_override_kw: Optional[int],
 ):
     """
-    Update stored site capacity if the override is higher
+    Update stored site capacity if the override is higher. Only runs when importing generation
+    data so DB always reflects highest observed capacity.
 
-    tbd
+    Parameters:
+        session (Session): Active session
+        site: The site database model instance
+        capacity_override_kw (Optional[int]): New capacity candidate to compare
+
+    Returns:
+        None
     """
   
     if capacity_override_kw is not None and capacity_override_kw > site.capacity_kw + 1.0:
@@ -153,7 +170,7 @@ def save_generation_to_site_db(
 
         insert_generation_values(session=session, df=generation_data_tso_df)
         session.commit()
-        update_capacity(session, site, capacity_overridw_kw=capacity_override,)
+        update_capacity(session, site, capacity_override_kw=capacity_override,)
         logger.info(f"Successfully saved {len(generation_data_tso_df)} rows")
 
 
