@@ -28,8 +28,13 @@ DE_TSO_CAPACITY = {"TransnetBW": 10_770_000, "50Hertz": 18_175_000, "TenneT": 21
 
 
 # Get or create a PVSite in the database
-def get_or_create_pvsite(session: Session, pvsite: PVSite, country: str, 
-                         capacity_override_kw: Optional[int] = None,):
+def get_or_create_pvsite(
+    session: Session, pvsite: PVSite, country: str, capacity_override_kw: Optional[int] = None,
+):
+    """
+    tbd
+    """
+                           
     
     try:
         site = get_site_by_client_site_name(
@@ -61,6 +66,24 @@ def get_or_create_pvsite(session: Session, pvsite: PVSite, country: str,
         )
     return site
 
+def update_capacity(
+    session: Session, site, capacity_override_kw: Optional[int],
+):
+    """
+    Update stored site capacity if the override is higher
+
+    tbd
+    """
+  
+    if capacity_override_kw is not None and capacity_override_kw > site.capacity_kw + 1.0:
+        old_site_capacity_kw = site.capacity_kw
+        site.capacity_kw = capacity_override_kw
+        session.commit()
+        logger.info(
+            f"Updated site {site.client_site_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
+        )
+  
+
 def save_generation_to_site_db(
     generation_data: pd.DataFrame, session: Session, country: str = "nl"
 ):
@@ -79,6 +102,7 @@ def save_generation_to_site_db(
     Return:
         None
     """
+
     # Check if generation_data is empty
     if generation_data.empty:
         logger.warning("No generation data provided to save!")
@@ -129,7 +153,9 @@ def save_generation_to_site_db(
 
         insert_generation_values(session=session, df=generation_data_tso_df)
         session.commit()
+        update_capacity(session, site, capacity_overridw_kw=capacity_override,)
         logger.info(f"Successfully saved {len(generation_data_tso_df)} rows")
+
 
 def save_forecasts_to_site_db(
     forecast_data: pd.DataFrame,
