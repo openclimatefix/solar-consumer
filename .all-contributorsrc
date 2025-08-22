@@ -116,6 +116,15 @@
       "contributions": [
         "infra"
       ]
+    },
+    {
+      "login": "Shohail-Ismail",
+      "name": "Shohail Ismail",
+      "avatar_url": "https://avatars.githubusercontent.com/u/149825575?v=4",
+      "profile": "https://github.com/Shohail-Ismail",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
