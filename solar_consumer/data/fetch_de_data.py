@@ -167,7 +167,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     # Initialise session for request
     session = requests.Session()
     logger.debug("Requesting German data from API with params: {}", params)
-    response = session.get(URL, params = params)
+    response = session.get(URL, params=params)
     try:
         response.raise_for_status()
     except Exception as e:
@@ -214,4 +214,23 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    print("Wrote to CSV")
+    # Backfill last 5 years - yesterday and write to CSV
+    output_dir = os.path.join("data", "de_solar")
+    os.makedirs(output_dir, exist_ok = True)
+    out_path = os.path.join(output_dir, "germany_solar_generation.csv")
+
+    now_utc = datetime.now(timezone.utc).replace(minute = 0, second = 0, microsecond = 0)
+    end = (now_utc - timedelta(days=1)).replace(minute = 0, second = 0, microsecond = 0)
+    
+    # Start at first day of the month 5 years ago for clean boundaries
+    past_five_years = end - timedelta(days = 5 * 365)
+    start = past_five_years.replace(day = 1, hour = 0, minute = 0, second = 0, microsecond = 0)
+
+    # Perform backfill using week-long chunks as stated before
+    df = fetch_de_data_range(start, end, chunk_hours = 168) ### Adjust if you hit API limits ###
+
+    # Write to file (done with temp to avoid partial files)
+    temp = out_path + ".tmp"
+    df.to_csv(temp, index = False)
+    os.replace(temp, out_path)
+    logger.info("FINSHED: WROTE {} ROWS OF SOLAR GENERATION DATA TO FILE: {}", len(df), out_path)
