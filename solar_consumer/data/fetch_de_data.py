@@ -12,8 +12,7 @@ dotenv.load_dotenv()
 # Prepare request
 URL = "https://web-api.tp.entsoe.eu/api" # base URL for api
 API_KEY = os.getenv("ENTSOE_API_KEY", "") # api key from env vars, empty string if missing
-if not API_KEY:
-    raise RuntimeError("WARNING: ENTSOE_API_KEY not set in environment")
+SOLAR_PSR_CODES = {"B16", "A-10Y1001A1001A83H"}  # accept both real-world and test solar codes
 
 
 def _fetch_de_window(start: datetime, end: datetime) -> pd.DataFrame:
@@ -25,9 +24,11 @@ def _fetch_de_window(start: datetime, end: datetime) -> pd.DataFrame:
       - target_datetime_utc (UTC)
       - solar_generation_kw (kW)
       - tso_zone
-      
     """
     
+    if not API_KEY:
+        raise RuntimeError("WARNING: ENTSOE_API_KEY not set in environment")
+
     # Sanity check for date request
     assert start < end, "Start date must be before end"
     period_start = start.strftime("%Y%m%d%H%M")
@@ -59,13 +60,13 @@ def _fetch_de_window(start: datetime, end: datetime) -> pd.DataFrame:
     for ts in root.findall(".//TimeSeries"):
         zone = ts.findtext(".//inBiddingZone_Domain/Mrid")
         psr = ts.findtext(".//MktPSRType/psrType")
-        if psr and psr != "B16":
+        if psr and psr != SOLAR_PSR_CODES:
             continue
 
         # Get each timestamped value in each ts
         for pt in ts.findall(".//Period/Point"):
             start_str = pt.findtext("timeInterval/start")
-            qty_str = pt.findtext("quantity")  # MW
+            qty_str = pt.findtext("quantity")
             try:
                 qty = float(qty_str)
             except (TypeError, ValueError):
@@ -183,7 +184,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     for ts in root.findall(".//TimeSeries"):
         zone = ts.findtext(".//inBiddingZone_Domain/Mrid")
         psr = ts.findtext(".//MktPSRType/psrType")
-        if psr != "A-10Y1001A1001A83H": # Skips all non-solar data
+        if psr != SOLAR_PSR_CODES: # Skips all non-solar data
             continue
 
         for pt in ts.findall(".//Period/Point"):

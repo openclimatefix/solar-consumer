@@ -65,6 +65,12 @@ def _mock_session_get(monkeypatch, request):
             return DummyResp()
         monkeypatch.setattr(requests.Session, "get", dummy_get)
     yield
+    
+@pytest.fixture(autouse=True)
+def _set_entsoe_key(monkeypatch):
+    #Make sure code under test sees non-empty API key
+    monkeypatch.setenv("ENTSOE_API_KEY", "dummy")
+    monkeypatch.setattr(de_mod, "API_KEY", "dummy", raising=False)
 
 def test_only_solar_rows_returned():
     df = fetch_de_data()
@@ -90,6 +96,29 @@ def test_http_error(monkeypatch):
     monkeypatch.setattr(requests.Session, 'get', lambda self, url, params=None: BadResp())
     with pytest.raises(requests.HTTPError):
         fetch_de_data()
+        
+def test_range_fetch_returns_rows():
+    # 2-hour window spanning the 2 sample points in SAMPLE_XML
+    start = pd.Timestamp("2025-07-11T02:00Z")
+    end = pd.Timestamp("2025-07-11T04:00Z")
+    df = fetch_de_data.fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), 
+                                           chunk_hours = 1)
+    assert not df.empty
+    assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
+    
+    #should be 2 points, - both solar and zone as in the fitxure
+    assert df.shape == (2, 3) and all(df["tso_zone"] == "TEST_ZONE")
+
+def test_range_fetch_handles_empty_windows():
+    # Time outside sample XML gives mocked response, but this ensures the function doesn't 
+    # error and returns expected columns when empty
+    start = pd.Timestamp("1999-01-01T00:00Z")
+    end = pd.Timestamp("1999-01-01T01:00Z")
+    df = fetch_de_data.fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), 
+                                           chunk_hours = 1)
+    assert isinstance(df, pd.DataFrame)
+    assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
+
 
 # Live test only executes if $env ENT­SOE_API_KEY set
 @pytest.mark.skip(reason = "Live ENTSOE endpoint often returns empty rows for the most recent 24h;\
