@@ -90,10 +90,53 @@ def _fetch_de_window(start: datetime, end: datetime) -> pd.DataFrame:
     return df
 
 
+def fetch_de_data_range(start: datetime, end: datetime, chunk_hours: int = 168) -> pd.DataFrame:
+    """
+    Fetch German solar generation over a date range by chunking into windows (smaller payloads for API 
+    and more robust 'retry" options)
+    - start/end: inclusive start/exclusive end datetime (UTC expected)
+    - chunk_hours: window size (default 168h = 7 days) to keep payloads reasonable.
+    Returns a DataFrame with the same schema as _fetch_de_window
+    """
+    assert start < end, "Start date must be before end"
+
+    # Normalise to UTC and hour boundaries
+    if start.tzinfo is None:
+        start = start.replace(tzinfo = timezone.utc)
+    if end.tzinfo is None:
+        end = end.replace(tzinfo = timezone.utc)
+    start = start.replace(minute = 0, second = 0, microsecond = 0)
+    end = end.replace(minute = 0, second = 0, microsecond = 0)
+
+    # Accumulate windows to concat at end
+    frames = []
+    window = start
+    step = timedelta(hours = chunk_hours)
+
+    # Fetch one window (network and XML parse) from start to end, and store non-empty results
+    while window < end:
+        nxt = min(window + step, end)
+        df_chunk = _fetch_de_window(window, nxt)
+        if not df_chunk.empty:
+            frames.append(df_chunk)
+        window = nxt
+
+    # If all windows are completly empty, return empty with right shape
+    if not frames:
+        return pd.DataFrame(columns=["target_datetime_utc", "solar_generation_kw", "tso_zone"])
+
+    # Concatenate to a single table
+    df = pd.concat(frames, ignore_index = True)
+    df = (df.drop_duplicates(subset=["target_datetime_utc", "tso_zone"]).sort_values("target_datetime_utc")
+          .reset_index(drop=True))
+    logger.info("Assembled {} rows of German solar data over range.", len(df))
+    return df
+
+
 def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     """
     Fetch solar generation data from German bidding zones via the
-    ENTSOE API
+    ENTSOE API (24 HOUR FETCH)
 
     Only 'generation' mode is supported for now
     
@@ -124,7 +167,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     # Initialise session for request
     session = requests.Session()
     logger.debug("Requesting German data from API with params: {}", params)
-    response = session.get(URL, params=params)
+    response = session.get(URL, params = params)
     try:
         response.raise_for_status()
     except Exception as e:
