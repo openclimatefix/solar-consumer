@@ -106,7 +106,7 @@ def test_range_fetch_returns_rows():
     assert not df.empty
     assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
     
-    #should be 2 points, - both solar and zone as in the fitxure
+    #should be 2 points - both solar and zone as in the fixture
     assert df.shape == (2, 3) and all(df["tso_zone"] == "TEST_ZONE")
 
 def test_range_fetch_handles_empty_windows():
