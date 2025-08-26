@@ -2,6 +2,7 @@ import pytest
 import requests
 import pandas as pd
 from solar_consumer.data.fetch_de_data import fetch_de_data
+import solar_consumer.data.fetch_de_data as de_module
 
 # Combined XML fixture: includes wind offshore (B18), wind onshore (B19)
 # and solar (A-10Y1001A1001A83H), as shown in ENTSOE API docs
@@ -70,7 +71,7 @@ def _mock_session_get(monkeypatch, request):
 def _set_entsoe_key(monkeypatch):
     #Make sure code under test sees non-empty API key
     monkeypatch.setenv("ENTSOE_API_KEY", "dummy")
-    monkeypatch.setattr(de_mod, "API_KEY", "dummy", raising=False)
+    monkeypatch.setattr(de_module, "API_KEY", "dummy", raising=False)
 
 def test_only_solar_rows_returned():
     df = fetch_de_data()
