@@ -113,8 +113,7 @@ def test_range_fetch_handles_empty_windows():
     # error and returns expected columns when empty
     start = pd.Timestamp("1999-01-01T00:00Z")
     end = pd.Timestamp("1999-01-01T01:00Z")
-    df = fetch_de_data.fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), 
-                                           chunk_hours = 1)
+    df = fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), chunk_hours=1)
     assert isinstance(df, pd.DataFrame)
     assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
 
