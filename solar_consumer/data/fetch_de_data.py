@@ -234,4 +234,4 @@ if __name__ == "__main__":
     temp = out_path + ".tmp"
     df.to_csv(temp, index = False)
     os.replace(temp, out_path)
-    logger.info("FINSHED: WROTE {} ROWS OF SOLAR GENERATION DATA TO FILE: {}", len(df), out_path)
+    logger.info("FINISHED: WROTE {} ROWS OF SOLAR GENERATION DATA TO FILE: {}", len(df), out_path)

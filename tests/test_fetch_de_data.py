@@ -1,8 +1,7 @@
 import pytest
 import requests
 import pandas as pd
-from solar_consumer.data.fetch_de_data import fetch_de_data
-import solar_consumer.data.fetch_de_data as de_module
+from solar_consumer.data.fetch_de_data import fetch_de_data, fetch_de_data_range
 
 # Combined XML fixture: includes wind offshore (B18), wind onshore (B19)
 # and solar (A-10Y1001A1001A83H), as shown in ENTSOE API docs
