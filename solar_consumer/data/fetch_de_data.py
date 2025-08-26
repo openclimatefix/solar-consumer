@@ -60,7 +60,7 @@ def _fetch_de_window(start: datetime, end: datetime) -> pd.DataFrame:
     for ts in root.findall(".//TimeSeries"):
         zone = ts.findtext(".//inBiddingZone_Domain/Mrid")
         psr = ts.findtext(".//MktPSRType/psrType")
-        if psr and psr != SOLAR_PSR_CODES:
+        if psr not in SOLAR_PSR_CODES:
             continue
 
         # Get each timestamped value in each ts
@@ -184,7 +184,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     for ts in root.findall(".//TimeSeries"):
         zone = ts.findtext(".//inBiddingZone_Domain/Mrid")
         psr = ts.findtext(".//MktPSRType/psrType")
-        if psr != SOLAR_PSR_CODES: # Skips all non-solar data
+        if psr not in SOLAR_PSR_CODES: # Skips all non-solar data
             continue
 
         for pt in ts.findall(".//Period/Point"):
