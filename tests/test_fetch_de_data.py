@@ -2,6 +2,7 @@ import pytest
 import requests
 import pandas as pd
 from solar_consumer.data.fetch_de_data import fetch_de_data, fetch_de_data_range
+import solar_consumer.data.fetch_de_data as de_module
 
 # Combined XML fixture: includes wind offshore (B18), wind onshore (B19)
 # and solar (A-10Y1001A1001A83H), as shown in ENTSOE API docs
@@ -88,7 +89,6 @@ def test_assert_on_invalid_mode():
     with pytest.raises(AssertionError):
         fetch_de_data(historic_or_forecast = 'forecast')
 
-
 def test_http_error(monkeypatch):
     class BadResp(DummyResp):
         def __init__(self):
@@ -101,8 +101,7 @@ def test_range_fetch_returns_rows():
     # 2-hour window spanning the 2 sample points in SAMPLE_XML
     start = pd.Timestamp("2025-07-11T02:00Z")
     end = pd.Timestamp("2025-07-11T04:00Z")
-    df = fetch_de_data.fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), 
-                                           chunk_hours = 1)
+    df = fetch_de_data_range(start.to_pydatetime(), end.to_pydatetime(), chunk_hours=1)
     assert not df.empty
     assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
     
