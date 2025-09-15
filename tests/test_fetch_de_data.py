@@ -6,7 +6,7 @@ from solar_consumer.data.fetch_de_data import fetch_de_data
 from solar_consumer.data.fetch_de_data import fetch_de_data_range
 
 # Combined XML fixture: includes wind offshore (B18), wind onshore (B19)
-# and solar (A-10Y1001A1001A83H), as shown in new ENTSOE API docs
+# and solar (A-10Y1001A1001A83H), as shown in ENTSOE API docs
 SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
 <GL_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0">
   <TimeSeries>
@@ -19,20 +19,16 @@ SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
       </timeInterval>
       <resolution>PT15M</resolution>
       <Point>
-        <position>1</position>
-        <quantity>2.0</quantity>
+        <position>1</position><quantity>2.0</quantity>
       </Point>
       <Point>
-        <position>2</position>
-        <quantity>3.0</quantity>
+        <position>2</position><quantity>3.0</quantity>
       </Point>
       <Point>
-        <position>3</position>
-        <quantity>0.0</quantity>
+        <position>3</position><quantity>0.0</quantity>
       </Point>
       <Point>
-        <position>4</position>
-        <quantity>0.0</quantity>
+        <position>4</position><quantity>0.0</quantity>
       </Point>
     </Period>
   </TimeSeries>
