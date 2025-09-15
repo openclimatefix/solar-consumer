@@ -65,7 +65,7 @@ def _mock_session_get(monkeypatch, request):
 def _set_entsoe_key(monkeypatch):
     #Make sure code under test sees non-empty API key
     monkeypatch.setenv("ENTSOE_API_KEY", "dummy")
-    monkeypatch.setattr(de_mod, "API_KEY", "dummy", raising=False)
+    monkeypatch.setattr(de_module, "API_KEY", "dummy", raising=False)
 
 def test_only_solar_rows_returned():
     df = fetch_de_data()
@@ -82,7 +82,6 @@ def test_quantity_and_timestamp_conversion():
 def test_assert_on_invalid_mode():
     with pytest.raises(AssertionError):
         fetch_de_data(historic_or_forecast = 'forecast')
-
 
 def test_http_error(monkeypatch):
     class BadResp(DummyResp):
@@ -105,7 +104,7 @@ def test_range_fetch_returns_rows():
     assert not df.empty
     assert {"target_datetime_utc", "solar_generation_kw", "tso_zone"} <= set(df.columns)
     
-    #should be 2 points - both solar and zone as in the fixture
+    # Should be [4, 3] with all solar, and zone as it is in the fixture
     assert df.shape == (4, 3) and all(df['tso_zone'] == '10Y1001A1001A82H')
 
 def test_range_fetch_handles_empty_windows():
