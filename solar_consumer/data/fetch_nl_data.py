@@ -92,49 +92,50 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
         # should be 2 for generation, 3 for forecast
         classification = 2 if historic_or_forecast == "generation" else 1
+       
+        for point in range(0,13):
+            params = {
+                "point": point,
+                "type": 2,  # solar
+                "granularity": 4,
+                "granularitytimezone": 0,
+                "classification": classification,
+                "activity": 1,
+                "validfrom[strictly_before]": next_date.strftime("%Y-%m-%d"),
+                "validfrom[after]": current_date.strftime("%Y-%m-%d"),
+            }
 
-        params = {
-            "point": 0,
-            "type": 2,  # solar
-            "granularity": 4,
-            "granularitytimezone": 0,
-            "classification": classification,
-            "activity": 1,
-            "validfrom[strictly_before]": next_date.strftime("%Y-%m-%d"),
-            "validfrom[after]": current_date.strftime("%Y-%m-%d"),
-        }
+            data = fetch_with_retry(session, url, params)
 
-        data = fetch_with_retry(session, url, params)
+            # Extract utilization data into a DataFrame
+            utilizations = data["hydra:member"]
 
-        # Extract utilization data into a DataFrame
-        utilizations = data["hydra:member"]
+            if utilizations:
+                # Create DataFrame for current day
+                df = pd.DataFrame(
+                    [
+                        {
+                            "id": util["id"],
+                            "point": util["point"],
+                            "type": util["type"],
+                            "granularity": util["granularity"],
+                            "activity": util["activity"],
+                            "classification": util["classification"],
+                            "capacity (kW)": util["capacity"],
+                            "volume (kWh)": util["volume"],
+                            "percentage": util["percentage"],
+                            # 'emission': util['emission'],
+                            # 'emissionfactor': util['emissionfactor'],
+                            "validfrom (UTC)": datetime.fromisoformat(util["validfrom"]),
+                            "validto (UTC)": datetime.fromisoformat(util["validto"]),
+                            "lastupdate (UTC)": datetime.fromisoformat(util["lastupdate"]),
+                        }
+                        for util in utilizations
+                    ]
+                )
 
-        if utilizations:
-            # Create DataFrame for current day
-            df = pd.DataFrame(
-                [
-                    {
-                        "id": util["id"],
-                        "point": util["point"],
-                        "type": util["type"],
-                        "granularity": util["granularity"],
-                        "activity": util["activity"],
-                        "classification": util["classification"],
-                        "capacity (kW)": util["capacity"],
-                        "volume (kWh)": util["volume"],
-                        "percentage": util["percentage"],
-                        # 'emission': util['emission'],
-                        # 'emissionfactor': util['emissionfactor'],
-                        "validfrom (UTC)": datetime.fromisoformat(util["validfrom"]),
-                        "validto (UTC)": datetime.fromisoformat(util["validto"]),
-                        "lastupdate (UTC)": datetime.fromisoformat(util["lastupdate"]),
-                    }
-                    for util in utilizations
-                ]
-            )
-
-            # Append to main DataFrame
-            all_data = pd.concat([all_data, df], ignore_index=True)
+                # Append to main DataFrame
+                all_data = pd.concat([all_data, df], ignore_index=True)
 
         current_date = next_date
 
@@ -150,7 +151,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data.drop(
         columns=[
             "id",
-            "point",
             "type",
             "granularity",
             "activity",

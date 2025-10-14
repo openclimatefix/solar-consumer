@@ -10,8 +10,20 @@ import os
 import pandas as pd
 from typing import Optional
 
-# Default NL national site
+# Default NL national site, and NL regional
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+nl_region_1 = PVSite(client_site_name="nl_region_1", latitude="53.22", longitude="6.58")
+nl_region_2 = PVSite(client_site_name="nl_region_2", latitude="53.22", longitude="6.58")
+nl_region_3 = PVSite(client_site_name="nl_region_3", latitude="53.22", longitude="6.58")
+nl_region_4 = PVSite(client_site_name="nl_region_4", latitude="53.22", longitude="6.58")
+nl_region_5 = PVSite(client_site_name="nl_region_5", latitude="53.22", longitude="6.58")
+nl_region_6 = PVSite(client_site_name="nl_region_6", latitude="53.22", longitude="6.58")
+nl_region_7 = PVSite(client_site_name="nl_region_7", latitude="53.22", longitude="6.58")
+nl_region_8 = PVSite(client_site_name="nl_region_8", latitude="53.22", longitude="6.58")
+nl_region_9 = PVSite(client_site_name="nl_region_9", latitude="53.22", longitude="6.58")
+nl_region_10 = PVSite(client_site_name="nl_region_10", latitude="53.22", longitude="6.58")
+nl_region_11 = PVSite(client_site_name="nl_region_11", latitude="53.22", longitude="6.58")
+nl_region_12 = PVSite(client_site_name="nl_region_12", latitude="53.22", longitude="6.58")
 
 # Germany Transmission System Operators (TSOs)
 # Coords ~direct to HQs
@@ -127,7 +139,12 @@ def save_generation_to_site_db(
 
     # Determine country
     if country == "nl":
-        country_sites = {"nl_national": nl_national}
+        country_sites = {"0": nl_national,
+                            "1": nl_region_1, "2": nl_region_2, "3": nl_region_3,
+                            "4": nl_region_4, "5": nl_region_5, "6": nl_region_6,
+                            "7": nl_region_7, "8": nl_region_8, "9": nl_region_9, 
+                            "10": nl_region_10, "11": nl_region_11, "12": nl_region_12
+                         }
     elif country == "de":
         country_sites = DE_TSO_SITES
     else:
@@ -142,16 +159,18 @@ def save_generation_to_site_db(
     )
 
     # Loop per site
-    for tso, pvsite in country_sites.items():
+    for key, pvsite in country_sites.items():
         
         # Filter by TSO for Germany, or use all data for NL
         if country == "de":
-            generation_data_tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
+            generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
+        elif country == "nl":
+            generation_data_tso_df = generation_data[generation_data["point"] == key].copy()
         else:
             generation_data_tso_df = generation_data.copy()
             
         if generation_data_tso_df.empty:
-            logger.debug(f"No rows for TSO {tso!r}, skipping")
+            logger.debug(f"No rows for TSO {key!r}, skipping")
             continue
             
         # Create or fetch site and pass same override for any country
