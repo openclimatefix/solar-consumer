@@ -165,7 +165,7 @@ def save_generation_to_site_db(
         if country == "de":
             generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
         elif country == "nl":
-            generation_data_tso_df = generation_data[generation_data["point"] == key].copy()
+            generation_data_tso_df = generation_data[generation_data["point"] == int(key)].copy()
         else:
             generation_data_tso_df = generation_data.copy()
             
