@@ -178,8 +178,4 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
 
-    print(all_data)
     return all_data
-
-
-fetch_nl_data()
