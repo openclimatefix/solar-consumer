@@ -117,7 +117,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                     [
                         {
                             "id": util["id"],
-                            "point": util["point"],
+                            "point": int(util["point"].split("/")[-1]),
                             "type": util["type"],
                             "granularity": util["granularity"],
                             "activity": util["activity"],

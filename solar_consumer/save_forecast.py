@@ -170,7 +170,7 @@ def save_generation_to_site_db(
             generation_data_tso_df = generation_data.copy()
             
         if generation_data_tso_df.empty:
-            logger.debug(f"No rows for TSO {key!r}, skipping")
+            logger.debug(f"No rows for {key!r}, skipping")
             continue
             
         # Create or fetch site and pass same override for any country
