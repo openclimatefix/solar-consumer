@@ -109,7 +109,7 @@ def update_capacity(
         site.capacity_kw = capacity_override_kw
         session.commit()
         logger.info(
-            f"Updated site {site.client_site_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
+            f"Updated site {site.client_location_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
         )
   
 
