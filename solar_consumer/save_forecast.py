@@ -151,13 +151,6 @@ def save_generation_to_site_db(
         raise Exception("Only generation data from the following countries is supported \
             when saving: 'nl', 'de'")
 
-    # Derive capacity override once (test expects max row value if present)
-    capacity_override = (
-        int(generation_data["capacity_kw"].max())
-        if "capacity_kw" in generation_data.columns
-        else None
-    )
-
     # Loop per site
     for key, pvsite in country_sites.items():
         
@@ -172,7 +165,14 @@ def save_generation_to_site_db(
         if generation_data_tso_df.empty:
             logger.debug(f"No rows for {key!r}, skipping")
             continue
-            
+
+        # Derive capacity override once (test expects max row value if present)
+        capacity_override = (
+            int(generation_data_tso_df["capacity_kw"].max())
+            if "capacity_kw" in generation_data_tso_df.columns
+            else None
+        )
+
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
