@@ -17,7 +17,7 @@ nl_region_2 = PVSite(client_site_name="nl_region_2_friesland", latitude="53.11",
 nl_region_3 = PVSite(client_site_name="nl_region_3_drenthe", latitude="52.86", longitude="6.62")
 nl_region_4 = PVSite(client_site_name="nl_region_4_overijssel", latitude="52.45", longitude="6.45")
 nl_region_5 = PVSite(client_site_name="nl_region_5_flevoland", latitude="52.53", longitude="5.60")
-nl_region_6 = PVSite(client_site_name="nl_region_6_gelderland", latitude="53.06", longitude="5.95")
+nl_region_6 = PVSite(client_site_name="nl_region_6_gelderland", latitude="52.06", longitude="5.95")
 nl_region_7 = PVSite(client_site_name="nl_region_7_utrecht", latitude="52.08", longitude="5.17")
 nl_region_8 = PVSite(client_site_name="nl_region_8_noord_holland", latitude="52.58", longitude="4.87")
 nl_region_9 = PVSite(client_site_name="nl_region_9_zuid_holland", latitude="51.94", longitude="4.47")
