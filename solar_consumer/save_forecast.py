@@ -22,7 +22,7 @@ nl_region_7 = PVSite(client_site_name="nl_region_7_utrecht", latitude="52.08", l
 nl_region_8 = PVSite(client_site_name="nl_region_8_noord_holland", latitude="52.58", longitude="4.87")
 nl_region_9 = PVSite(client_site_name="nl_region_9_zuid_holland", latitude="51.94", longitude="4.47")
 nl_region_10 = PVSite(client_site_name="nl_region_10_zeeland", latitude="51.45", longitude="3.84")
-nl_region_11 = PVSite(client_site_name="nl_region_11_noord_brabant", latitude="51.56", longitude="5.19")
+nl_region_11 = PVSite(client_site_name="nl_region_11_noord_brabant", latitude="51.56", longitude="5.20")
 nl_region_12 = PVSite(client_site_name="nl_region_12_limburg", latitude="51.21", longitude="5.94")
 
 # Germany Transmission System Operators (TSOs)
