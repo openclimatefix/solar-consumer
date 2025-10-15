@@ -94,6 +94,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         classification = 2 if historic_or_forecast == "generation" else 1
        
         for point in range(0,13):
+            logger.debug(f"Fetching data for point {point} on {current_date.date()}")
             params = {
                 "point": point,
                 "type": 2,  # solar
