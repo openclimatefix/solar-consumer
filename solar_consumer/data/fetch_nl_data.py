@@ -117,7 +117,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                     [
                         {
                             "id": util["id"],
-                            "point": int(util["point"].split("/")[-1]),
+                            "point": util["point"],
                             "type": util["type"],
                             "granularity": util["granularity"],
                             "activity": util["activity"],
@@ -125,11 +125,10 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                             "capacity (kW)": util["capacity"],
                             "volume (kWh)": util["volume"],
                             "percentage": util["percentage"],
-                            # 'emission': util['emission'],
-                            # 'emissionfactor': util['emissionfactor'],
                             "validfrom (UTC)": datetime.fromisoformat(util["validfrom"]),
                             "validto (UTC)": datetime.fromisoformat(util["validto"]),
                             "lastupdate (UTC)": datetime.fromisoformat(util["lastupdate"]),
+                            "region_id": point
                         }
                         for util in utilizations
                     ]
@@ -152,6 +151,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data.drop(
         columns=[
             "id",
+            "point",
             "type",
             "granularity",
             "activity",
@@ -178,4 +178,8 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
 
+    print(all_data)
     return all_data
+
+
+fetch_nl_data()
