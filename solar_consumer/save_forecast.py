@@ -11,7 +11,7 @@ import pandas as pd
 from typing import Optional
 
 # Default NL national site, and NL regional
-nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+nl_national = PVSite(client_site_name="nl_national", latitude="52.13", longitude="5.29")
 nl_region_1 = PVSite(client_site_name="nl_region_1_groningen", latitude="53.22", longitude="6.74")
 nl_region_2 = PVSite(client_site_name="nl_region_2_friesland", latitude="53.11", longitude="5.85")
 nl_region_3 = PVSite(client_site_name="nl_region_3_drenthe", latitude="52.86", longitude="6.62")
