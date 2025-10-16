@@ -10,8 +10,26 @@ import os
 import pandas as pd
 from typing import Optional
 
-# Default NL national site
+# Default NL national site, and NL regional
 nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+nl_region_1 = PVSite(client_site_name="nl_region_1_groningen", latitude="53.22", longitude="6.74")
+nl_region_2 = PVSite(client_site_name="nl_region_2_friesland", latitude="53.11", longitude="5.85")
+nl_region_3 = PVSite(client_site_name="nl_region_3_drenthe", latitude="52.86", longitude="6.62")
+nl_region_4 = PVSite(client_site_name="nl_region_4_overijssel", latitude="52.45", longitude="6.45")
+nl_region_5 = PVSite(client_site_name="nl_region_5_flevoland", latitude="52.53", longitude="5.60")
+nl_region_6 = PVSite(client_site_name="nl_region_6_gelderland", latitude="52.06", longitude="5.95")
+nl_region_7 = PVSite(client_site_name="nl_region_7_utrecht", latitude="52.08", longitude="5.17")
+nl_region_8 = PVSite(client_site_name="nl_region_8_noord_holland", latitude="52.58", longitude="4.87")
+nl_region_9 = PVSite(client_site_name="nl_region_9_zuid_holland", latitude="51.94", longitude="4.47")
+nl_region_10 = PVSite(client_site_name="nl_region_10_zeeland", latitude="51.45", longitude="3.84")
+nl_region_11 = PVSite(client_site_name="nl_region_11_noord_brabant", latitude="51.56", longitude="5.20")
+nl_region_12 = PVSite(client_site_name="nl_region_12_limburg", latitude="51.21", longitude="5.94")
+NL_NATIONAL_AND_REGIONS = {"0": nl_national,
+                            "1": nl_region_1, "2": nl_region_2, "3": nl_region_3,
+                            "4": nl_region_4, "5": nl_region_5, "6": nl_region_6,
+                            "7": nl_region_7, "8": nl_region_8, "9": nl_region_9, 
+                            "10": nl_region_10, "11": nl_region_11, "12": nl_region_12
+                         }
 
 # Germany Transmission System Operators (TSOs)
 # Coords ~direct to HQs
@@ -97,7 +115,7 @@ def update_capacity(
         site.capacity_kw = capacity_override_kw
         session.commit()
         logger.info(
-            f"Updated site {site.client_site_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
+            f"Updated site {site.client_location_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
         )
   
 
@@ -127,33 +145,35 @@ def save_generation_to_site_db(
 
     # Determine country
     if country == "nl":
-        country_sites = {"nl_national": nl_national}
+        country_sites = NL_NATIONAL_AND_REGIONS
     elif country == "de":
         country_sites = DE_TSO_SITES
     else:
         raise Exception("Only generation data from the following countries is supported \
             when saving: 'nl', 'de'")
 
-    # Derive capacity override once (test expects max row value if present)
-    capacity_override = (
-        int(generation_data["capacity_kw"].max())
-        if "capacity_kw" in generation_data.columns
-        else None
-    )
-
     # Loop per site
-    for tso, pvsite in country_sites.items():
+    for key, pvsite in country_sites.items():
         
         # Filter by TSO for Germany, or use all data for NL
         if country == "de":
-            generation_data_tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
+            generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
+        elif country == "nl":
+            generation_data_tso_df = generation_data[generation_data["region_id"] == int(key)].copy()
         else:
             generation_data_tso_df = generation_data.copy()
             
         if generation_data_tso_df.empty:
-            logger.debug(f"No rows for TSO {tso!r}, skipping")
+            logger.debug(f"No rows for {key!r}, skipping")
             continue
-            
+
+        # Derive capacity override once (test expects max row value if present)
+        capacity_override = (
+            int(generation_data_tso_df["capacity_kw"].max())
+            if "capacity_kw" in generation_data_tso_df.columns
+            else None
+        )
+
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)

@@ -13,6 +13,7 @@ def test_save_generation_to_site_db(db_site_session):
         "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
         "solar_generation_kw": [100, 150],
         "capacity_kw": [20_000_000, 20_000_002],
+        "region_id": [0,0]
     }
 
     # Convert to DataFrame
