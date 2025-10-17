@@ -92,8 +92,11 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
         # should be 2 for generation, 3 for forecast
         classification = 2 if historic_or_forecast == "generation" else 1
+
+        # if forecast, only get national, if generation get all sub regions
+        n_points = 13 if historic_or_forecast == "generation" else 1
        
-        for point in range(0,13):
+        for point in range(0,n_points):
             logger.debug(f"Fetching data for point {point} on {current_date.date()}")
             params = {
                 "point": point,
