@@ -15,6 +15,9 @@ dependencies = [
     "tqdm",
     "loguru==0.7.3",
     "pvlive-api>=1.5.1",
+    "dp-sdk",
+    "betterproto==2.0.0b7",
+    "grpclib==0.4.8"
 ]
 
 [dependency-groups]
@@ -28,3 +31,7 @@ dev = [
 [tool.setuptools-git-versioning]
 enabled = true
 dirty_template = "{tag}"
+
+[tool.uv.sources]
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.1.1/dp_sdk-0.0.0-py3-none-any.whl" }
+
