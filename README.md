@@ -1,6 +1,6 @@
 # Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-14-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-15-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
@@ -167,6 +167,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/michael-gendy"><img src="https://avatars.githubusercontent.com/u/64384201?v=4?s=100" width="100px;" alt="michael-gendy"/><br /><sub><b>michael-gendy</b></sub></a><br /><a href="#infra-michael-gendy" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Shohail-Ismail"><img src="https://avatars.githubusercontent.com/u/149825575?v=4?s=100" width="100px;" alt="Shohail Ismail"/><br /><sub><b>Shohail Ismail</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Shohail-Ismail" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Prafful-Vyas"><img src="https://avatars.githubusercontent.com/u/118352579?v=4?s=100" width="100px;" alt="Prafful Vyas"/><br /><sub><b>Prafful Vyas</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Prafful-Vyas" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.linkedin.com/in/ram-from-tvl"><img src="https://avatars.githubusercontent.com/u/114728749?v=4?s=100" width="100px;" alt="Ramkumar R"/><br /><sub><b>Ramkumar R</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=ram-from-tvl" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
