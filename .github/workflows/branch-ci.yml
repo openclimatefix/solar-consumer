@@ -4,6 +4,9 @@ on:
   push:
     branches-ignore: ['main']
     paths-ignore: ['README.md']
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths-ignore: ['README.md']
 permissions:
   packages: write
   contents: read
