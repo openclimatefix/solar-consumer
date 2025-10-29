@@ -158,6 +158,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             ]
         ]
         gsp_yield_df["regime"] = regime
+        gsp_yield_df["gsp_id"] = gsp_id
 
         all_gsps_yields.append(gsp_yield_df)
 
