@@ -132,6 +132,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         )
 
         # TODO if did not find any values,
+        # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros
 
         # capacity is zero, set nans to 0
@@ -161,6 +162,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         all_gsps_yields.append(gsp_yield_df)
 
         # TODO back up
-        # if there is not national, add up all gsps and scale accordingly
+        # if there is national but no gsps, make gsp from national
+        # https://github.com/openclimatefix/solar-consumer/issues/105
 
     return pd.concat(all_gsps_yields, ignore_index=True)
