@@ -19,4 +19,4 @@ jobs:
       enable_typechecking: false # TODO: enable typechecking - requires mypy in dev dependencies
       tests_folder: tests
       test_python_versions: '["3.12"]'
-      tests_conda_deps: sqlite
+      tests_conda_deps: '["sqlite"]'
