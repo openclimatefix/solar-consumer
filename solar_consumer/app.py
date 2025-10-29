@@ -11,9 +11,9 @@ import os
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.format_forecast import format_to_forecast_sql
-from solar_consumer.save_forecast import (
-    save_forecasts_to_csv,
-    save_forecasts_to_db,
+from solar_consumer.save.save_csv import save_forecasts_to_csv
+from solar_consumer.save.save_database import save_forecasts_to_db
+from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )

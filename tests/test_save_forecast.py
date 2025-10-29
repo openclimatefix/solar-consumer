@@ -1,4 +1,4 @@
-from solar_consumer.save_forecast import save_generation_to_site_db, save_forecasts_to_site_db
+from solar_consumer.save.save_site_database import save_generation_to_site_db, save_forecasts_to_site_db
 from pvsite_datamodel.sqlmodels import GenerationSQL, ForecastSQL, ForecastValueSQL, LocationSQL
 import pandas as pd
 
