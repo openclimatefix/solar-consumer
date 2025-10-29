@@ -1,21 +1,19 @@
-name: Non-Default Branch Push CI (Python)
-
+name: Branch CI (Python)
+run-name: 'Branch CI for ${{ github.event.head_commit.message }} by ${{ github.actor }}'
 on:
   push:
     branches-ignore: ['main']
     paths-ignore: ['README.md']
-  pull_request:
-    types: [opened, reopened, synchronize]  
-    paths-ignore: ['README.md']
-
-# Run tests, lints, builds and pushes Docker image
+permissions:
+  packages: write
+  contents: read
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/nondefault_branch_push_ci_python.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
     secrets: inherit
     with:
       enable_linting: true
       enable_typechecking: false # TODO: enable typechecking - requires mypy in dev dependencies
       tests_folder: tests
-      tests_runner: pytest
-      containerfile: Dockerfile
+      test_python_versions: '["3.12"]'
+      tests_conda_deps: "libsqlite"
