@@ -16,7 +16,6 @@ jobs:
     secrets: inherit
     with:
       enable_linting: true
-      enable_typechecking: false # TODO: enable typechecking - requires mypy in dev dependencies
+      enable_typechecking: false 
       tests_folder: tests
       test_python_versions: '["3.12"]'
-      tests_conda_deps: '["sqlite"]'
