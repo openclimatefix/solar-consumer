@@ -135,7 +135,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros
 
-        # capacity is zero, set nans to 0
+        # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
             gsp_yield_df["generation_mw"] = 0
 
