@@ -47,7 +47,7 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
         observer_request = dp.CreateObserverRequest(name=name)
         try:
             _ = await client.create_observer(observer_request)
-        except Exception as e:
+        except Exception:
             logger.warning(f"Observer {name} may already exist, but carrying on anyway.")
         # TODO get observer, if it already exists
 
