@@ -5,6 +5,7 @@ https://github.com/openclimatefix/data-platform
 """
 
 import os
+from loguru import logger
 
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
@@ -28,7 +29,7 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
 
     # Initialize the Data Platform client
     channel = Channel(host=data_platform_host, port=data_platform_port)
-    client = dp.DataPlatformDataServiceStub(channel)
+    client = dp.DataPlatformServiceStub(channel)
 
     gsp_ids = data_df["gsp_id"].unique()
 
@@ -38,28 +39,38 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
 
         regime = gsp_data["regime"].iloc[0]
 
-        name = f"PVLive-consumer-{regime}"
+        name = f"PVLive-consumer-{regime}".lower()
 
         # TODO get location
+        print(name)
 
         observer_request = dp.CreateObserverRequest(name=name)
-        _ = await client.create_observer(observer_request)
+        try:
+            _ = await client.create_observer(observer_request)
+        except Exception as e:
+            logger.warning(f"Observer {name} may already exist, but carrying on anyway.")
         # TODO get observer, if it already exists
 
         observation_values = []
         for _, row in gsp_data.iterrows():
+            value_percent = int(row["solar_generation_kw"] / (row["capacity_mwp"]*1000) * 100) 
+
+            # current have to add 1 to make it work
+            # TODO remove this
+            value_percent = value_percent+1
+
             oberservation_value = dp.CreateObservationsRequestValue(
                 timestamp_utc=row["target_datetime_utc"].to_pydatetime(),
-                value_percent=row["solar_generation_kw"],
-                effective_capacity_watts=row["capacity_mwp"] * 1_000_000,
+                value_percent=value_percent,
+                effective_capacity_watts=int(row["capacity_mwp"] * 1_000_000),
             )
             observation_values.append(oberservation_value)
 
         # TODO update location uuid
         observation_request = dp.CreateObservationsRequest(location_uuid="0199f281-3721-7b66-a1c5-f5cf625088bf", 
-                                     energy_source=dp.EnergySource.ENERGY_SOURCE_SOLAR_PV,
+                                     energy_source=dp.EnergySource.SOLAR,
                                      observer_name=name,
                                      values=observation_values,
-                                     user_id="solar-consumer"
+                                     user_role="solar-consumer"
                                      )
         _ = await client.create_observations(observation_request)
