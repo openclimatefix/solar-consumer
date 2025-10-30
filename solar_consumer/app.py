@@ -8,6 +8,7 @@ This script orchestrates the following steps:
 """
 
 import os
+import asyncio
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.format_forecast import format_to_forecast_sql
@@ -17,6 +18,7 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
+from solar_consumer.save.save_data_platform import save_to_generation_to_data_platform
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
@@ -59,8 +61,6 @@ def app(
         if forecast_data.empty:
             logger.warning("No data fetched. Exiting the pipeline.")
             return
-        # Step 2: Formate and save the forecast data
-        # A. Format forecast to database object and save
         if save_method == "db":
 
             # Initialize database connection
@@ -118,6 +118,13 @@ def app(
                         model_tag=model_tag,
                         model_version=__version__,
                     )
+
+        elif save_method == "data-platform":
+    
+            logger.info("Saving forecasts to the Data Platform.")
+            asyncio.run(save_to_generation_to_data_platform(data_df=forecast_data))
+            
+            
 
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
