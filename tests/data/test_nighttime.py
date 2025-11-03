@@ -2,7 +2,12 @@ import pandas as pd
 from solar_consumer.data.nighttime import make_night_time_zeros
 
 def test_make_night_time_zeros_sets_night_values_to_zero():
-    times = pd.date_range("2025-07-01 00:00Z", periods=4, freq="6H", tz="UTC")
+    times = pd.to_datetime([
+        "2025-07-01 00:00Z",  # night
+        "2025-07-01 06:00Z",  # day
+        "2025-07-01 12:00Z",  # day
+        "2025-07-01 21:00Z",  # night
+    ])
     df = pd.DataFrame({
         "target_time_utc": times,
         "generation_mw": [5.0, 5.0, 5.0, 5.0],
@@ -12,7 +17,7 @@ def test_make_night_time_zeros_sets_night_values_to_zero():
 
     out = make_night_time_zeros(df)
 
-    # 00:00 and 24:00 should be night (zero)
+    # 00:00 and 21:00 should be night (zero)
     assert out["generation_mw"].iloc[0] == 0.0
     assert out["generation_mw"].iloc[-1] == 0.0
 

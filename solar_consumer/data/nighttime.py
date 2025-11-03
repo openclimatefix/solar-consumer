@@ -3,11 +3,11 @@ from __future__ import annotations
 import pandas as pd
 
 def make_night_time_zeros(
-    start,  # kept for signature compatibility (unused)
-    end,    # kept for signature compatibility (unused)
-    gsp_id, # kept for signature compatibility (unused)
-    gsp_yield_df: pd.DataFrame,
-    regime, # kept for signature compatibility (unused)
+    df: pd.DataFrame,
+    ts_col: str = "target_time_utc",
+    mw_col: str = "generation_mw",
+    sunrise_col: str = "sunrise_utc",
+    sunset_col: str = "sunset_utc",
 ) -> pd.DataFrame:
     """
     Set generation to 0 outside [sunrise_utc, sunset_utc).
@@ -18,26 +18,26 @@ def make_night_time_zeros(
       - optional 'sunrise_utc' / 'sunset_utc' (timestamps). If missing, no-op.
     Returns a COPY of the dataframe with zeros applied.
     """
-    if gsp_yield_df is None or len(gsp_yield_df) == 0:
-        return gsp_yield_df
+    if df is None or len(df) == 0:
+        return df
 
-    df = gsp_yield_df.copy()
+    df = df.copy()
 
     # Must have the core columns
-    if ("target_time_utc" not in df) or ("generation_mw" not in df):
+    if (ts_col not in df) or (mw_col not in df):
         return df
 
     # If sunrise/sunset not present yet, do nothing (safe no-op)
-    if ("sunrise_utc" not in df) or ("sunset_utc" not in df):
+    if (sunrise_col not in df) or (sunset_col not in df):
         return df
 
     # Ensure datetime dtype (UTC-aware if possible)
-    df["target_time_utc"] = pd.to_datetime(df["target_time_utc"], utc=True, errors="coerce")
-    df["sunrise_utc"]     = pd.to_datetime(df["sunrise_utc"],     utc=True, errors="coerce")
-    df["sunset_utc"]      = pd.to_datetime(df["sunset_utc"],      utc=True, errors="coerce")
+    df[ts_col] = pd.to_datetime(df[ts_col], utc=True, errors="coerce")
+    df[sunrise_col]     = pd.to_datetime(df[sunrise_col],     utc=True, errors="coerce")
+    df[sunset_col]      = pd.to_datetime(df[sunset_col],      utc=True, errors="coerce")
 
     # Build mask: night is before sunrise OR at/after sunset
-    at_night = (df["target_time_utc"] < df["sunrise_utc"]) | (df["target_time_utc"] >= df["sunset_utc"])
-    df.loc[at_night, "generation_mw"] = 0.0
+    at_night = (df[ts_col] < df[sunrise_col]) | (df[ts_col] >= df[sunset_col])
+    df.loc[at_night, mw_col] = 0.0
 
     return df
