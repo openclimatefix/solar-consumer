@@ -15,7 +15,7 @@ dependencies = [
     "tqdm",
     "loguru==0.7.3",
     "pvlive-api>=1.5.1",
-    "pvliveconsumer",
+    "pvliveconsumer @ git+https://github.com/openclimatefix/pvlive-consumer.git",
 ]
 
 [dependency-groups]
