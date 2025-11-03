@@ -40,7 +40,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
             raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
-        print("Only UK and Netherlands data can be fetched at the moment")
+        print("Only UK (gb) and Netherlands (nl) data can be fetched at the moment")
 
     return pd.DataFrame()  # Always return a DataFrame (never None)
 
