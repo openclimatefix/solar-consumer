@@ -8,7 +8,7 @@ from loguru import logger
 from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
-from solar_consumer.pvlive.nighttime import make_night_time_zeros
+from solar_consumer.data.nighttime import make_night_time_zeros
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -135,7 +135,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros
-        gsp_yield_df = make_night_time_zeros(start, end, gsp_id, gsp_yield_df, regime)
+        gsp_yield_df = make_night_time_zeros(gsp_yield_df)
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
