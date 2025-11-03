@@ -109,7 +109,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         )  # so we include the last value
 
     all_gsps_yields = []
-    n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 10))  # should be set to 342 to get all
+    n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 342))
     for gsp_id in range(0, n_gsps + 1):
         if gsp_id in ignore_gsp_ids:
             continue
