@@ -11,8 +11,20 @@ from solar_consumer.data.nighttime import make_night_time_zeros
 
 # Load GSP lat/lon for night-time zeroing from CSV (no datamodel dependency)
 DIR = os.path.dirname(__file__)
-_GSP_LOCATIONS_CSV = os.path.join(DIR, "data/uk_gsp_locations_20250109.csv")
-_GSP_LOCATIONS = pd.read_csv(_GSP_LOCATIONS_CSV).set_index("gsp_id")
+
+def _load_gsp_locations() -> pd.DataFrame | None:
+    """Load GSP lat/lon if the CSV exists; return None otherwise."""
+    candidates = [
+        os.path.join(DIR, "uk_gsp_locations_20250109.csv"),
+        os.path.join(DIR, "data", "uk_gsp_locations_20250109.csv"),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            if "gsp_id" in df.columns:
+                return df.set_index("gsp_id")
+    logger.warning("GSP locations CSV not found; skipping night-time zeroing.")
+    return None
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -94,6 +106,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
 
+    gsp_locations = _load_gsp_locations()
+
     pvlive_domain_url = "api.pvlive.uk"
     pvlive = PVLive(domain_url=pvlive_domain_url)
     # ignore these gsp ids from PVLive as they are no longer used
@@ -139,10 +153,9 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
-        try:
-            gsp_row = _GSP_LOCATIONS.loc[gsp_id]
-            lat = float(gsp_row["latitude"])
-            lon = float(gsp_row["longitude"])
+        if gsp_locations is not None and gsp_id in gsp_locations.index:
+            lat = float(gsp_locations.at[gsp_id, "latitude"])
+            lon = float(gsp_locations.at[gsp_id, "longitude"])
             gsp_yield_df = make_night_time_zeros(
                 gsp_yield_df,
                 latitude=lat,
@@ -150,9 +163,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
                 ts_col="datetime_gmt",  # timestamp column present at this stage
                 mw_col="generation_mw",
             )
-        except KeyError:
-            # If we don't have a location for this GSP, skip zeroing safely
-            logger.warning(f"No lat/lon for GSP {gsp_id}; skipping night-time zeroing.")
+        else:
+            logger.debug(f"Skipping night-time zeroing for GSP {gsp_id}: no lat/lon.")
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
