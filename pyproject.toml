@@ -33,5 +33,5 @@ enabled = true
 dirty_template = "{tag}"
 
 [tool.uv.sources]
-dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.7.0/dp_sdk-0.7.0-py3-none-any.whl" }
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.8.0/dp_sdk-0.8.0-py3-none-any.whl" }
 
