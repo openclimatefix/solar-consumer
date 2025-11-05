@@ -4,16 +4,15 @@ import urllib.parse
 import json
 import os
 from loguru import logger
+from datetime import datetime, timedelta, timezone
+
+from pvlive_api import PVLive
+from solar_consumer.data.nighttime import make_night_time_zeros
 
 # Load GSP lat/lon for night-time zeroing
 DIR = os.path.dirname(__file__)
 _GSP_LOCATIONS_CSV = os.path.join(DIR, "data/uk_gsp_locations_20250109.csv")
 _GSP_LOCATIONS = pd.read_csv(_GSP_LOCATIONS_CSV).set_index("gsp_id")
-
-from datetime import datetime, timedelta, timezone
-
-from pvlive_api import PVLive
-from solar_consumer.data.nighttime import make_night_time_zeros
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
