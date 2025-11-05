@@ -20,13 +20,6 @@ def make_night_time_zeros(
     mw_col: str = "generation_mw",
     elevation_limit_deg: Union[int, float] = 5,
 ) -> pd.DataFrame:
-    try:
-        import pvlib  # lazy import
-    except ModuleNotFoundError as e:
-        raise ModuleNotFoundError(
-            "pvlib is required for night-time zeroing. "
-            "Install it with `pip install pvlib` or ensure CI installs it."
-        ) from e
     """
     Zero-out generation at night using solar elevation computed via pvlib.
 
@@ -50,6 +43,14 @@ def make_night_time_zeros(
     DataFrame
         Copy of df with nighttime rows set to zero in `mw_col`.
     """
+    try:
+        import pvlib  # lazy import
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(
+            "pvlib is required for night-time zeroing. "
+            "Install it with `pip install pvlib` or ensure CI installs it."
+        ) from e
+
     if df is None or df.empty:
         return df
 

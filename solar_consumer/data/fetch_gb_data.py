@@ -9,10 +9,15 @@ from datetime import datetime, timedelta, timezone
 from pvlive_api import PVLive
 from solar_consumer.data.nighttime import make_night_time_zeros
 
-# Load GSP lat/lon for night-time zeroing
-DIR = os.path.dirname(__file__)
-_GSP_LOCATIONS_CSV = os.path.join(DIR, "data/uk_gsp_locations_20250109.csv")
-_GSP_LOCATIONS = pd.read_csv(_GSP_LOCATIONS_CSV).set_index("gsp_id")
+# Prefer loading locations from the canonical datamodel; fall back to empty frame
+try:
+    from nowcasting_datamodel.read.gsp import get_all_locations  # type: ignore
+    _GSP_LOCATIONS = get_all_locations().set_index("gsp_id")
+except Exception:
+    # If the datamodel isn't available in this environment, skip zeroing safely
+    _GSP_LOCATIONS = pd.DataFrame(
+        columns=["gsp_id", "latitude", "longitude"]
+    ).set_index("gsp_id")
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
