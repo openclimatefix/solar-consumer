@@ -1,26 +1,28 @@
 import pandas as pd
 from solar_consumer.data.nighttime import make_night_time_zeros
 
-def test_make_night_time_zeros_sets_night_values_to_zero():
-    times = pd.to_datetime([
-        "2025-07-01 00:00Z",  # night
-        "2025-07-01 06:00Z",  # day
-        "2025-07-01 12:00Z",  # day
-        "2025-07-01 21:00Z",  # night
-    ])
+def test_nighttime_zeroing_based_on_elevation():
+    # London-ish coords
+    lat, lon = 51.5, -0.1
+
     df = pd.DataFrame({
-        "target_time_utc": times,
-        "generation_mw": [5.0, 5.0, 5.0, 5.0],
-        "sunrise_utc": [pd.Timestamp("2025-07-01 04:30Z")]*4,
-        "sunset_utc":  [pd.Timestamp("2025-07-01 20:30Z")]*4,
+        "datetime_gmt": pd.to_datetime([
+            "2025-07-01 00:00Z",  # night
+            "2025-07-01 12:00Z",  # day
+        ]),
+        "generation_mw": [5.0, 5.0]
     })
 
-    out = make_night_time_zeros(df)
+    out = make_night_time_zeros(
+        df,
+        latitude=lat,
+        longitude=lon,
+        ts_col="datetime_gmt",
+        mw_col="generation_mw",
+    )
 
-    # 00:00 and 21:00 should be night (zero)
+    # first row is night → 0
     assert out["generation_mw"].iloc[0] == 0.0
-    assert out["generation_mw"].iloc[-1] == 0.0
 
-    # 06:00 and 12:00 should stay 5.0 (daytime)
+    # second row is daytime → unchanged
     assert out["generation_mw"].iloc[1] == 5.0
-    assert out["generation_mw"].iloc[2] == 5.0

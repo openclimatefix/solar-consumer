@@ -5,6 +5,11 @@ import json
 import os
 from loguru import logger
 
+# Load GSP lat/lon for night-time zeroing
+DIR = os.path.dirname(__file__)
+_GSP_LOCATIONS_CSV = os.path.join(DIR, "data/uk_gsp_locations_20250109.csv")
+_GSP_LOCATIONS = pd.read_csv(_GSP_LOCATIONS_CSV).set_index("gsp_id")
+
 from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
@@ -134,8 +139,21 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
 
         # https://github.com/openclimatefix/solar-consumer/issues/104
-        # Make nighttime zeros
-        gsp_yield_df = make_night_time_zeros(gsp_yield_df)
+        # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
+        try:
+            gsp_row = _GSP_LOCATIONS.loc[gsp_id]
+            lat = float(gsp_row["latitude"])
+            lon = float(gsp_row["longitude"])
+            gsp_yield_df = make_night_time_zeros(
+                gsp_yield_df,
+                latitude=lat,
+                longitude=lon,
+                ts_col="datetime_gmt",  # timestamp column present at this stage
+                mw_col="generation_mw",
+            )
+        except KeyError:
+            # If we don't have a location for this GSP, skip zeroing safely
+            logger.warning(f"No lat/lon for GSP {gsp_id}; skipping night-time zeroing.")
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
