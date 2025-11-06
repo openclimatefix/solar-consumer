@@ -66,8 +66,9 @@ async def test_save_to_data_platform(data_platform):
 
     # set up client
     port = data_platform.get_exposed_port(50051)
-    print(f"Data Platform is running on port: {port}")
-    channel = Channel(host="localhost", port=port)
+    host = data_platform.get_container_host_ip()
+    print(f"Data Platform is running on port: {port}, host: {host}")
+    channel = Channel(host=host, port=port)
     client = dp.DataPlatformDataServiceStub(channel)
 
     # add location

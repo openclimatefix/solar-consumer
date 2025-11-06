@@ -180,5 +180,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
+    
+
+    print(all_data.head())
+    print(all_data[['target_datetime_utc', 'solar_generation_kw','capacity_kw']][600:650])
 
     return all_data
