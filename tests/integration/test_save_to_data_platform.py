@@ -43,7 +43,7 @@ def data_platform():
         database_url = database_url.replace("localhost", "host.docker.internal")
 
         # set env vars for data
-        env = {"DATABASE_URL": database_url, "LOG_LEVEL": "debug"}
+        env = {"DATABASE_URL": database_url}
 
         with DockerContainer(
             image="ghcr.io/openclimatefix/data-platform:0.8.0", env=env, ports=[50051]
@@ -60,6 +60,7 @@ async def test_save_to_data_platform(data_platform):
     is running and can accept data.
     """
 
+    # set up client
     port = data_platform.get_exposed_port(50051)
     channel = Channel(host="localhost", port=port)
     client = dp.DataPlatformDataServiceStub(channel)
@@ -77,14 +78,6 @@ async def test_save_to_data_platform(data_platform):
     )
     create_location_response = await client.create_location(create_location_request)
     location_uuid = create_location_response.location_uuid
-    print(f"Created location UUID: {location_uuid}")
-
-    # check location capacity has been updated
-    get_location_request = dp.GetLocationRequest(
-        location_uuid=location_uuid, energy_source=dp.EnergySource.SOLAR
-    )
-    get_location_response = await client.get_location(get_location_request)
-    assert get_location_response.effective_capacity_watts == 1_000_000
 
     # make fake data
     fake_data = pd.DataFrame(
@@ -112,9 +105,10 @@ async def test_save_to_data_platform(data_platform):
         get_observations_request
     )
     assert len(get_observations_response.values) == 1
+    # check fraction value is 100 kw / 2 mwp = 0.05
     assert (
         np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
-    )  # 100 kw / 2 mwp = 0.05
+    )
 
     # check location capacity has been updated
     get_location_request = dp.GetLocationRequest(

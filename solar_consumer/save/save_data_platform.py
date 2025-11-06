@@ -28,8 +28,8 @@ async def save_to_generation_to_data_platform(
     1. Get all the locations
     2. Create an observer for that regime if it doesn't already exist
     3. For each gsp: Get only the data for that gsp
-    4. Get the start and end timestamps from that data
-    5. Get the location for that gsp
+    4. Get the location for that gsp
+    5. Get the start and end timestamps from that data
     6. Get the most recent observations for that location and observer,
     7. Remove any data points from our data that are already in the database
     8. Update location capacity based on the max capacity in this data
@@ -44,14 +44,12 @@ async def save_to_generation_to_data_platform(
     assert "regime" in data_df.columns
     assert "capacity_mwp" in data_df.columns
 
-    # Initialize the Data Platform client
+    # Initialize the Data Platform client, if not there already provided
     if client is None:
         channel = Channel(host=data_platform_host, port=data_platform_port)
         client = dp.DataPlatformDataServiceStub(channel)
 
-    gsp_ids = data_df["gsp_id"].unique()
-
-    # 1 Get all locations
+    # 1. Get all locations
     all_locations = await get_all_gsp_and_national_locations(client)
 
     # 2. Create an observer for that gsp and regime if it doesn't already exist
@@ -63,25 +61,28 @@ async def save_to_generation_to_data_platform(
     try:
         _ = await client.create_observer(observer_request)
     except Exception:
+        # TODO Future: Get Observer, and if try to make one.
         logger.warning(f"Observer {name} probably already exists, so carrying on anyway.")
 
     # for each gsp
+    gsp_ids = data_df["gsp_id"].unique()
     for gsp_id in gsp_ids:
         logger.info(f"Saving GSP ID: {gsp_id} to Data Platform")
 
         # 3. Get only the data for that gsp
         gsp_data = data_df[data_df["gsp_id"] == gsp_id]
 
-        # 4. Get the start and end timestamps from that data
-        start_timestamp_utc = gsp_data["target_datetime_utc"].min()
-        end_timestamp_utc = gsp_data["target_datetime_utc"].max()
-
-        # 5. Get the location for that gsp
+        # 4. Get the location for that gsp
         location = all_locations.get(gsp_id)
         if location is None:
             logger.warning(f"No location found for GSP ID {gsp_id}, skipping.")
             continue
         location_uuid = location.location_uuid
+
+        # 5. Get the start and end timestamps from that data
+        # TODO Future: remove 5,6,7 if database can deal with duplicates
+        start_timestamp_utc = gsp_data["target_datetime_utc"].min()
+        end_timestamp_utc = gsp_data["target_datetime_utc"].max()
 
         # 6. Get the most recent observations for that location and observer
         recent_observations_request = dp.GetObservationsAsTimeseriesRequest(
@@ -165,26 +166,26 @@ async def save_to_generation_to_data_platform(
 async def get_all_gsp_and_national_locations(
     client: dp.DataPlatformDataServiceStub,
 ) -> dict[int, dp.ListLocationsResponseLocationSummary]:
-    """Get all GSP and national locations for solar energy source"""
+    """Get all GSP and National locations for solar energy source"""
 
     all_locations = {}
+
+    # National location
     all_location_request = dp.ListLocationsRequest(
         location_type_filter=dp.LocationType.NATION,
         energy_source_filter=dp.EnergySource.SOLAR,
     )
     location_response = await client.list_locations(all_location_request)
-    if len(location_response.locations) == 0:
-        all_locations = {}
-    else:
-        all_locations = {0: location_response.locations[0]}
+    if len(location_response.locations) > 1:
+        all_locations[0] = location_response.locations[0]
 
+    # GSP locations
     all_location_gsp_request = dp.ListLocationsRequest(
         location_type_filter=dp.LocationType.GSP,
         energy_source_filter=dp.EnergySource.SOLAR,
     )
     location_response = await client.list_locations(all_location_gsp_request)
     for loc in location_response.locations:
-        print(loc.location_uuid, loc.metadata)
         all_locations[loc.metadata.to_dict()["gsp_id"]["numberValue"]] = loc
 
     return all_locations
