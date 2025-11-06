@@ -40,7 +40,7 @@ def data_platform():
         database_url = database_url.replace("postgresql+psycopg2", "postgres")
         # we need to change to host.docker.internal so the data platform container can see it
         # https://stackoverflow.com/questions/46973456/docker-access-localhost-port-from-container
-        database_url = database_url.replace("localhost", "host.docker.internal")
+        # database_url = database_url.replace("localhost", "host.docker.internal")
 
         # set env vars for data
         env = {"DATABASE_URL": database_url}
