@@ -129,13 +129,6 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             f"Got {len(gsp_yield_df)} gsp yield for gsp id {gsp_id} before filtering"
         )
 
-        # If no data found for this GSP, build a time index for the query window (backup)
-        if len(gsp_yield_df) == 0:
-            times = pd.date_range(
-                start=start, end=end, freq="30min", tz="UTC", inclusive="left"
-            )
-            gsp_yield_df = pd.DataFrame({"datetime_gmt": times, "generation_mw": pd.NA})
-
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
         gsp_yield_df = make_night_time_zeros(

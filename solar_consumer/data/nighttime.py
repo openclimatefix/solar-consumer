@@ -75,6 +75,12 @@ def make_night_time_zeros(
     DataFrame
         Copy of df with nighttime rows set to zero in `mw_col`.
     """
+    # If no data, build a time index for the query window (backup)
+    if (df is None or df.empty) and (start is not None and end is not None):
+        times = pd.date_range(
+            start=start, end=end, freq="30min", tz="UTC", inclusive="left"
+        )
+        df = pd.DataFrame({ts_col: times, mw_col: pd.NA})
 
     if df is None or df.empty:
         return df
