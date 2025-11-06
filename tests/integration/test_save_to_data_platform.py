@@ -13,7 +13,6 @@ from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
 
-
 @pytest.fixture(scope="session")
 def data_platform():
     """
@@ -40,7 +39,7 @@ def data_platform():
         database_url = database_url.replace("postgresql+psycopg2", "postgres")
         # we need to change to host.docker.internal so the data platform container can see it
         # https://stackoverflow.com/questions/46973456/docker-access-localhost-port-from-container
-        # database_url = database_url.replace("localhost", "host.docker.internal")
+        database_url = database_url.replace("localhost", "host.docker.internal")
 
         # set env vars for data
         env = {"DATABASE_URL": database_url}
@@ -49,6 +48,11 @@ def data_platform():
             image="ghcr.io/openclimatefix/data-platform:0.8.0", env=env, ports=[50051]
         ) as data_platform_server:
             time.sleep(1)  # Give some time for the server to start
+
+            logs = data_platform_server.get_logs()
+            print("Data Platform logs:")
+            print(logs)
+
             yield data_platform_server
 
 
@@ -106,9 +110,7 @@ async def test_save_to_data_platform(data_platform):
     )
     assert len(get_observations_response.values) == 1
     # check fraction value is 100 kw / 2 mwp = 0.05
-    assert (
-        np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
-    )
+    assert np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
 
     # check location capacity has been updated
     get_location_request = dp.GetLocationRequest(
