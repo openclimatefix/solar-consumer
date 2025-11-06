@@ -1,6 +1,5 @@
 import pandas as pd
 import urllib.request
-import urllib.parse
 import json
 import os
 from loguru import logger
@@ -8,23 +7,6 @@ from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
 from solar_consumer.data.nighttime import make_night_time_zeros
-
-# Load GSP lat/lon for night-time zeroing from CSV (no datamodel dependency)
-DIR = os.path.dirname(__file__)
-
-def _load_gsp_locations() -> pd.DataFrame | None:
-    """Load GSP lat/lon if the CSV exists; return None otherwise."""
-    candidates = [
-        os.path.join(DIR, "uk_gsp_locations_20250109.csv"),
-        os.path.join(DIR, "data", "uk_gsp_locations_20250109.csv"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            if "gsp_id" in df.columns:
-                return df.set_index("gsp_id")
-    logger.warning("GSP locations CSV not found; skipping night-time zeroing.")
-    return None
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -105,9 +87,6 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - regime: either 'in-day' or 'day-after'
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
-
-    gsp_locations = _load_gsp_locations()
-
     pvlive_domain_url = "api.pvlive.uk"
     pvlive = PVLive(domain_url=pvlive_domain_url)
     # ignore these gsp ids from PVLive as they are no longer used
@@ -150,21 +129,23 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             f"Got {len(gsp_yield_df)} gsp yield for gsp id {gsp_id} before filtering"
         )
 
+        # If no data found for this GSP, build a time index for the query window (backup)
+        if len(gsp_yield_df) == 0:
+            times = pd.date_range(
+                start=start, end=end, freq="30min", tz="UTC", inclusive="left"
+            )
+            gsp_yield_df = pd.DataFrame({"datetime_gmt": times, "generation_mw": pd.NA})
 
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
-        if gsp_locations is not None and gsp_id in gsp_locations.index:
-            lat = float(gsp_locations.at[gsp_id, "latitude"])
-            lon = float(gsp_locations.at[gsp_id, "longitude"])
-            gsp_yield_df = make_night_time_zeros(
-                gsp_yield_df,
-                latitude=lat,
-                longitude=lon,
-                ts_col="datetime_gmt",  # timestamp column present at this stage
-                mw_col="generation_mw",
-            )
-        else:
-            logger.debug(f"Skipping night-time zeroing for GSP {gsp_id}: no lat/lon.")
+        gsp_yield_df = make_night_time_zeros(
+            gsp_yield_df,
+            gsp_id=gsp_id,
+            ts_col="datetime_gmt",
+            mw_col="generation_mw",
+            start=start,
+            end=end,
+        )
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
