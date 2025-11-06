@@ -16,21 +16,24 @@ data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
 data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 
 
-async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
+async def save_to_generation_to_data_platform(
+    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub | None = None
+):
     """
     Save Generation data to the Data-platform.
 
     0. First we get all the locations
 
     Here's how we do it for each gsp
-    1. Get only the data for that gsp
-    2. Get the start and end timestamps from that data
-    3. Get the location for that gsp
-    4. Create an observer for that gsp and regime if it doesn't already exist
-    5. Get the most recent observations for that location and observer,
-    6. Remove any data points from our data that are already in the database
-    7. Update location capacity based on the max capacity in this data
-    8. Create new observations for the remaining data points
+    1. Get all the locations
+    2. Create an observer for that regime if it doesn't already exist
+    3. For each gsp: Get only the data for that gsp
+    4. Get the start and end timestamps from that data
+    5. Get the location for that gsp
+    6. Get the most recent observations for that location and observer,
+    7. Remove any data points from our data that are already in the database
+    8. Update location capacity based on the max capacity in this data
+    9. Create new observations for the remaining data points
 
     :param data_df: DataFrame containing forecast data with required columns.
     """
@@ -39,44 +42,48 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
     assert "solar_generation_kw" in data_df.columns
     assert "gsp_id" in data_df.columns
     assert "regime" in data_df.columns
+    assert "capacity_mwp" in data_df.columns
 
     # Initialize the Data Platform client
-    channel = Channel(host=data_platform_host, port=data_platform_port)
-    client = dp.DataPlatformDataServiceStub(channel)
+    if client is None:
+        channel = Channel(host=data_platform_host, port=data_platform_port)
+        client = dp.DataPlatformDataServiceStub(channel)
 
     gsp_ids = data_df["gsp_id"].unique()
 
-    # 0 Get all locations
+    # 1 Get all locations
     all_locations = await get_all_gsp_and_national_locations(client)
+
+    # 2. Create an observer for that gsp and regime if it doesn't already exist
+    regime = data_df["regime"].unique()
+    assert len(regime) == 1, "DataFrame must contain only one regime type"
+    regime = regime[0]
+    name = f"PVLive-consumer-{regime}".lower()
+    observer_request = dp.CreateObserverRequest(name=name)
+    try:
+        _ = await client.create_observer(observer_request)
+    except Exception:
+        logger.warning(f"Observer {name} probably already exists, so carrying on anyway.")
 
     # for each gsp
     for gsp_id in gsp_ids:
         logger.info(f"Saving GSP ID: {gsp_id} to Data Platform")
 
-        # 1. Get only the data for that gsp
+        # 3. Get only the data for that gsp
         gsp_data = data_df[data_df["gsp_id"] == gsp_id]
 
-        # 2. Get the start and end timestamps from that data
+        # 4. Get the start and end timestamps from that data
         start_timestamp_utc = gsp_data["target_datetime_utc"].min()
         end_timestamp_utc = gsp_data["target_datetime_utc"].max()
 
-        # 3. Get the location for that gsp
+        # 5. Get the location for that gsp
         location = all_locations.get(gsp_id)
         if location is None:
             logger.warning(f"No location found for GSP ID {gsp_id}, skipping.")
             continue
         location_uuid = location.location_uuid
 
-        # 4. Create an observer for that gsp and regime if it doesn't already exist
-        regime = gsp_data["regime"].iloc[0]
-        name = f"PVLive-consumer-{regime}".lower()
-        observer_request = dp.CreateObserverRequest(name=name)
-        try:
-            _ = await client.create_observer(observer_request)
-        except Exception:
-            logger.warning(f"Observer {name} probably already exists, so carrying on anyway.")
-
-        # 5. Get the most recent observations for that location and observer
+        # 6. Get the most recent observations for that location and observer
         recent_observations_request = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
@@ -90,7 +97,7 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
             recent_observations_request
         )
 
-        # 6. Remove any data points from our data that are already in the database
+        # 7. Remove any data points from our data that are already in the database
         logger.debug(
             f"Found {len(recent_observations.values)} recent observations for location {location_uuid} and observer {name}."
         )
@@ -105,7 +112,7 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
             )
             continue
 
-        # 7. Update location capacity based on the max capacity in this data
+        # 8. Update location capacity based on the max capacity in this data
         new_max_capacity_watts = int(gsp_data["capacity_mwp"].max() * 1_000_000)
         max_capacity_watts_current = location.effective_capacity_watts
         if new_max_capacity_watts > max_capacity_watts_current:
@@ -125,7 +132,7 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
                 f"Location {location_uuid} capacity of {max_capacity_watts_current}W is sufficient; no update needed."
             )
 
-        # 8. Create new observations for the remaining data points
+        # 9. Create new observations for the remaining data points
         observation_values = []
         for _, row in gsp_data.iterrows():
             if row["capacity_mwp"] == 0:
@@ -154,8 +161,6 @@ async def save_to_generation_to_data_platform(data_df: pd.DataFrame):
             )
             _ = await client.create_observations(observation_request)
 
-    channel.close()
-
 
 async def get_all_gsp_and_national_locations(
     client: dp.DataPlatformDataServiceStub,
@@ -168,8 +173,10 @@ async def get_all_gsp_and_national_locations(
         energy_source_filter=dp.EnergySource.SOLAR,
     )
     location_response = await client.list_locations(all_location_request)
-    location = location_response.locations[0]
-    all_locations = {0: location}
+    if len(location_response.locations) == 0:
+        all_locations = {}
+    else:
+        all_locations = {0: location_response.locations[0]}
 
     all_location_gsp_request = dp.ListLocationsRequest(
         location_type_filter=dp.LocationType.GSP,
@@ -177,6 +184,7 @@ async def get_all_gsp_and_national_locations(
     )
     location_response = await client.list_locations(all_location_gsp_request)
     for loc in location_response.locations:
+        print(loc.location_uuid, loc.metadata)
         all_locations[loc.metadata.to_dict()["gsp_id"]["numberValue"]] = loc
 
     return all_locations
