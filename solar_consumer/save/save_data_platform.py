@@ -82,7 +82,7 @@ async def save_generation_to_data_platform(
             # 6. Remove any data points from our data that are already in the database
             last_datetime_utc = recent_observation_response.timestamp_utc
             gsp_data = gsp_data[
-                gsp_data["target_datetime_utc"] > pd.Timestamp(last_datetime_utc, tz=timezone.utc)
+                gsp_data["target_datetime_utc"] > last_datetime_utc
             ]
         except Exception:
             logger.info(
