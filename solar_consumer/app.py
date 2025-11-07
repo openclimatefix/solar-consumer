@@ -30,7 +30,7 @@ data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
 data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 
 
-def app(
+async def app(
     db_url: str,
     save_method: str,
     csv_dir: str = None,
@@ -127,13 +127,11 @@ def app(
 
         elif save_method == "data-platform":
 
-            channel = Channel(host=data_platform_host, port=data_platform_port)
-            client = dp.DataPlatformDataServiceStub(channel)
-    
-            logger.info("Saving forecasts to the Data Platform.")
-            asyncio.run(save_generation_to_data_platform(data_df=forecast_data, client=client))
-
-            channel.close()
+            async with Channel(host=data_platform_host, port=data_platform_port) as channel:
+                client = dp.DataPlatformDataServiceStub(channel)
+        
+                logger.info("Saving forecasts to the Data Platform.")
+                _ = await save_generation_to_data_platform(data_df=forecast_data, client=client)
 
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
@@ -161,10 +159,10 @@ if __name__ == "__main__":
         exit(1)
 
     # Step 2: Run the application
-    app(
+    asyncio.run(app(
         db_url=db_url,
         save_method=save_method,
         csv_dir=csv_dir,
         country=country,
         historic_or_forecast=historic_or_forecast,
-    )
+    ))
