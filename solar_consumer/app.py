@@ -127,11 +127,13 @@ def app(
 
         elif save_method == "data-platform":
 
-            with Channel(host=data_platform_host, port=data_platform_port) as channel:
-                client = dp.DataPlatformDataServiceStub(channel)
+            channel = Channel(host=data_platform_host, port=data_platform_port)
+            client = dp.DataPlatformDataServiceStub(channel)
     
-                logger.info("Saving forecasts to the Data Platform.")
-                asyncio.run(save_generation_to_data_platform(data_df=forecast_data, client=client))
+            logger.info("Saving forecasts to the Data Platform.")
+            asyncio.run(save_generation_to_data_platform(data_df=forecast_data, client=client))
+
+            channel.close()
 
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
