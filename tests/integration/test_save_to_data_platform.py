@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pytest
+import pytest_asyncio
 import time
 import datetime
 from testcontainers.postgres import PostgresContainer
@@ -14,8 +15,8 @@ from grpclib.client import Channel
 
 
 
-@pytest.fixture(scope="session")
-def client():
+@pytest_asyncio.fixture(scope="session")
+async def client():
     """
     Fixture to spin up a PostgreSQL container for the entire test session.
     This fixture uses `testcontainers` to start a fresh PostgreSQL container and provides
@@ -42,15 +43,18 @@ def client():
             image="ghcr.io/openclimatefix/data-platform:0.8.0", env={"DATABASE_URL": database_url}, ports=[50051]
         ) as data_platform_server:
             time.sleep(1)  # Give some time for the server to start
-            
+
             port = data_platform_server.get_exposed_port(50051)
             host = data_platform_server.get_container_host_ip()
-            with Channel(host=host, port=port) as channel:
-                client = dp.DataPlatformDataServiceStub(channel)
-                yield client
+            channel = Channel(host=host, port=port)
+            client = dp.DataPlatformDataServiceStub(channel)
+            yield client
+            channel
 
 
-@pytest.mark.asyncio
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_save_to_data_platform(client):
     """
     Test saving data to the Data Platform.

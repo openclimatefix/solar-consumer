@@ -24,11 +24,10 @@ async def save_generation_to_data_platform(
     2. Create an observer for that regime if it doesn't already exist
     3. For each gsp: Get only the data for that gsp
     4. Get the location for that gsp
-    5. Get the start and end timestamps from that data
-    6. Get the most recent observations for that location and observer,
-    7. Remove any data points from our data that are already in the database
-    8. Update location capacity based on the max capacity in this data
-    9. Create new observations for the remaining data points
+    5. Get the most recent observations for that location and observer,
+    6. Remove any data points from our data that are already in the database
+    7. Update location capacity based on the max capacity in this data
+    8. Create new observations for the remaining data points
 
     :param data_df: DataFrame containing forecast data with required columns.
     """
@@ -69,33 +68,27 @@ async def save_generation_to_data_platform(
             continue
         location_uuid = location.location_uuid
 
-        # 5. Get the start and end timestamps from that data
-        # TODO Future: remove 5,6,7 if database can deal with duplicates
-        start_timestamp_utc = gsp_data["target_datetime_utc"].min()
-        end_timestamp_utc = gsp_data["target_datetime_utc"].max()
+        # 5. Get the most recent observations for that location and observer
+        try:
+            recent_observations_request = dp.GetLatestObservationRequest(
+                location_uuid=location_uuid,
+                energy_source=dp.EnergySource.SOLAR,
+                observer_name=name,
+            )
+            recent_observation_response = await client.get_latest_observation(
+                recent_observations_request
+            )
 
-        # 6. Get the most recent observations for that location and observer
-        recent_observations_request = dp.GetObservationsAsTimeseriesRequest(
-            location_uuid=location_uuid,
-            energy_source=dp.EnergySource.SOLAR,
-            observer_name=name,
-            time_window=dp.TimeWindow(
-                start_timestamp_utc=start_timestamp_utc,
-                end_timestamp_utc=end_timestamp_utc,
-            ),
-        )
-        recent_observations = await client.get_observations_as_timeseries(
-            recent_observations_request
-        )
+            # 6. Remove any data points from our data that are already in the database
+            last_datetime_utc = recent_observation_response.timestamp_utc
+            gsp_data = gsp_data[
+                gsp_data["target_datetime_utc"] > pd.Timestamp(last_datetime_utc, tz=timezone.utc)
+            ]
+        except Exception:
+            logger.info(
+                f"No existing observations for location {location_uuid} and observer {name}, adding all data."
+            )
 
-        # 7. Remove any data points from our data that are already in the database
-        logger.debug(
-            f"Found {len(recent_observations.values)} recent observations for location {location_uuid} and observer {name}."
-        )
-        data_in_database = {
-            obs.timestamp_utc: obs.value_fraction for obs in recent_observations.values
-        }
-        gsp_data = gsp_data[~gsp_data["target_datetime_utc"].isin(data_in_database.keys())]
 
         if len(gsp_data) == 0:
             logger.debug(
@@ -103,7 +96,7 @@ async def save_generation_to_data_platform(
             )
             continue
 
-        # 8. Update location capacity based on the max capacity in this data
+        # 7. Update location capacity based on the max capacity in this data
         new_max_capacity_watts = int(gsp_data["capacity_mwp"].max() * 1_000_000)
         max_capacity_watts_current = location.effective_capacity_watts
         if new_max_capacity_watts > max_capacity_watts_current:
@@ -119,7 +112,7 @@ async def save_generation_to_data_platform(
             )
             _ = await client.update_location_capacity(update_location_request)
 
-        # 9. Create new observations for the remaining data points
+        # 8. Create new observations for the remaining data points
         observation_values = []
         for _, row in gsp_data.iterrows():
             if row["capacity_mwp"] == 0:
