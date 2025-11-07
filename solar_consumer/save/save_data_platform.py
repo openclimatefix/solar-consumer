@@ -45,7 +45,7 @@ async def save_generation_to_data_platform(
     regime = data_df["regime"].unique()
     assert len(regime) == 1, "DataFrame must contain only one regime type"
     regime = regime[0]
-    name = f"PVLive-consumer-{regime}".lower()
+    name = f"PVLive_consumer_{regime}".lower().replace("-", "_")
     observer_request = dp.CreateObserverRequest(name=name)
     try:
         _ = await client.create_observer(observer_request)
@@ -158,7 +158,7 @@ async def get_all_gsp_and_national_locations(
     )
     location_response = await client.list_locations(all_location_request)
     all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.location_name.lower()]
-    if len(all_uk_location) > 1:
+    if len(all_uk_location) >= 1:
         all_locations[0] = all_uk_location[0]
 
     # GSP locations
