@@ -90,7 +90,7 @@ async def test_save_to_data_platform(client):
     # read from the data platform to check it was saved
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
         location_uuid=location_uuid,
-        observer_name="pvlive-consumer-in-day",
+        observer_name="pvlive_consumer_in_day",
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
             start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
