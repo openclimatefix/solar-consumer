@@ -49,7 +49,7 @@ async def client():
             channel = Channel(host=host, port=port)
             client = dp.DataPlatformDataServiceStub(channel)
             yield client
-            channel
+            channel.close()
 
 
 
