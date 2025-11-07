@@ -18,10 +18,16 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
-from solar_consumer.save.save_data_platform import save_to_generation_to_data_platform
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
+from dp_sdk.ocf import dp
+from grpclib.client import Channel
+
+
+data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
+data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 
 
 def app(
@@ -120,11 +126,12 @@ def app(
                     )
 
         elif save_method == "data-platform":
+
+            with Channel(host=data_platform_host, port=data_platform_port) as channel:
+                client = dp.DataPlatformDataServiceStub(channel)
     
-            logger.info("Saving forecasts to the Data Platform.")
-            asyncio.run(save_to_generation_to_data_platform(data_df=forecast_data))
-            
-            
+                logger.info("Saving forecasts to the Data Platform.")
+                asyncio.run(save_generation_to_data_platform(data_df=forecast_data, client=client))
 
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")

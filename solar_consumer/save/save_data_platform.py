@@ -4,19 +4,14 @@ https://github.com/openclimatefix/data-platform
 
 """
 
-import os
 from loguru import logger
+from datetime import datetime, timezone
 
 from dp_sdk.ocf import dp
-from grpclib.client import Channel
 import pandas as pd
 
 
-data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
-data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
-
-
-async def save_to_generation_to_data_platform(
+async def save_generation_to_data_platform(
     data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub | None = None
 ):
     """
@@ -44,12 +39,7 @@ async def save_to_generation_to_data_platform(
     assert "regime" in data_df.columns
     assert "capacity_mwp" in data_df.columns
 
-    # Initialize the Data Platform client, if not there already provided
-    if client is None:
-        channel = Channel(host=data_platform_host, port=data_platform_port)
-        client = dp.DataPlatformDataServiceStub(channel)
-
-    # 1. Get all locations
+    # 1. Get all locations (UK GSPs and National)
     all_locations = await get_all_gsp_and_national_locations(client)
 
     # 2. Create an observer for that gsp and regime if it doesn't already exist
@@ -124,14 +114,10 @@ async def save_to_generation_to_data_platform(
             update_location_request = dp.UpdateLocationCapacityRequest(
                 location_uuid=location_uuid,
                 energy_source=dp.EnergySource.SOLAR,
-                valid_from_utc=pd.Timestamp.utcnow().to_pydatetime(),
+                valid_from_utc=datetime.now(tz=timezone.utc),
                 new_effective_capacity_watts=new_max_capacity_watts,
             )
             _ = await client.update_location_capacity(update_location_request)
-        else:
-            logger.debug(
-                f"Location {location_uuid} capacity of {max_capacity_watts_current}W is sufficient; no update needed."
-            )
 
         # 9. Create new observations for the remaining data points
         observation_values = []
@@ -150,10 +136,12 @@ async def save_to_generation_to_data_platform(
             )
             observation_values.append(oberservation_value)
 
-        logger.debug(
-            f"Adding {len(observation_values)} new observation values for location {location_uuid} and observer {name}."
-        )
         if len(observation_values) > 0:
+
+            logger.debug(
+                f"Adding {len(observation_values)} new observation values for location {location_uuid} and observer {name}."
+            )
+
             observation_request = dp.CreateObservationsRequest(
                 location_uuid=location_uuid,
                 energy_source=dp.EnergySource.SOLAR,
@@ -176,8 +164,9 @@ async def get_all_gsp_and_national_locations(
         energy_source_filter=dp.EnergySource.SOLAR,
     )
     location_response = await client.list_locations(all_location_request)
-    if len(location_response.locations) > 1:
-        all_locations[0] = location_response.locations[0]
+    all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.name.lower()]
+    if len(all_uk_location) > 1:
+        all_locations[0] = all_uk_location[0]
 
     # GSP locations
     all_location_gsp_request = dp.ListLocationsRequest(
