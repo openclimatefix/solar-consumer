@@ -157,7 +157,7 @@ async def get_all_gsp_and_national_locations(
         energy_source_filter=dp.EnergySource.SOLAR,
     )
     location_response = await client.list_locations(all_location_request)
-    all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.name.lower()]
+    all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.location_name.lower()]
     if len(all_uk_location) > 1:
         all_locations[0] = all_uk_location[0]
 
