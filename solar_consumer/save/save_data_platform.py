@@ -46,12 +46,12 @@ async def save_generation_to_data_platform(
     assert len(regime) == 1, "DataFrame must contain only one regime type"
     regime = regime[0]
     name = f"PVLive_consumer_{regime}".lower().replace("-", "_")
-    observer_request = dp.CreateObserverRequest(name=name)
-    try:
+
+    list_observers_request = dp.ListObserversRequest(observer_names_filter=[name])
+    list_observers_response = await client.list_observers(list_observers_request)
+    if len(list_observers_response.observers) == 0:
+        observer_request = dp.CreateObserverRequest(name=name)
         _ = await client.create_observer(observer_request)
-    except Exception:
-        # TODO Future: Get Observer, and if try to make one.
-        logger.warning(f"Observer {name} probably already exists, so carrying on anyway.")
 
     # for each gsp
     gsp_ids = data_df["gsp_id"].unique()
