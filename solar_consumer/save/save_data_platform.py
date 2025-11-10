@@ -22,12 +22,13 @@ async def save_generation_to_data_platform(
     Here's how we do it for each gsp
     1. Get all the locations
     2. Create an observer for that regime if it doesn't already exist
-    3. For each gsp: Get only the data for that gsp
-    4. Get the location for that gsp
-    5. Get the most recent observations for that location and observer,
-    6. Remove any data points from our data that are already in the database
-    7. Update location capacity based on the max capacity in this data
-    8. Create new observations for the remaining data points
+    3. Format the data
+    4. For each gsp: Get only the data for that gsp
+    5. Get the location for that gsp
+    6. Get the most recent observations for that location and observer,
+    7. Remove any data points from our data that are already in the database
+    8. Update location capacity based on the max capacity in this data
+    9. Create new observations for the remaining data points
 
     :param data_df: DataFrame containing forecast data with required columns.
     """
@@ -55,22 +56,29 @@ async def save_generation_to_data_platform(
         observer_request = dp.CreateObserverRequest(name=name)
         _ = await client.create_observer(observer_request)
 
+
+    # 3. format the data
+    data_df['value_fraction'] = data_df["solar_generation_kw"] / (data_df["capacity_mwp"] * 1000)
+    data_df['effective_capacity_watts'] = (data_df["capacity_mwp"] * 1_000_000).astype(int)
+    data_df['target_datetime_utc'] = pd.to_datetime(data_df["target_datetime_utc"])
+    data_df = data_df[['target_datetime_utc', 'value_fraction', 'effective_capacity_watts','gsp_id']]
+
     # for each gsp
     gsp_ids = data_df["gsp_id"].unique()
     for gsp_id in gsp_ids:
         logger.info(f"Saving GSP ID: {gsp_id} to Data Platform")
 
-        # 3. Get only the data for that gsp
+        # 4. Get only the data for that gsp
         gsp_data = data_df[data_df["gsp_id"] == gsp_id]
 
-        # 4. Get the location for that gsp
+        # 5. Get the location for that gsp
         location = all_gsp_and_national_locations.get(gsp_id)
         if location is None:
             logger.warning(f"No location found for GSP ID {gsp_id}, skipping.")
             continue
         location_uuid = location.location_uuid
 
-        # 5. Get the most recent observations for that location and observer
+        # 6. Get the most recent observations for that location and observer
         try:
             recent_observations_request = dp.GetLatestObservationRequest(
                 location_uuid=location_uuid,
@@ -98,8 +106,8 @@ async def save_generation_to_data_platform(
             )
             continue
 
-        # 7. Update location capacity based on the max capacity in this data
-        new_max_capacity_watts = int(gsp_data["capacity_mwp"].max() * 1_000_000)
+        # 8. Update location capacity based on the max capacity in this data
+        new_max_capacity_watts = int(gsp_data["effective_capacity_watts"].max())
         max_capacity_watts_current = location.effective_capacity_watts
         if new_max_capacity_watts != max_capacity_watts_current:
             logger.info(
@@ -114,20 +122,16 @@ async def save_generation_to_data_platform(
             )
             _ = await client.update_location_capacity(update_location_request)
 
-        # 8. Create new observations for the remaining data points
+        # 9. Create new observations for the remaining data points
         observation_values = []
         for _, row in gsp_data.iterrows():
-            if row["capacity_mwp"] == 0:
+            if row["effective_capacity_watts"] == 0:
                 continue  # Skip entries with zero capacity to avoid division by zero
 
-            value_fraction = row["solar_generation_kw"] / (row["capacity_mwp"] * 1000)
-            effective_capacity_watts = int(row["capacity_mwp"] * 1_000_000)
-            timestamp_utc = row["target_datetime_utc"].to_pydatetime()
-
             oberservation_value = dp.CreateObservationsRequestValue(
-                timestamp_utc=timestamp_utc,
-                value_fraction=value_fraction,
-                effective_capacity_watts=effective_capacity_watts,
+                timestamp_utc=row["target_datetime_utc"],
+                value_fraction=row["value_fraction"],
+                effective_capacity_watts=row['effective_capacity_watts'],
             )
             observation_values.append(oberservation_value)
 
