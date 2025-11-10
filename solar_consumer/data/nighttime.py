@@ -1,38 +1,13 @@
 # solar_consumer/data/nighttime.py
 from __future__ import annotations
 
-from typing import Union, Optional
+from typing import Optional, Union
 import pandas as pd
 import pvlib
-import os
 from loguru import logger
 
-
-# Load GSP lat/lon for night-time zeroing from CSV (no datamodel dependency)
-DIR = os.path.dirname(__file__)
-
-
-def _load_gsp_locations() -> pd.DataFrame | None:
-    """Load GSP lat/lon if the CSV exists; return None otherwise."""
-    candidates = [
-        os.path.join(DIR, "uk_gsp_locations_20250109.csv"),
-        os.path.join(DIR, "data", "uk_gsp_locations_20250109.csv"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            if "gsp_id" in df.columns:
-                return df.set_index("gsp_id")
-    logger.warning("GSP locations CSV not found; skipping night-time zeroing.")
-    return None
-
-_GSP_LOCATIONS = _load_gsp_locations()
-
-# NOTE:
-# rather than computing irradiance or using cloud info,
-# treat any hour where the sun elevation < ~5° as night.
-# pvlib's solarposition is well validated; this is equivalent
-# to OCF's metnet threshold but avoids needing extra columns.
+# Import the preloaded GSP locations table
+from .uk_gsp_locations import GSP_LOCATIONS as _GSP_LOCATIONS
 
 
 def make_night_time_zeros(
@@ -56,18 +31,19 @@ def make_night_time_zeros(
     Parameters
     ----------
     df : DataFrame with at least [timestamp_col, generation_col]
-    latitude, longitude : float
-        GSP/site location (degrees).
+    latitude, longitude : float, optional
+        Site location (degrees). If not provided, and gsp_id is given, the function
+        will try to look them up from the bundled GSP locations table.
+    gsp_id : int, optional
+        GSP identifier used to fetch lat/lon when not supplied explicitly.
     timestamp_col : str
         Timestamp column (UTC or tz-naive assumed UTC).
     generation_col : str
         Generation column to zero at night.
     elevation_limit_deg : int | float
         Threshold below which values are considered night.
-    start : pandas.Timestamp | None, optional
-        Accepted for API compatibility; not used by this function.
-    end : pandas.Timestamp | None, optional
-        Accepted for API compatibility; not used by this function.
+    start, end : pandas.Timestamp, optional
+        If df is empty, these are used to backfill a 30-minute time index.
 
     Returns
     -------
@@ -86,7 +62,7 @@ def make_night_time_zeros(
 
     if timestamp_col not in df or generation_col not in df:
         return df
-    
+
     # Fallback: if coords not provided, try to get them from the bundled CSV using gsp_id
     if (latitude is None or longitude is None) and gsp_id is not None:
         if _GSP_LOCATIONS is not None and gsp_id in _GSP_LOCATIONS.index:
@@ -99,6 +75,7 @@ def make_night_time_zeros(
             "No lat/lon available for night-time zeroing; leaving data unchanged."
         )
         return df
+
     out = df.copy()
 
     # Ensure UTC-aware datetime
