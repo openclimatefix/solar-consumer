@@ -17,8 +17,8 @@ def test_nighttime_zeroing_based_on_elevation():
         df,
         latitude=lat,
         longitude=lon,
-        ts_col="datetime_gmt",
-        mw_col="generation_mw",
+        timestamp_col="datetime_gmt",
+        generation_col="generation_mw",
     )
 
     # first row is night → 0
