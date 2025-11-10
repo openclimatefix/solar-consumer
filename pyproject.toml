@@ -15,6 +15,10 @@ dependencies = [
     "tqdm",
     "loguru==0.7.3",
     "pvlive-api>=1.5.1",
+    "dp-sdk",
+    "betterproto==2.0.0b7",
+    "grpclib==0.4.8",
+    "pytest-asyncio>=1.2.0",
     "pvlib>=0.10",
 ]
 
@@ -23,9 +27,17 @@ dev = [
     "pytest",
     "black",
     "ruff",
-    "pandas"
+    "pandas",
 ]
 
 [tool.setuptools-git-versioning]
 enabled = true
 dirty_template = "{tag}"
+
+[tool.uv.sources]
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.10.0/dp_sdk-0.10.0-py3-none-any.whl" }
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+exclude = ["__init__.py"]
