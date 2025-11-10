@@ -109,7 +109,7 @@ async def save_generation_to_data_platform(
         # 8. Update location capacity based on the max capacity in this data
         new_max_capacity_watts = int(gsp_data["effective_capacity_watts"].max())
         max_capacity_watts_current = location.effective_capacity_watts
-        if new_max_capacity_watts != max_capacity_watts_current:
+        if new_max_capacity_watts != max_capacity_watts_current and new_max_capacity_watts > 0:
             logger.info(
                 f"Updating location {location_uuid} capacity from {max_capacity_watts_current}W to {new_max_capacity_watts}W."
             )
