@@ -39,13 +39,15 @@ async def save_generation_to_data_platform(
     assert "capacity_mwp" in data_df.columns
 
     # 1. Get all locations (UK GSPs and National)
-    all_locations = await get_all_gsp_and_national_locations(client)
+    all_gsp_and_national_locations = await get_all_gsp_and_national_locations(client)
 
-    # 2. Create an observer for that gsp and regime if it doesn't already exist
+    # 2. Create an observer for the regime if it doesn't already exist
+    # Note that regime is either in-day or day-ahead,
+    # and there should only be one regime per DataFrame
     regime = data_df["regime"].unique()
     assert len(regime) == 1, "DataFrame must contain only one regime type"
-    regime = regime[0]
-    name = f"PVLive_consumer_{regime}".lower().replace("-", "_")
+    regime = regime[0].lower().replace("-", "_")
+    name = f"pvlive_consumer_{regime}"
 
     list_observers_request = dp.ListObserversRequest(observer_names_filter=[name])
     list_observers_response = await client.list_observers(list_observers_request)
@@ -62,7 +64,7 @@ async def save_generation_to_data_platform(
         gsp_data = data_df[data_df["gsp_id"] == gsp_id]
 
         # 4. Get the location for that gsp
-        location = all_locations.get(gsp_id)
+        location = all_gsp_and_national_locations.get(gsp_id)
         if location is None:
             logger.warning(f"No location found for GSP ID {gsp_id}, skipping.")
             continue
@@ -99,7 +101,7 @@ async def save_generation_to_data_platform(
         # 7. Update location capacity based on the max capacity in this data
         new_max_capacity_watts = int(gsp_data["capacity_mwp"].max() * 1_000_000)
         max_capacity_watts_current = location.effective_capacity_watts
-        if new_max_capacity_watts > max_capacity_watts_current:
+        if new_max_capacity_watts != max_capacity_watts_current:
             logger.info(
                 f"Updating location {location_uuid} capacity from {max_capacity_watts_current}W to {new_max_capacity_watts}W."
             )
@@ -158,8 +160,12 @@ async def get_all_gsp_and_national_locations(
     )
     location_response = await client.list_locations(all_location_request)
     all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.location_name.lower()]
-    if len(all_uk_location) >= 1:
+    if len(all_uk_location) == 1:
         all_locations[0] = all_uk_location[0]
+    elif len(all_uk_location) == 0:
+        raise Exception("No UK National location found.")
+    else:
+        raise Exception("Multiple UK National locations found.")
 
     # GSP locations
     all_location_gsp_request = dp.ListLocationsRequest(
