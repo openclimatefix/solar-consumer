@@ -7,9 +7,20 @@
 
 This code can be used to download solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
 We currently collect
-- UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. Not currently being used to save values. 
+- UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. 
 - NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
 - DE: Generation values from ENTSOE for several TSOs. 
+
+
+Here are the different sources of data, and which methods can be used to save the results
+
+| Source | Country | CSV | Data Platform | DB (Legacy) | Site DB (Legacy) |
+| --- | ---  | --- | --- | --- |  ---|
+| PVLive | 🇬🇧 | ✅ | ✅ | | |
+| NESO forecast | 🇬🇧 | ✅ | | ✅| 
+| Ned-nl | 🇳🇱 | ✅ || | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
+| Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
 
 ## Requirements
 
