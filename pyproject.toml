@@ -19,6 +19,7 @@ dependencies = [
     "betterproto==2.0.0b7",
     "grpclib==0.4.8",
     "pytest-asyncio>=1.2.0",
+    "pvlib>=0.10", 
 ]
 
 [dependency-groups]
