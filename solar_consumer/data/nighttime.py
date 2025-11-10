@@ -26,7 +26,6 @@ def _load_gsp_locations() -> pd.DataFrame | None:
     logger.warning("GSP locations CSV not found; skipping night-time zeroing.")
     return None
 
-
 _GSP_LOCATIONS = _load_gsp_locations()
 
 # NOTE:
@@ -42,8 +41,8 @@ def make_night_time_zeros(
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
     gsp_id: Optional[int] = None,
-    ts_col: str = "target_time_utc",
-    mw_col: str = "generation_mw",
+    timestamp_col: str = "target_time_utc",
+    generation_col: str = "generation_mw",
     elevation_limit_deg: Union[int, float] = 5,
     start: Optional[pd.Timestamp] = None,
     end: Optional[pd.Timestamp] = None,
@@ -56,12 +55,12 @@ def make_night_time_zeros(
 
     Parameters
     ----------
-    df : DataFrame with at least [ts_col, mw_col]
+    df : DataFrame with at least [timestamp_col, generation_col]
     latitude, longitude : float
         GSP/site location (degrees).
-    ts_col : str
+    timestamp_col : str
         Timestamp column (UTC or tz-naive assumed UTC).
-    mw_col : str
+    generation_col : str
         Generation column to zero at night.
     elevation_limit_deg : int | float
         Threshold below which values are considered night.
@@ -73,33 +72,26 @@ def make_night_time_zeros(
     Returns
     -------
     DataFrame
-        Copy of df with nighttime rows set to zero in `mw_col`.
+        Copy of df with nighttime rows set to zero in `generation_col`.
     """
     # If no data, build a time index for the query window (backup)
     if (df is None or df.empty) and (start is not None and end is not None):
         times = pd.date_range(
             start=start, end=end, freq="30min", tz="UTC", inclusive="left"
         )
-        df = pd.DataFrame({ts_col: times, mw_col: pd.NA})
+        df = pd.DataFrame({timestamp_col: times, generation_col: pd.NA})
 
     if df is None or df.empty:
         return df
 
-    if ts_col not in df or mw_col not in df:
+    if timestamp_col not in df or generation_col not in df:
         return df
+    
     # Fallback: if coords not provided, try to get them from the bundled CSV using gsp_id
     if (latitude is None or longitude is None) and gsp_id is not None:
-        try:
-            locs = (
-                _GSP_LOCATIONS
-                if "_GSP_LOCATIONS" in globals()
-                else _load_gsp_locations()
-            )
-        except Exception:
-            locs = None
-        if locs is not None and gsp_id in locs.index:
-            latitude = float(locs.at[gsp_id, "latitude"])
-            longitude = float(locs.at[gsp_id, "longitude"])
+        if _GSP_LOCATIONS is not None and gsp_id in _GSP_LOCATIONS.index:
+            latitude = float(_GSP_LOCATIONS.at[gsp_id, "latitude"])
+            longitude = float(_GSP_LOCATIONS.at[gsp_id, "longitude"])
 
     # If still no coordinates, skip zeroing gracefully
     if latitude is None or longitude is None:
@@ -110,14 +102,14 @@ def make_night_time_zeros(
     out = df.copy()
 
     # Ensure UTC-aware datetime
-    out[ts_col] = pd.to_datetime(out[ts_col], utc=True, errors="coerce")
-    valid = out[ts_col].notna()
+    out[timestamp_col] = pd.to_datetime(out[timestamp_col], utc=True, errors="coerce")
+    valid = out[timestamp_col].notna()
     if not valid.any():
         return out
 
     # Compute solar elevation for all timestamps
     solpos = pvlib.solarposition.get_solarposition(
-        time=out.loc[valid, ts_col],
+        time=out.loc[valid, timestamp_col],
         latitude=latitude,
         longitude=longitude,
         method="nrel_numpy",
@@ -129,6 +121,6 @@ def make_night_time_zeros(
 
     # Apply zeros only on rows with valid timestamps
     idx = out.loc[valid].index[night_mask]
-    out.loc[idx, mw_col] = 0.0
+    out.loc[idx, generation_col] = 0.0
 
     return out

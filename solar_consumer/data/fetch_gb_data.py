@@ -131,14 +131,18 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
         # https://github.com/openclimatefix/solar-consumer/issues/104
         # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
-        gsp_yield_df = make_night_time_zeros(
-            gsp_yield_df,
-            gsp_id=gsp_id,
-            ts_col="datetime_gmt",
-            mw_col="generation_mw",
-            start=start,
-            end=end,
-        )
+        if "datetime_gmt" in gsp_yield_df.columns:
+            gsp_yield_df = make_night_time_zeros(
+                gsp_yield_df,
+                gsp_id=gsp_id,
+                timestamp_col="datetime_gmt",
+                generation_col="generation_mw",
+                start=start,
+                end=end,
+            )
+        
+        else:
+            logger.debug(f"Skipping night-time zeroing for GSP {gsp_id}: no datetime_gmt column")
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
