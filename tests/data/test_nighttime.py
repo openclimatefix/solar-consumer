@@ -1,5 +1,10 @@
+# tests/data/test_nighttime.py
 import pandas as pd
+import pytest
+
 from solar_consumer.data.nighttime import make_night_time_zeros
+from solar_consumer.data.uk_gsp_locations import GSP_LOCATIONS
+
 
 def test_nighttime_zeroing_based_on_elevation():
     # London-ish coords
@@ -25,4 +30,40 @@ def test_nighttime_zeroing_based_on_elevation():
     assert out["generation_mw"].iloc[0] == 0.0
 
     # second row is daytime → unchanged
+    assert out["generation_mw"].iloc[1] == 5.0
+
+
+def test_load_gsp_locations():
+    """Verify the bundled GSP locations CSV loads and contains expected columns."""
+    if GSP_LOCATIONS is None:
+        pytest.skip("GSP locations CSV not present in this environment")
+
+    # basic sanity checks
+    assert not GSP_LOCATIONS.empty
+    assert "latitude" in GSP_LOCATIONS.columns
+    assert "longitude" in GSP_LOCATIONS.columns
+
+    # ensure a canonical GSP id exists (0 is used in the codebase/national)
+    assert 0 in GSP_LOCATIONS.index
+
+
+def test_make_night_time_zeros_uses_gsp_id_fallback():
+    """Ensure make_night_time_zeros can look up coords using gsp_id and run."""
+    if GSP_LOCATIONS is None:
+        pytest.skip("GSP locations CSV not present in this environment")
+
+    # pick a GSP that exists in the CSV
+    gsp_id = 0
+    times = pd.date_range("2025-07-01 00:00Z", periods=2, freq="12H", tz="UTC")
+    df = pd.DataFrame({"datetime_gmt": times, "generation_mw": [5.0, 5.0]})
+
+    out = make_night_time_zeros(
+        df,
+        gsp_id=gsp_id,
+        timestamp_col="datetime_gmt",
+        generation_col="generation_mw",
+    )
+
+    # first row (night) should be zeroed, second (day) unchanged
+    assert out["generation_mw"].iloc[0] == 0.0
     assert out["generation_mw"].iloc[1] == 5.0
