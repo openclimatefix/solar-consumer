@@ -36,6 +36,41 @@ def test_save_generation_to_site_db(db_site_session):
     assert sites[0].client_location_name == "nl_national"
 
 
+def test_save_generation_to_site_db_none_capacity(db_site_session):
+    """
+    Test the save_generation_to_site_db function.
+
+    Add None in capacity_kw column
+    """
+    # Prepare mock data
+    generation_data = {
+        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
+        "solar_generation_kw": [100, 150],
+        "capacity_kw": [None, None],
+        "region_id": [0,0]
+    }
+
+    # Convert to DataFrame
+    generation_df = pd.DataFrame(generation_data)
+
+    # Call the function
+    save_generation_to_site_db(
+        generation_data=generation_df,
+        session=db_site_session,
+    )
+
+    # Check if data is saved correctly in the database
+    saved_data = db_site_session.query(GenerationSQL).all()
+
+    assert len(saved_data) == len(generation_df)
+
+    sites = db_site_session.query(LocationSQL).all()
+    assert len(sites) == 1
+    # default capacity used
+    assert sites[0].capacity_kw == 20_000_000
+    assert sites[0].client_location_name == "nl_national"
+
+
 def test_save_forecasts_to_site_db(db_site_session):
 
     """
