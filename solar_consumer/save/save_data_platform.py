@@ -5,7 +5,6 @@ https://github.com/openclimatefix/data-platform
 """
 
 from loguru import logger
-from datetime import datetime, timezone
 
 from dp_sdk.ocf import dp
 import pandas as pd
@@ -58,10 +57,10 @@ async def save_generation_to_data_platform(
 
 
     # 3. format the data
-    data_df['value_fraction'] = data_df["solar_generation_kw"] / (data_df["capacity_mwp"] * 1000)
+    data_df['solar_generation_w'] = data_df["solar_generation_kw"] * 1_000
     data_df['effective_capacity_watts'] = (data_df["capacity_mwp"] * 1_000_000).astype(int)
     data_df['target_datetime_utc'] = pd.to_datetime(data_df["target_datetime_utc"])
-    data_df = data_df[['target_datetime_utc', 'value_fraction', 'effective_capacity_watts','gsp_id']]
+    data_df = data_df[['target_datetime_utc', 'solar_generation_w', 'effective_capacity_watts','gsp_id']]
 
     # for each gsp
     gsp_ids = data_df["gsp_id"].unique()
@@ -107,7 +106,9 @@ async def save_generation_to_data_platform(
             continue
 
         # 8. Update location capacity based on the max capacity in this data
-        new_max_capacity_watts = int(gsp_data["effective_capacity_watts"].max())
+        max_capacity_watts_idx = gsp_data["effective_capacity_watts"].idxmax()
+        new_max_capacity_watts = int(gsp_data.loc[max_capacity_watts_idx, "effective_capacity_watts"])
+        valid_from_utc = gsp_data.loc[max_capacity_watts_idx, "target_datetime_utc"]
         max_capacity_watts_current = location.effective_capacity_watts
         if new_max_capacity_watts != max_capacity_watts_current and new_max_capacity_watts > 0:
             logger.info(
@@ -117,7 +118,7 @@ async def save_generation_to_data_platform(
             update_location_request = dp.UpdateLocationCapacityRequest(
                 location_uuid=location_uuid,
                 energy_source=dp.EnergySource.SOLAR,
-                valid_from_utc=datetime.now(tz=timezone.utc),
+                valid_from_utc=valid_from_utc,
                 new_effective_capacity_watts=new_max_capacity_watts,
             )
             _ = await client.update_location_capacity(update_location_request)
@@ -130,8 +131,7 @@ async def save_generation_to_data_platform(
 
             oberservation_value = dp.CreateObservationsRequestValue(
                 timestamp_utc=row["target_datetime_utc"],
-                value_fraction=row["value_fraction"],
-                effective_capacity_watts=row['effective_capacity_watts'],
+                value_watts=row["solar_generation_w"],
             )
             observation_values.append(oberservation_value)
 

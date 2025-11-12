@@ -40,7 +40,7 @@ async def client():
         database_url = database_url.replace("localhost", "host.docker.internal")
 
         with DockerContainer(
-            image="ghcr.io/openclimatefix/data-platform:0.10.0", env={"DATABASE_URL": database_url}, ports=[50051]
+            image="ghcr.io/openclimatefix/data-platform:0.12.0", env={"DATABASE_URL": database_url}, ports=[50051]
         ) as data_platform_server:
             time.sleep(1)  # Give some time for the server to start
 
@@ -95,7 +95,7 @@ async def test_save_to_data_platform(client):
     )
     fake_data["gsp_id"] = 1
     fake_data["regime"] = "in-day"
-    fake_data["capacity_mwp"] = 2
+    fake_data["capacity_mwp"] = 2 # this will be updated
     fake_data["target_datetime_utc"] = pd.to_datetime(fake_data["target_datetime_utc"])
 
     _ = await save_generation_to_data_platform(fake_data, client=client)
@@ -115,9 +115,9 @@ async def test_save_to_data_platform(client):
         get_observations_request
     )
     assert len(get_observations_response.values) == 1
-    # check fraction value is 100 kw / 2 mwp = 0.05
+    # check fraction value is 100 kw / 2 mwp = 0.5
     assert (
-        np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
+        np.abs(get_observations_response.values[0].value_fraction - 0.5) < 1e-6
     )
 
     # check location capacity has been updated
