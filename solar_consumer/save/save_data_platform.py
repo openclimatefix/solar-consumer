@@ -4,180 +4,125 @@ https://github.com/openclimatefix/data-platform
 
 """
 
-from loguru import logger
-from datetime import datetime, timezone
 
 from dp_sdk.ocf import dp
 import pandas as pd
 
+import datetime as dt
+import asyncio
+import logging
+from collections import defaultdict
 
-async def save_generation_to_data_platform(
-    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub | None = None
-):
+import itertools
+
+import betterproto
+
+import numpy as np
+
+async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub) -> None:
     """
-    Save Generation data to the Data-platform.
+    Saves model data via the data platform.
+    
+    Incoming data is enriched with location information from the data platform. Anything with zero
+    capacity, or without a corresponding entry in the data platform, is ignored.
 
-    0. First we get all the locations
-
-    Here's how we do it for each gsp
-    1. Get all the locations
-    2. Create an observer for that regime if it doesn't already exist
-    3. Format the data
-    4. For each gsp: Get only the data for that gsp
-    5. Get the location for that gsp
-    6. Get the most recent observations for that location and observer,
-    7. Remove any data points from our data that are already in the database
-    8. Update location capacity based on the max capacity in this data
-    9. Create new observations for the remaining data points
-
-    :param data_df: DataFrame containing forecast data with required columns.
+    Data is joined via the gsp_id, which is a column in the incoming data, and has to be extracted
+    from the metadata field in the data platform location data.
     """
-
-    assert "target_datetime_utc" in data_df.columns
-    assert "solar_generation_kw" in data_df.columns
-    assert "gsp_id" in data_df.columns
-    assert "regime" in data_df.columns
-    assert "capacity_mwp" in data_df.columns
-
-    # 1. Get all locations (UK GSPs and National)
-    all_gsp_and_national_locations = await get_all_gsp_and_national_locations(client)
-
-    # 2. Create an observer for the regime if it doesn't already exist
-    # Note that regime is either in-day or day-ahead,
-    # and there should only be one regime per DataFrame
-    regime = data_df["regime"].unique()
-    assert len(regime) == 1, "DataFrame must contain only one regime type"
-    regime = regime[0].lower().replace("-", "_")
-    name = f"pvlive_consumer_{regime}"
-
-    list_observers_request = dp.ListObserversRequest(observer_names_filter=[name])
-    list_observers_response = await client.list_observers(list_observers_request)
-    if len(list_observers_response.observers) == 0:
-        observer_request = dp.CreateObserverRequest(name=name)
-        _ = await client.create_observer(observer_request)
-
-
-    # 3. format the data
-    data_df['value_fraction'] = data_df["solar_generation_kw"] / (data_df["capacity_mwp"] * 1000)
-    data_df['effective_capacity_watts'] = (data_df["capacity_mwp"] * 1_000_000).astype(int)
-    data_df['target_datetime_utc'] = pd.to_datetime(data_df["target_datetime_utc"])
-    data_df = data_df[['target_datetime_utc', 'value_fraction', 'effective_capacity_watts','gsp_id']]
-
-    # for each gsp
-    gsp_ids = data_df["gsp_id"].unique()
-    for gsp_id in gsp_ids:
-        logger.info(f"Saving GSP ID: {gsp_id} to Data Platform")
-
-        # 4. Get only the data for that gsp
-        gsp_data = data_df[data_df["gsp_id"] == gsp_id]
-
-        # 5. Get the location for that gsp
-        location = all_gsp_and_national_locations.get(gsp_id)
-        if location is None:
-            logger.warning(f"No location found for GSP ID {gsp_id}, skipping.")
-            continue
-        location_uuid = location.location_uuid
-
-        # 6. Get the most recent observations for that location and observer
-        try:
-            recent_observations_request = dp.GetLatestObservationRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                observer_name=name,
+    # Get the UK GSP locations, as well as national.
+    # * These all are assumed to be differentiable from any other locations returned in the query
+    # * by nature of "gsp_id" being in the metadata.
+    tasks: list[asyncio.Task] = [
+        asyncio.create_task(client.list_locations(
+            dp.ListLocationsRequest(
+                location_type_filter=loc_type,
+                energy_source_filter=dp.EnergySource.SOLAR,
             )
-            recent_observation_response = await client.get_latest_observation(
-                recent_observations_request
+        ))
+        for loc_type in [dp.LocationType.GSP, dp.LocationType.NATION]
+    ]
+    list_results = await asyncio.gather(*tasks, return_exceptions=True)
+    for exc in filter(lambda x: isinstance(x, Exception), list_results):
+        raise exc
+
+    joined_df = (
+        pd.DataFrame.from_dict(
+            itertools.chain(*[
+                r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)["locations"]
+                for r in list_results]
             )
-
-            # 6. Remove any data points from our data that are already in the database
-            last_datetime_utc = recent_observation_response.timestamp_utc
-            gsp_data = gsp_data[
-                gsp_data["target_datetime_utc"] > last_datetime_utc
-            ]
-        except Exception:
-            logger.info(
-                f"No existing observations for location {location_uuid} and observer {name}, adding all data."
-            )
-
-
-        if len(gsp_data) == 0:
-            logger.debug(
-                f"No new data to add for location {location_uuid} and observer {name}, for gsp id {gsp_id}."
-            )
-            continue
-
-        # 8. Update location capacity based on the max capacity in this data
-        new_max_capacity_watts = int(gsp_data["effective_capacity_watts"].max())
-        max_capacity_watts_current = location.effective_capacity_watts
-        if new_max_capacity_watts != max_capacity_watts_current and new_max_capacity_watts > 0:
-            logger.info(
-                f"Updating location {location_uuid} capacity from {max_capacity_watts_current}W to {new_max_capacity_watts}W."
-            )
-
-            update_location_request = dp.UpdateLocationCapacityRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                valid_from_utc=datetime.now(tz=timezone.utc),
-                new_effective_capacity_watts=new_max_capacity_watts,
-            )
-            _ = await client.update_location_capacity(update_location_request)
-
-        # 9. Create new observations for the remaining data points
-        observation_values = []
-        for _, row in gsp_data.iterrows():
-            if row["effective_capacity_watts"] == 0:
-                continue  # Skip entries with zero capacity to avoid division by zero
-
-            oberservation_value = dp.CreateObservationsRequestValue(
-                timestamp_utc=row["target_datetime_utc"],
-                value_fraction=row["value_fraction"],
-                effective_capacity_watts=row['effective_capacity_watts'],
-            )
-            observation_values.append(oberservation_value)
-
-        if len(observation_values) > 0:
-
-            logger.debug(
-                f"Adding {len(observation_values)} new observation values for location {location_uuid} and observer {name}."
-            )
-
-            observation_request = dp.CreateObservationsRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                observer_name=name,
-                values=observation_values,
-            )
-            _ = await client.create_observations(observation_request)
-
-
-async def get_all_gsp_and_national_locations(
-    client: dp.DataPlatformDataServiceStub,
-) -> dict[int, dp.ListLocationsResponseLocationSummary]:
-    """Get all GSP and National locations for solar energy source"""
-
-    all_locations = {}
-
-    # National location
-    all_location_request = dp.ListLocationsRequest(
-        location_type_filter=dp.LocationType.NATION,
-        energy_source_filter=dp.EnergySource.SOLAR,
+        )
+        .loc[lambda df: df["metadata"].apply(lambda x: "gsp_id" in x)]
+        .assign(gsp_id=lambda df: df["metadata"].apply(lambda x: x["gsp_id"]["number_value"]))
+        .set_index("gsp_id")
+        .join(
+            data_df.query("capacity_mwp>0").set_index("gsp_id"), on="gsp_id", how="inner", lsuffix="_loc"
+        )
+        .assign(new_effective_capacity_watts=lambda df: df["capacity_mwp"] * 1e6)
     )
-    location_response = await client.list_locations(all_location_request)
-    all_uk_location = [loc for loc in location_response.locations if 'uk' in loc.location_name.lower()]
-    if len(all_uk_location) == 1:
-        all_locations[0] = all_uk_location[0]
-    elif len(all_uk_location) == 0:
-        raise Exception("No UK National location found.")
-    else:
-        raise Exception("Multiple UK National locations found.")
 
-    # GSP locations
-    all_location_gsp_request = dp.ListLocationsRequest(
-        location_type_filter=dp.LocationType.GSP,
-        energy_source_filter=dp.EnergySource.SOLAR,
+    # Generate the UpdateLocationCapacityRequest objects from the DataFrame.
+    # * Should only occur when the incoming data has a different capacity to that returned by the
+    # * data platform. The most recent value for a given location is the one that is used.
+    updates_df = (
+        joined_df
+        .loc[
+            lambda df: ~np.isclose(df["effective_capacity_watts"].astype(float), df["new_effective_capacity_watts"].astype(float))
+        ]
+        .sort_values(by='target_datetime_utc', ascending=False)
+        .groupby(level=0)
+        .head(1)
+        .sort_index()
     )
-    location_response = await client.list_locations(all_location_gsp_request)
-    for loc in location_response.locations:
-        all_locations[loc.metadata.to_dict()["gsp_id"]["numberValue"]] = loc
+    tasks = []
+    for lid, t, new_cap in zip(
+        updates_df["location_uuid"],
+        updates_df["target_datetime_utc"],
+        updates_df["new_effective_capacity_watts"],
+    ):
+        req = dp.UpdateLocationCapacityRequest(
+            location_uuid=lid,
+            energy_source=dp.EnergySource.SOLAR,
+            new_effective_capacity_watts=new_cap,
+            valid_from_utc=t,
+        )
+        tasks.append(asyncio.create_task(client.update_location_capacity(req)))
+    
+    if len(tasks) > 0:
+        logging.info("updating %d location capacities", len(tasks))
+        update_results = await asyncio.gather(*tasks, return_exceptions=True)
+        for exc in filter(lambda x: isinstance(x, Exception), update_results):
+            raise exc
 
-    return all_locations
+    # Generate the CreateObservationRequest objects from the DataFrame.
+    # * The observer is assumed to exist already, and only one regime is assumed to be present
+    # * within the DataFrame.
+    observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
+    for lid, t, val in zip(
+        joined_df["location_uuid"],
+        joined_df["target_datetime_utc"],
+        joined_df["solar_generation_kw"] * 1000 ,
+    ):
+        observations_by_loc[lid].append(dp.CreateObservationsRequestValue(
+            timestamp_utc=t,
+            value_watts=val
+        ))
+    regime: str = data_df["regime"].values[0]
+    tasks = [
+        asyncio.create_task(client.create_observations(
+            dp.CreateObservationsRequest(
+                location_uuid=lid,
+                energy_source=dp.EnergySource.SOLAR,
+                observer_name=f"pvlive_{regime}",
+                values=vals,
+            ),
+        ))
+        for lid, vals in observations_by_loc.items()
+    ]
+
+    if len(tasks) > 0:
+        logging.info("creating observations for %d locations", len(tasks))
+        create_results = await asyncio.gather(*tasks)
+        for exc in filter(lambda x: isinstance(x, Exception), create_results):
+            raise exc
+
