@@ -91,10 +91,13 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
+    #
+    # TODO, ive put in an absolute tolerance of 1kW here to avoid tiny changes triggering updates,
+    # This is references in https://github.com/openclimatefix/data-platform/issues/71
     updates_df = (
         joined_df
         .loc[
-            lambda df: ~np.isclose(df["effective_capacity_watts"].astype(float), df["new_effective_capacity_watts"].astype(float))
+            lambda df: ~np.isclose(df["effective_capacity_watts"].astype(float), df["new_effective_capacity_watts"].astype(float), atol=1000)
         ]
         .sort_values(by='target_datetime_utc', ascending=False)
         .groupby(level=0)
