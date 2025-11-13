@@ -90,14 +90,13 @@ async def test_save_to_data_platform(client):
     location_uuid = create_location_response.location_uuid
 
     # make fake data
-    fake_data = pd.DataFrame(
-        {"target_datetime_utc": ["2025-01-01T00:00:00Z"], "solar_generation_kw": [100]}
-    )
-    fake_data["gsp_id"] = 1
-    fake_data["regime"] = "in-day"
-    fake_data["capacity_mwp"] = 2
-    fake_data["target_datetime_utc"] = pd.to_datetime(fake_data["target_datetime_utc"])
-
+    fake_data = pd.DataFrame({
+        "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
+        "solar_generation_kw": [100],
+        "gsp_id": [1],
+        "regime": ["in-day"],
+        "capacity_mwp": [2],
+    })
     _ = await save_generation_to_data_platform(fake_data, client=client)
 
     # read from the data platform to check it was saved

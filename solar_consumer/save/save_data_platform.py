@@ -58,7 +58,8 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         .join(
             data_df.query("capacity_mwp>0").set_index("gsp_id"), on="gsp_id", how="inner", lsuffix="_loc"
         )
-        .assign(new_effective_capacity_watts=lambda df: df["capacity_mwp"] * 1e6)
+        .assign(new_effective_capacity_watts=lambda df: df["capacity_mwp"].astype(int) * int(1e6))
+        .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
     )
 
     logging.info("handling data for %d matched locations", joined_df["location_uuid"].nunique())
