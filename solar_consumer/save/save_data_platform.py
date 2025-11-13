@@ -128,7 +128,7 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
     for lid, t, val in zip(
         joined_df["location_uuid"],
         joined_df["target_datetime_utc"],
-        joined_df["solar_generation_kw"] * 1000 ,
+        (joined_df["solar_generation_kw"] * 1000).astype(int),
     ):
         observations_by_loc[lid].append(dp.CreateObservationsRequestValue(
             timestamp_utc=t,
