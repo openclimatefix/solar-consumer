@@ -7,6 +7,7 @@ import datetime
 from testcontainers.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 from betterproto.lib.google.protobuf import Struct, Value
+from importlib.metadata import version
 
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
@@ -40,7 +41,7 @@ async def client():
         database_url = database_url.replace("localhost", "host.docker.internal")
 
         with DockerContainer(
-            image="ghcr.io/openclimatefix/data-platform:0.10.0", env={"DATABASE_URL": database_url}, ports=[50051]
+            image=f"ghcr.io/openclimatefix/data-platform:{version('dp_sdk')}", env={"DATABASE_URL": database_url}, ports=[50051]
         ) as data_platform_server:
             time.sleep(1)  # Give some time for the server to start
 
