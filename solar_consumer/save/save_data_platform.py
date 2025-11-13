@@ -92,12 +92,13 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
     #
-    # TODO, ive put in an absolute tolerance of 1kW here to avoid tiny changes triggering updates,
+    # TODO, we've put in a limit of relative tolerance of 1% here to avoid tiny changes triggering updates,
     # This is references in https://github.com/openclimatefix/data-platform/issues/71
+    joined_df['capacity_change'] = ((joined_df["effective_capacity_watts"].astype(float))/(joined_df["new_effective_capacity_watts"].astype(float))).abs()
     updates_df = (
         joined_df
         .loc[
-            lambda df: ~np.isclose(df["effective_capacity_watts"].astype(float), df["new_effective_capacity_watts"].astype(float), atol=1000)
+            lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.01)
         ]
         .sort_values(by='target_datetime_utc', ascending=False)
         .groupby(level=0)
