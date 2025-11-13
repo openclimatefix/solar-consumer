@@ -99,7 +99,7 @@ async def test_save_to_data_platform(client):
     # make fake data
     fake_data = pd.DataFrame({
         "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
-        "solar_generation_kw": [100],
+        "solar_generation_kw": [100.0],
         "gsp_id": [1],
         "regime": ["in-day"],
         "capacity_mwp": [2],
