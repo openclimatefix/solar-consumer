@@ -195,11 +195,11 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [0, 1],
                     "regime": ["test"] * 2,
-                    "capacity_mwp": [100, 5],
+                    "capacity_mwp": [100, 0.2],
                     "solar_generation_kw": [5e3, 50],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=2, freq="h"),
                 }),
-                expected_update_capacities=[5e6],
+                expected_update_capacities=[2e5],
                 expected_create_call_observation_counts=[1, 1],
                 should_error=False,
             ),
@@ -254,6 +254,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             with self.subTest(case.name):
                 if not case.should_error:
                     await save_generation_to_data_platform(case.input_df, client_mock)
+                    # Assert the data platform functioms were called the expected number of times
                     self.assertEqual(
                         client_mock.update_location_capacity.call_count,
                         len(case.expected_update_capacities),
@@ -262,6 +263,21 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                         client_mock.create_observations.call_count,
                         len(case.expected_create_call_observation_counts),
                     )
+
+                    # Assert the expected arguments were passed to the data platform functions
+                    for call, expected_capacity in zip(
+                        client_mock.update_location_capacity.call_args_list,
+                        case.expected_update_capacities,
+                    ):
+                        actual_capacity = call.args[0].new_effective_capacity_watts
+                        self.assertEqual(actual_capacity, expected_capacity)
+
+                    for call, expected_count in zip(
+                        client_mock.create_observations.call_args_list,
+                        case.expected_create_call_observation_counts,
+                    ):
+                        actual_count = len(call.args[0].values)
+                        self.assertEqual(actual_count, expected_count)
                 else:
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock)
