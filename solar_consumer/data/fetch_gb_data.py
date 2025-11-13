@@ -1,13 +1,12 @@
 import pandas as pd
 import urllib.request
-import urllib.parse
 import json
 import os
 from loguru import logger
-
 from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
+from solar_consumer.data.nighttime import make_night_time_zeros
 
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -88,7 +87,6 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - regime: either 'in-day' or 'day-after'
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
-
     pvlive_domain_url = "api.pvlive.uk"
     pvlive = PVLive(domain_url=pvlive_domain_url)
     # ignore these gsp ids from PVLive as they are no longer used
@@ -131,9 +129,20 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             f"Got {len(gsp_yield_df)} gsp yield for gsp id {gsp_id} before filtering"
         )
 
-        # TODO if did not find any values,
         # https://github.com/openclimatefix/solar-consumer/issues/104
-        # Make nighttime zeros
+        # Make nighttime zeros using pvlib solar elevation (needs lat/lon for this GSP)
+        if "datetime_gmt" in gsp_yield_df.columns:
+            gsp_yield_df = make_night_time_zeros(
+                gsp_yield_df,
+                gsp_id=gsp_id,
+                timestamp_col="datetime_gmt",
+                generation_col="generation_mw",
+                start=start,
+                end=end,
+            )
+        
+        else:
+            logger.debug(f"Skipping night-time zeroing for GSP {gsp_id}: no datetime_gmt column")
 
         # capacity is zero, set generation to 0
         if gsp_yield_df["capacity_mwp"].sum() == 0:
