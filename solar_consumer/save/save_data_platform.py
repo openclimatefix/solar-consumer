@@ -8,7 +8,6 @@ https://github.com/openclimatefix/data-platform
 from dp_sdk.ocf import dp
 import pandas as pd
 
-import datetime as dt
 import asyncio
 import logging
 from collections import defaultdict
@@ -29,9 +28,10 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
     Data is joined via the gsp_id, which is a column in the incoming data, and has to be extracted
     from the metadata field in the data platform location data.
     """
-    # Get the UK GSP locations, as well as national.
-    # * These all are assumed to be differentiable from any other locations returned in the query
-    # * by nature of "gsp_id" being in the metadata.
+    # 1. Get the UK GSP locations, as well as national, and join to the incoming data.
+    # * Fetched locations are assumed to be identifiable from any other locations returned by
+    # * nature of "gsp_id" being in the metadata.
+    # * Anything without a corresponding gsp_id in the incoming data is ignored.
     tasks: list[asyncio.Task] = [
         asyncio.create_task(client.list_locations(
             dp.ListLocationsRequest(
@@ -61,7 +61,9 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         .assign(new_effective_capacity_watts=lambda df: df["capacity_mwp"] * 1e6)
     )
 
-    # Generate the UpdateLocationCapacityRequest objects from the DataFrame.
+    logging.info("handling data for %d matched locations", joined_df["location_uuid"].nunique())
+
+    # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
     updates_df = (
@@ -94,7 +96,7 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         for exc in filter(lambda x: isinstance(x, Exception), update_results):
             raise exc
 
-    # Generate the CreateObservationRequest objects from the DataFrame.
+    # 3. Generate the CreateObservationRequest objects from the DataFrame.
     # * The observer is assumed to exist already, and only one regime is assumed to be present
     # * within the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)

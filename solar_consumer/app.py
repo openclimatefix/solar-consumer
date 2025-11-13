@@ -131,7 +131,7 @@ async def app(
                 client = dp.DataPlatformDataServiceStub(channel)
         
                 logger.info("Saving forecasts to the Data Platform.")
-                _ = await save_to_data_platform(data_df=forecast_data, client=client)
+                _ = await save_generation_to_data_platform(data_df=forecast_data, client=client)
 
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
