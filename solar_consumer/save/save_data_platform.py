@@ -28,11 +28,31 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
     Data is joined via the gsp_id, which is a column in the incoming data, and has to be extracted
     from the metadata field in the data platform location data.
     """
+    tasks: list[asyncio.Task] = []
+    # 0. Create the observers required if they don't exist already
+    required_observers = {"pvlive_in_day", "pvlive_day_after"}
+    list_observer_request = dp.ListObserversRequest(
+        observer_names_filter=list(required_observers),
+    )
+    list_observer_response = await client.list_observers(list_observer_request)
+    create_observers = required_observers.difference({
+        observer.observer_name for observer in list_observer_response.observers
+    })
+    for observer_name in create_observers:
+        tasks.append(asyncio.create_task(
+            client.create_observer(dp.CreateObserverRequest(name=observer_name))
+        ))
+    if len(tasks) > 0:
+        logging.info("creating %d observers", len(tasks))
+        create_observer_results = await asyncio.gather(*tasks, return_exceptions=True)
+        for exc in filter(lambda x: isinstance(x, Exception), create_observer_results):
+            raise exc
+
     # 1. Get the UK GSP locations, as well as national, and join to the incoming data.
     # * Fetched locations are assumed to be identifiable from any other locations returned by
     # * nature of "gsp_id" being in the metadata.
     # * Anything without a corresponding gsp_id in the incoming data is ignored.
-    tasks: list[asyncio.Task] = [
+    tasks = [
         asyncio.create_task(client.list_locations(
             dp.ListLocationsRequest(
                 location_type_filter=loc_type,
@@ -46,19 +66,23 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         raise exc
 
     joined_df = (
+        # Convert and combine the location lists from the responses into a single DataFrame
         pd.DataFrame.from_dict(
             itertools.chain(*[
                 r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)["locations"]
                 for r in list_results]
             )
         )
+        # Filter the returned locations to those with a gsp_id in the metadata; extract it
         .loc[lambda df: df["metadata"].apply(lambda x: "gsp_id" in x)]
         .assign(gsp_id=lambda df: df["metadata"].apply(lambda x: x["gsp_id"]["number_value"]))
         .set_index("gsp_id")
+        # Join to the incoming data, ignoring 0 capacity locations
         .join(
             data_df.query("capacity_mwp>0").set_index("gsp_id"), on="gsp_id", how="inner", lsuffix="_loc"
         )
-        .assign(new_effective_capacity_watts=lambda df: df["capacity_mwp"].astype(int) * int(1e6))
+        # Make types and units uniform between the two sources of data
+        .assign(new_effective_capacity_watts=lambda df: (df["capacity_mwp"] * 1e6).astype(int))
         .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
     )
 

@@ -115,9 +115,10 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
     @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
     async def test_save_generation_to_data_platform(self, client_mock):
+
         # Mock the list_locations call to return one national and three GSP locations
         # * The GSPs all have 1MW capacity and the nation has 100MW
-        def mock_list_locations(req: dp.ListLocationsRequest):
+        def mock_list_locations(req: dp.ListLocationsRequest) -> dp.ListLocationsResponse:
             if req.location_type_filter == dp.LocationType.GSP:
                 return dp.ListLocationsResponse(
                     locations=[
@@ -149,6 +150,16 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             else:   
                 return dp.ListLocationsResponse(locations=[])
 
+        def mock_list_observers(req: dp.ListObserversRequest) -> dp.ListObserversResponse:
+            return dp.ListObserversResponse(
+                observers=[
+                    dp.ListObserversResponseObserverSummary(
+                        observer_uuid=str(uuid.uuid4()),
+                        observer_name=name,
+                    )
+                    for name in ["pvlive_in_day", "pvlive_day_ahead"]
+                ]
+            )
 
         @dataclasses.dataclass
         class TestCase:
@@ -233,11 +244,12 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             ),
         ]
 
-
         for case in testcases:
             client_mock.list_locations = AsyncMock(side_effect=mock_list_locations)
             client_mock.update_location_capacity = AsyncMock()
             client_mock.create_observations = AsyncMock()
+            client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
+            client_mock.create_observer = AsyncMock()
 
             with self.subTest(case.name):
                 if not case.should_error:
