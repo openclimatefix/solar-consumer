@@ -116,7 +116,7 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
             dp.CreateObservationsRequest(
                 location_uuid=lid,
                 energy_source=dp.EnergySource.SOLAR,
-                observer_name=f"pvlive_{regime}",
+                observer_name=f"pvlive_{regime.replace('-', '_')}",
                 values=vals,
             ),
         ))

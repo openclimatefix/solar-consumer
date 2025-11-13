@@ -89,6 +89,12 @@ async def test_save_to_data_platform(client):
     create_location_response = await client.create_location(create_location_request)
     location_uuid = create_location_response.location_uuid
 
+    # add observer
+    create_observer_request = dp.CreateObserverRequest(
+        name="pvlive_in_day",
+    )
+    _ = await client.create_observer(create_observer_request)
+
     # make fake data
     fake_data = pd.DataFrame({
         "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
@@ -102,7 +108,7 @@ async def test_save_to_data_platform(client):
     # read from the data platform to check it was saved
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
         location_uuid=location_uuid,
-        observer_name="pvlive_consumer_in_day",
+        observer_name="pvlive_in_day",
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
             start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
