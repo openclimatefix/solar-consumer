@@ -47,29 +47,28 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
         "id=embedded-wind-and-solar-forecasts"
     )
 
+    # --- CASE 1: LOCAL CSV  ---
     if os.path.exists(local_csv):
-        df = pd.read_csv(local_csv)
-    else:
-        response = urllib.request.urlopen(meta_url)
-        data = json.loads(response.read().decode("utf-8"))
-        url = data["result"]["resources"][0]["path"]
-        df = pd.read_csv(url)
+        return pd.read_csv(local_csv)
 
-    # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
+    # --- CASE 2: FALLBACK TO API ---
+    response = urllib.request.urlopen(meta_url)
+    data = json.loads(response.read().decode("utf-8"))
+    url = data["result"]["resources"][0]["path"]
+
+    df = pd.read_csv(url)
+
+    # Parse and combine DATE_GMT + TIME_GMT
     df["Datetime_GMT"] = pd.to_datetime(
         df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
         format="%Y-%m-%d %H:%M",
         errors="coerce",
     ).dt.tz_localize("UTC")
 
-    # Rename and select necessary columns
     df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
     df = df[["Datetime_GMT", "solar_forecast_kw"]]
-
-    # Drop rows with invalid Datetime_GMT
     df = df.dropna(subset=["Datetime_GMT"])
 
-    # rename columns to match the schema
     df.rename(
         columns={
             "solar_forecast_kw": "solar_generation_kw",
