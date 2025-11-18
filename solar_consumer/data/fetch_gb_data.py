@@ -37,12 +37,12 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
     """
     local_csv = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "test_csv", "embedded-wind-and-solar-forecasts.csv")
     local_csv = os.path.abspath(local_csv)
-
+    meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+    
     if os.path.exists(local_csv):
         # load local CSV into df and continue with same parsing/renaming logic below
         df = pd.read_csv(local_csv)
     else:
-        meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
         response = urllib.request.urlopen(meta_url)
         data = json.loads(response.read().decode("utf-8"))
 
