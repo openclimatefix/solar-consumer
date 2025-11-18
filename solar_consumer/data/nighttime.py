@@ -55,7 +55,18 @@ def make_night_time_zeros(
         times = pd.date_range(
             start=start, end=end, freq="30min", tz="UTC", inclusive="left"
         )
-        df = pd.DataFrame({timestamp_col: times, generation_col: pd.NA})
+        df = pd.DataFrame(
+            {
+                timestamp_col: times,
+                generation_col: 0.0,               # synthesized zero generation
+                "installedcapacity_mwp": 0.0,      # default capacity fields
+                "capacity_mwp": 0.0,
+                "updated_gmt": pd.NaT,
+            }
+        )
+        # keep gsp_id if provided
+        if gsp_id is not None:
+            df["gsp_id"] = gsp_id
 
     if df is None or df.empty:
         return df
