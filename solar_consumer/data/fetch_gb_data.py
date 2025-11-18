@@ -35,20 +35,24 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-    local_csv = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "test_csv", "embedded-wind-and-solar-forecasts.csv")
+    local_csv = os.path.join(
+        os.path.dirname(__file__),
+        "..", "..", "tests", "test_csv",
+        "embedded-wind-and-solar-forecasts.csv",
+    )
     local_csv = os.path.abspath(local_csv)
-    meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
-    
+
+    meta_url = (
+        "https://api.neso.energy/api/3/action/datapackage_show?"
+        "id=embedded-wind-and-solar-forecasts"
+    )
+
     if os.path.exists(local_csv):
-        # load local CSV into df and continue with same parsing/renaming logic below
         df = pd.read_csv(local_csv)
     else:
         response = urllib.request.urlopen(meta_url)
         data = json.loads(response.read().decode("utf-8"))
-
-        # we take the latest path, which is the most recent forecast
         url = data["result"]["resources"][0]["path"]
-
         df = pd.read_csv(url)
 
     # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
