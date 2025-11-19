@@ -12,73 +12,57 @@ from solar_consumer.data.nighttime import make_night_time_zeros
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
-
     Returns:
         pd.DataFrame: A DataFrame containing two columns:
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-
     if historic_or_forecast == "forecast":
         return fetch_gb_data_forecast()
     else:
         regime = os.getenv("UK_PVLIVE_REGIME", "in-day")
         return fetch_gb_data_historic(regime=regime)
 
+
 def fetch_gb_data_forecast() -> pd.DataFrame:
     """
-    Fetch solar forecast data from NESO and return it in the repo's standard schema:
-    ['target_datetime_utc', 'generation_kw']
+    Fetch data from the NESO API and process it into a Pandas DataFrame.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing two columns:
+                      - `Datetime_GMT`: Combined date and time in UTC.
+                      - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-    meta_url = (
-        "https://api.neso.energy/api/3/action/datapackage_show?"
-        "id=embedded-wind-and-solar-forecasts"
-    )
+    meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+    response = urllib.request.urlopen(meta_url)
+    data = json.loads(response.read().decode("utf-8"))
 
-    # --- fetch metadata safely ---
-    try:
-        response = urllib.request.urlopen(meta_url)
-        data = json.loads(response.read().decode("utf-8"))
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch NESO metadata: {e}")
-
-    # --- choose the latest resource ---
-    resources = data.get("result", {}).get("resources", [])
-    if not resources:
-        return pd.DataFrame(columns=["target_datetime_utc", "generation_kw"])
-
-    url = resources[-1].get("path")
-    if not url:
-        return pd.DataFrame(columns=["target_datetime_utc", "generation_kw"])
-
-    # --- read CSV ---
+    # we take the latest path, which is the most recent forecast
+    url = data["result"]["resources"][0]["path"]
     df = pd.read_csv(url)
 
-    # --- combine DATE + TIME ---
-    combined = df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip()
-    dt = pd.to_datetime(combined, format="%Y-%m-%d %H:%M", errors="coerce")
+    # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
+    df["Datetime_GMT"] = pd.to_datetime(
+        df["DATE_GMT"].str[:10] + " " + df["TIME_GMT"].str.strip(),
+        format="%Y-%m-%d %H:%M",
+        errors="coerce",
+    ).dt.tz_localize("UTC")
 
-    # localize only if needed
-    if dt.dt.tz is None:
-        dt = dt.dt.tz_localize("UTC")
-    else:
-        dt = dt.dt.tz_convert("UTC")
+    # Rename and select necessary columns
+    df["solar_forecast_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
+    df = df[["Datetime_GMT", "solar_forecast_kw"]]
 
-    df["target_datetime_utc"] = dt
+    # Drop rows with invalid Datetime_GMT
+    df = df.dropna(subset=["Datetime_GMT"])
 
-    # --- solar forecast in kW ---
-    if "EMBEDDED_SOLAR_FORECAST" in df:
-        df["generation_kw"] = df["EMBEDDED_SOLAR_FORECAST"] * 1000
-    elif "EMBEDDED_SOLAR" in df:
-        df["generation_kw"] = df["EMBEDDED_SOLAR"] * 1000
-    else:
-        raise KeyError("NESO forecast missing solar forecast column")
-
-    # --- final cleanup ---
-    df = df.dropna(subset=["target_datetime_utc"])
-    df = df[["target_datetime_utc", "generation_kw"]]
-    df = df.sort_values("target_datetime_utc").reset_index(drop=True)
-
+    # rename columns to match the schema
+    df.rename(
+        columns={
+            "solar_forecast_kw": "solar_generation_kw",
+            "Datetime_GMT": "target_datetime_utc",
+        },
+        inplace=True,
+    )
     return df
 
 
