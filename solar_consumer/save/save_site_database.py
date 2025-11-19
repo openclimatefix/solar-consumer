@@ -165,13 +165,13 @@ def save_generation_to_site_db(
             logger.debug(f"No rows for {key!r}, skipping")
             continue
 
-        # Derive capacity override once (test expects max row value if present)
-        capacity_override = (
-            int(generation_data_tso_df["capacity_kw"].max())
-            if "capacity_kw" in generation_data_tso_df.columns
-            else None
-        )
-
+        # Derive capacity override once
+        capacity_override = None
+        if "capacity_kw" in generation_data_tso_df.columns:
+            max_capacity = generation_data_tso_df["capacity_kw"].max()
+            if not pd.isna(max_capacity):
+                capacity_override = int(max_capacity)
+        
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
