@@ -12,11 +12,13 @@ from solar_consumer.data.nighttime import make_night_time_zeros
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
+
     Returns:
         pd.DataFrame: A DataFrame containing two columns:
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
+
     if historic_or_forecast == "forecast":
         return fetch_gb_data_forecast()
     else:
@@ -39,6 +41,7 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
 
     # we take the latest path, which is the most recent forecast
     url = data["result"]["resources"][0]["path"]
+
     df = pd.read_csv(url)
 
     # Parse and combine DATE_GMT and TIME_GMT into Datetime_GMT
@@ -63,6 +66,7 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
         },
         inplace=True,
     )
+
     return df
 
 
@@ -76,7 +80,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     return a dataframe with the following columns:
         - target_datetime_utc: Datetime in UTC.
-        - generation_kw: Estimated solar generation in kW.
+        - solar_generation_kw: Estimated solar generation in kW.
         - gsp_id: the gsp id, from 0 to 338
         - installedcapacity_mwp: installed capacity in MWp
         - capacity_mwp: capacity in MWp
@@ -153,13 +157,13 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         if not gsp_yield_df["generation_mw"].isnull().all():
             gsp_yield_df = gsp_yield_df.dropna(subset=["generation_mw"])
 
-        # need columns datetime_utc, generation_kw
-        gsp_yield_df["generation_kw"] = 1000 * gsp_yield_df["generation_mw"]
+        # need columns datetime_utc, solar_generation_kw
+        gsp_yield_df["solar_generation_kw"] = 1000 * gsp_yield_df["generation_mw"]
         gsp_yield_df["target_datetime_utc"] = gsp_yield_df["datetime_gmt"]
         gsp_yield_df["pvlive_updated_utc"] = pd.to_datetime(gsp_yield_df["updated_gmt"])
         gsp_yield_df = gsp_yield_df[
             [
-                "generation_kw",
+                "solar_generation_kw",
                 "target_datetime_utc",
                 "installedcapacity_mwp",
                 "capacity_mwp",

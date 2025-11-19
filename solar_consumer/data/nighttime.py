@@ -11,7 +11,7 @@ from .uk_gsp_locations import GSP_LOCATIONS as _GSP_LOCATIONS
 
 
 def make_night_time_zeros(
-     df: Optional[pd.DataFrame] = None,
+    df: pd.DataFrame,
     *,
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
@@ -69,10 +69,10 @@ def make_night_time_zeros(
             df["gsp_id"] = gsp_id
 
     if df is None or df.empty:
-        return pd.DataFrame(columns=[timestamp_col, generation_col])
+        return df
 
     if timestamp_col not in df or generation_col not in df:
-        return df.copy()
+        return df
 
     # Fallback: if coords not provided, try to get them from the bundled CSV using gsp_id
     if (latitude is None or longitude is None) and gsp_id is not None:
@@ -95,28 +95,20 @@ def make_night_time_zeros(
     if not valid.any():
         return out
 
-    # Compute solar elevation for all timestamps (guard pvlib errors)
-    times_for_solar = out.loc[valid, timestamp_col]
-    try:
-        solpos = pvlib.solarposition.get_solarposition(
-            time=times_for_solar,
-            latitude=latitude,
-            longitude=longitude,
-            method="nrel_numpy",
-        )
-    except Exception as exc:
-        logger.warning(
-            "pvlib.get_solarposition failed: %s — skipping night zeroing",
-            exc,
-        )
-        return out
+    # Compute solar elevation for all timestamps
+    solpos = pvlib.solarposition.get_solarposition(
+        time=out.loc[valid, timestamp_col],
+        latitude=latitude,
+        longitude=longitude,
+        method="nrel_numpy",
+    )
+    elevation = solpos["elevation"]
 
-    elevation = solpos["elevation"].reindex(times_for_solar.index)
-
-    # Night mask: elevation below threshold (treat NaNs as non-night)
-    night_mask = (elevation < float(elevation_limit_deg)).fillna(False)
+    # Night mask: elevation below threshold
+    night_mask = elevation < float(elevation_limit_deg)
 
     # Apply zeros only on rows with valid timestamps
-    idx = times_for_solar.index[night_mask]
+    idx = out.loc[valid].index[night_mask]
     out.loc[idx, generation_col] = 0.0
+
     return out
