@@ -19,3 +19,4 @@ dist/
 
 # Ruff Cache
 .ruff_cache/
+uv.lock
