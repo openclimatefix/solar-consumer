@@ -105,8 +105,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             hour=0, minute=0, second=0, microsecond=0
         ) - timedelta(hours=24)
         end = datetime_utc.replace(
-            hour=0, minute=0, second=1, microsecond=0
-        )  # so we include the last value
+            hour=0, minute=0, second=0, microsecond=0
+        )   - timedelta(minutes=30)  # so we don't include 00:00
 
     all_gsps_yields = []
     n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 342))

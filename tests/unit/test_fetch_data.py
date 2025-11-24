@@ -209,4 +209,4 @@ def test_gb_historic_day_after():
     df = fetch_data(country = "gb", historic_or_forecast = "historic")
 
     # 10 GSPs for 24 hours is at 30 minutes periods, including the extra two at end
-    assert len(df) == 10*50
+    assert len(df) == 10*48
