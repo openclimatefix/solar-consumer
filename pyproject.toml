@@ -19,6 +19,7 @@ dependencies = [
     "betterproto==2.0.0b7",
     "grpclib==0.4.8",
     "pytest-asyncio>=1.2.0",
+    "pvlib>=0.10", 
 ]
 
 [dependency-groups]
@@ -40,4 +41,3 @@ dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/downl
 line-length = 100
 indent-width = 4
 exclude = ["__init__.py"]
-
