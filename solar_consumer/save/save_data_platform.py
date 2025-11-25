@@ -111,13 +111,13 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         updates_df["target_datetime_utc"],
         updates_df["new_effective_capacity_watts"],
     ):
-        req = dp.UpdateLocationCapacityRequest(
+        req = dp.UpdateLocationRequest(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
         )
-        tasks.append(asyncio.create_task(client.update_location_capacity(req)))
+        tasks.append(asyncio.create_task(client.update_location(req)))
     
     if len(tasks) > 0:
         logging.info("updating %d location capacities", len(tasks))
