@@ -108,7 +108,7 @@ def update_capacity(
         None
     """
   
-    if capacity_override_kw is not None and capacity_override_kw > site.capacity_kw + 1.0:
+    if capacity_override_kw is not None and (abs(capacity_override_kw - site.capacity_kw) >= 1.0):
         old_site_capacity_kw = site.capacity_kw
         site.capacity_kw = capacity_override_kw
         session.commit()
