@@ -108,7 +108,7 @@ def update_capacity(
         None
     """
   
-    if capacity_override_kw is not None and capacity_override_kw > site.capacity_kw + 1.0:
+    if capacity_override_kw is not None and (abs(capacity_override_kw - site.capacity_kw) >= 1.0):
         old_site_capacity_kw = site.capacity_kw
         site.capacity_kw = capacity_override_kw
         session.commit()
@@ -165,13 +165,13 @@ def save_generation_to_site_db(
             logger.debug(f"No rows for {key!r}, skipping")
             continue
 
-        # Derive capacity override once (test expects max row value if present)
-        capacity_override = (
-            int(generation_data_tso_df["capacity_kw"].max())
-            if "capacity_kw" in generation_data_tso_df.columns
-            else None
-        )
-
+        # Derive capacity override once
+        capacity_override = None
+        if "capacity_kw" in generation_data_tso_df.columns:
+            max_capacity = generation_data_tso_df["capacity_kw"].max()
+            if not pd.isna(max_capacity):
+                capacity_override = int(max_capacity)
+        
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
