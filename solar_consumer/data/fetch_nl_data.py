@@ -176,7 +176,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # remove any future data
     if historic_or_forecast == "generation":
         # we pull a bit of future data, so update to only return historic values
-        end_date = now
+        end_date = now - timedelta(minutes=15)
 
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
