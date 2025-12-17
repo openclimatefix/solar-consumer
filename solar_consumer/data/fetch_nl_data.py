@@ -68,7 +68,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # Define date range
     if historic_or_forecast == "generation":
-        end_date = now
+        end_date = now.replace(hour=0) + timedelta(days=1)  # to ~ midnight tonight
         start_date = end_date - timedelta(days=2)
     else:
         # For forecast data, set start_date to 2 hours in the past from the current time
@@ -174,6 +174,10 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     )
 
     # remove any future data
+    if historic_or_forecast == "generation":
+        # we pull a bit of future data, so update to only return historic values
+        end_date = now
+
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
