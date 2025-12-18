@@ -25,6 +25,7 @@ RUN rm -rf /app/.venv/lib/python3.12/site-packages/**/tests
 FROM build-deps AS build-app
 
 # Install full project
+# * The .git folder is needed here for setuptools-git-versioning
 COPY . /app
 RUN uv sync --no-dev --no-editable
 
