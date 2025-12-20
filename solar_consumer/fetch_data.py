@@ -9,7 +9,6 @@ import urllib.request
 import urllib.parse
 import json
 import pandas as pd
-import requests
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_de_data import fetch_de_data
