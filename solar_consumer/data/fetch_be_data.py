@@ -76,7 +76,9 @@ def _fetch_records_time_window(
 
         if not records:
             break
-
+         
+        # Records are returned in reverse chronological order (newest → oldest)
+        # due to `order_by=datetime desc`, so we page backwards in time.
         all_records.extend(records)
 
         last_datetime = records[-1].get("datetime")
@@ -100,17 +102,20 @@ def _fetch_records_time_window(
     logger.info("Fetched {} Elia records", len(all_records))
     return all_records
 
-def fetch_be_data_forecast() -> pd.DataFrame:
+def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     """
     Fetch Belgian solar PV forecast data (national + regional)
     from the Elia Open Data API.
 
-    This function retrieves forecast data for a rolling 7-day
-    window ending at the current UTC time. Both national
+    This function retrieves forecast data for a rolling time window
+    (default: last 1 day) ending at the current UTC time. Both national
     ("Belgium") and regional forecasts are included.
 
     The rolling-window approach avoids API pagination limits
     and is suitable for scheduled ingestion jobs.
+
+    Parameters:
+        days (int): Number of days to look back from now (default: 1)
 
     Returns:
         pd.DataFrame with columns:
@@ -120,7 +125,7 @@ def fetch_be_data_forecast() -> pd.DataFrame:
           - forecast_type: Forecast type identifier
     """
     end_utc = datetime.now(timezone.utc)
-    start_utc = end_utc - timedelta(days=7)
+    start_utc = end_utc - timedelta(days=days)
 
     raw_records = _fetch_records_time_window(
         start_utc=start_utc,
