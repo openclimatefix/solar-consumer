@@ -23,7 +23,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl | 🇳🇱 | ✅ || | ✅ |
 | Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
-| Elia Open Data | 🇧🇪 |  |  |  |  |
+| Elia Open Data | 🇧🇪 | ✅ |  |  |  |
 
 
 ## Requirements
