@@ -41,3 +41,9 @@ line-length = 100
 indent-width = 4
 exclude = ["__init__.py"]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks integration tests that call external services",
+]
+
+
