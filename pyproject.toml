@@ -1,6 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "setuptools-git-versioning"
+]
 build-backend = "setuptools.build_meta"
+
 
 [project]
 name = "solar_consumer"
