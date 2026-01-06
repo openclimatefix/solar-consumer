@@ -10,6 +10,8 @@ We currently collect
 - UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. 
 - NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
 - DE: Generation values from ENTSOE for several TSOs. 
+- BE: Solar PV forecast data (national and regional) from Elia Open Data API.
+
 
 
 Here are the different sources of data, and which methods can be used to save the results
@@ -21,6 +23,8 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl | 🇳🇱 | ✅ || | ✅ |
 | Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
+| Elia Open Data | 🇧🇪 | ✅ |  |  |  |
+
 
 ## Requirements
 

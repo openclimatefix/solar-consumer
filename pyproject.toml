@@ -1,6 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "setuptools-git-versioning"
+]
 build-backend = "setuptools.build_meta"
+
 
 [project]
 name = "solar_consumer"
@@ -40,4 +44,10 @@ dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/downl
 line-length = 100
 indent-width = 4
 exclude = ["__init__.py"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks integration tests that call external services",
+]
+
 
