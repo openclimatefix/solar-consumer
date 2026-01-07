@@ -1,6 +1,5 @@
 import datetime as dt
 import logging
-import os
 import time
 from zoneinfo import ZoneInfo
 
