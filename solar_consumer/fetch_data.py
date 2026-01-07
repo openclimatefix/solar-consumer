@@ -12,6 +12,7 @@ import pandas as pd
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_de_data import fetch_de_data
+from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
 def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -25,7 +26,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
         solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
     """
 
-    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data, "de": fetch_de_data,}
+    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data, "de": fetch_de_data, "ind_rajasthan": fetch_ind_rajasthan_data}
 
     if country in country_data_functions:
         try:
@@ -40,7 +41,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
             raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
-        print("Only UK (gb) and Netherlands (nl) data can be fetched at the moment")
+        print("Only UK (gb), Netherlands (nl), Germany (de), and Rajasthan India (ind_rajasthan) data can be fetched at the moment")
 
     return pd.DataFrame()  # Always return a DataFrame (never None)
 
