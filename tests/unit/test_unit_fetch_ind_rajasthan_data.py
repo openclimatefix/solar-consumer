@@ -1,6 +1,7 @@
 """
 Tests for fetch_ind_rajasthan_data function in fetch_ind_rajasthan_data.py
 """
+
 import pandas as pd
 import pytest
 import requests
@@ -13,10 +14,12 @@ from solar_consumer.data.fetch_ind_rajasthan_data import (
 
 retry_interval = 0
 
+
 # Loading mock response from file
 def load_mock_response(response_file_name: str) -> str:
     with open(response_file_name) as f:
         return f.read()
+
 
 class TestFetchIndRajasthanData:
     """
@@ -54,7 +57,9 @@ class TestFetchIndRajasthanData:
 
         requests_mock.get(
             DEFAULT_DATA_URL,
-            text=load_mock_response("tests/unit/mock/responses/ruvnl-valid-response-negative-power.json"),
+            text=load_mock_response(
+                "tests/unit/mock/responses/ruvnl-valid-response-negative-power.json"
+            ),
         )
         result = fetch_ind_rajasthan_data(DEFAULT_DATA_URL, retry_interval=retry_interval)
 
@@ -67,7 +72,9 @@ class TestFetchIndRajasthanData:
 
         requests_mock.get(
             DEFAULT_DATA_URL,
-            text=load_mock_response("tests/unit/mock/responses/ruvnl-valid-response-missing-solar.json"),
+            text=load_mock_response(
+                "tests/unit/mock/responses/ruvnl-valid-response-missing-solar.json"
+            ),
         )
         result = fetch_ind_rajasthan_data(DEFAULT_DATA_URL, retry_interval=retry_interval)
 

@@ -11,7 +11,11 @@ log = logging.getLogger(__name__)
 DEFAULT_DATA_URL = "http://sldc.rajasthan.gov.in/rrvpnl/read-sftp?type=overview"
 
 
-def fetch_ind_rajasthan_data(data_url: str = DEFAULT_DATA_URL, retry_interval: int = 30, historic_or_forecast: str = "historic") -> pd.DataFrame:
+def fetch_ind_rajasthan_data(
+    data_url: str = DEFAULT_DATA_URL,
+    retry_interval: int = 30,
+    historic_or_forecast: str = "historic",
+) -> pd.DataFrame:
     """
     Fetches the latest state-wide generation data for Rajasthan
 
@@ -55,7 +59,6 @@ def fetch_ind_rajasthan_data(data_url: str = DEFAULT_DATA_URL, retry_interval: i
     for k, v in asset_map.items():
         record = next((d["0"] for d in raw_data["data"] if d["0"]["scada_name"] == k), None)
         if record is not None:
-
             start_utc = dt.datetime.fromtimestamp(int(record["SourceTimeSec"]), tz=dt.UTC)
             power_kw = record["Average2"] * 1000  # source is in MW, convert to kW
             if power_kw < 0:
@@ -71,10 +74,14 @@ def fetch_ind_rajasthan_data(data_url: str = DEFAULT_DATA_URL, retry_interval: i
                     timestamp_fstring = f"{timestamp_after_raise}"
                     log.warning("Start time is at least 1 hour old. " + timestamp_fstring)
 
-            data.append({"energy_type": v, "target_datetime_utc": start_utc, "solar_generation_kw": power_kw})
-            log.info(
-                f"Found generation data for asset type: {v}, " f"{power_kw} kW at {start_utc} UTC"
+            data.append(
+                {
+                    "energy_type": v,
+                    "target_datetime_utc": start_utc,
+                    "solar_generation_kw": power_kw,
+                }
             )
+            log.info(f"Found generation data for asset type: {v}, {power_kw} kW at {start_utc} UTC")
         else:
             log.warning(f"No generation data for asset type: {v}")
 
