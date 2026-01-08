@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 DEFAULT_DATA_URL = "http://sldc.rajasthan.gov.in/rrvpnl/read-sftp?type=overview"
 
 
-def fetch_ind_rajasthan_data(data_url: str, retry_interval: int = 30) -> pd.DataFrame:
+def fetch_ind_rajasthan_data(data_url: str = DEFAULT_DATA_URL, retry_interval: int = 30) -> pd.DataFrame:
     """
     Fetches the latest state-wide generation data for Rajasthan
 
