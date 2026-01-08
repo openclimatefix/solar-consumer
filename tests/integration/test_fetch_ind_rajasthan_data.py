@@ -3,6 +3,7 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
+@pytest.mark.skip(reason="Live RUVNL API is unstable and only accessible in India")
 @pytest.mark.integration
 def test_ind_rajasthan_data():
     """
