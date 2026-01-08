@@ -30,7 +30,7 @@ def fetch_ind_rajasthan_data(
     Raises:
             RuntimeError: If max retries are reached without any response
     """
-    print("Starting to get data")
+    log.info("Starting to get data")
     retries = 0
     max_retries = 5
     while retries < max_retries:

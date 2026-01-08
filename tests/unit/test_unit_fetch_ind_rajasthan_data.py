@@ -1,5 +1,15 @@
 """
-Tests for fetch_ind_rajasthan_data function in fetch_ind_rajasthan_data.py
+Unit tests for fetch_ind_rajasthan_data.
+
+These tests validate the behavior of the RUVNL data fetcher using mocked API responses.
+
+Test cases covered:
+- Valid JSON response with both solar and wind data
+- Valid response with negative power values
+- Valid response with missing solar generation data
+- Non-200 HTTP response codes
+- Invalid JSON responses
+- Connection timeout and retry failure handling
 """
 
 import pandas as pd
