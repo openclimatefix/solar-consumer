@@ -89,7 +89,7 @@ The package provides three main functionalities:
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
 - `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Database Configuration
-- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["nl" , "ind_rajasthan"] 
+- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
 - `SAVE_METHOD="db"`: Ways to store the data. Currently other options are ["csv", "site-db"]
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
