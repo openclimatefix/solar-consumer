@@ -15,7 +15,7 @@ dependencies = [
     "nowcasting_datamodel==1.5.56",
     "pvsite-datamodel==1.2.0",
     "testcontainers",
-    "pyproj==3.6.1",
+    "pyproj",
     "tqdm",
     "loguru==0.7.3",
     "pvlive-api>=1.5.1",
