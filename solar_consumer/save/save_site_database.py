@@ -43,6 +43,64 @@ DE_TSO_CAPACITY = {"TransnetBW": 10_770_000, "50Hertz": 18_175_000, "TenneT": 21
                    "Amprion": 16_506_000}
 
 
+def validate_nl_capacities(generation_data: pd.DataFrame, tolerance: float = 0.001) -> bool:
+    """
+    Validate that the sum of NL regional capacities matches the national capacity.
+    
+    This prevents "funky" capacity data from being saved to the database by checking
+    if the sum of regional capacities is within tolerance of the national capacity.
+    
+    Parameters:
+        generation_data (pd.DataFrame): DataFrame with columns 'region_id' and 'capacity_kw'
+        tolerance (float): Acceptable deviation ratio (default 0.001 = 0.1%)
+                          This allows ~30MW difference for NL (~30,000 kW capacity)
+    
+    Returns:
+        bool: True if capacities are valid, False if they're "funky"
+    """
+    
+    # Group by timestamp to check each time period separately
+    for timestamp, group in generation_data.groupby('target_datetime_utc'):
+        
+        # Get national capacity (region_id = 0)
+        national_rows = group[group['region_id'] == 0]
+        if national_rows.empty or pd.isna(national_rows['capacity_kw'].iloc[0]):
+            logger.warning(f"Missing national capacity data for {timestamp}, skipping validation")
+            continue
+            
+        national_capacity = national_rows['capacity_kw'].iloc[0]
+        
+        # Get sum of regional capacities (region_id 1-12)
+        regional_rows = group[group['region_id'] != 0]
+        if regional_rows.empty:
+            logger.warning(f"No regional data for {timestamp}, skipping validation")
+            continue
+            
+        regional_capacity_sum = regional_rows['capacity_kw'].sum()
+        
+        # Calculate ratio
+        if national_capacity == 0:
+            logger.error(f"National capacity is zero for {timestamp}, failing validation")
+            return False
+            
+        ratio = regional_capacity_sum / national_capacity
+        
+        # Check if ratio is outside tolerance bounds
+        if ratio >= (1 + tolerance) or ratio <= (1 - tolerance):
+            logger.warning(
+                f"Funky capacity data detected for {timestamp}:\n"
+                f"  National capacity: {national_capacity:,.0f} kW\n"
+                f"  Regional sum: {regional_capacity_sum:,.0f} kW\n"
+                f"  Ratio: {ratio:.6f}\n"
+                f"  Tolerance bounds: [{1-tolerance:.6f}, {1+tolerance:.6f}]\n"
+                f"  Skipping this batch to prevent bad data from entering database."
+            )
+            return False
+    
+    # All timestamps passed validation
+    logger.info("NL capacity validation passed - data looks good!")
+    return True
+
 def get_or_create_pvsite(
     session: Session, pvsite: PVSite, country: str, capacity_override_kw: Optional[int] = None,
 ):
@@ -141,6 +199,15 @@ def save_generation_to_site_db(
         logger.warning("No generation data provided to save!")
         return
 
+    if country == "nl":
+        # Check if we have capacity data
+        if 'capacity_kw' in generation_data.columns and 'region_id' in generation_data.columns:
+            if not validate_nl_capacities(generation_data, tolerance=0.001):
+                logger.error("NL capacity validation failed - aborting save to prevent funky data!")
+                return
+        else:
+            logger.warning("Missing capacity_kw or region_id columns - skipping validation")
+    
     # Determine country
     if country == "nl":
         country_sites = NL_NATIONAL_AND_REGIONS
