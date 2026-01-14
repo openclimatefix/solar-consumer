@@ -156,4 +156,3 @@ async def save_generation_to_data_platform(data_df: pd.DataFrame, client: dp.Dat
         create_results = await asyncio.gather(*tasks)
         for exc in filter(lambda x: isinstance(x, Exception), create_results):
             raise exc
-

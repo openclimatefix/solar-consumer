@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import numpy as np
 from loguru import logger
 from datetime import datetime, timedelta, timezone
 from requests.adapters import HTTPAdapter
@@ -123,6 +124,9 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
           - solar_generation_kw: Forecast solar generation in kW
           - region: Region name (Belgium or sub-region)
           - forecast_type: Forecast type identifier
+          - gsp_id
+          - regime
+          - capacity_mwp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -140,6 +144,9 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
                 "solar_generation_kw",
                 "region",
                 "forecast_type",
+                "gsp_id",
+                "regime",
+                "capacity_mwp"
             ]
         )
 
@@ -155,6 +162,18 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
 
     # Metadata
     df["forecast_type"] = "most_recent"
+    
+    # --- Data Platform required fields ---
+
+    # Map national Belgium forecast to GSP ID (regions ignored by data-platform)
+    df["gsp_id"] = df["region"].apply(
+    lambda r: 0 if r == "Belgium" else np.nan
+    )
+    
+    # Using in-day for most-recent forecast
+    df["regime"] = "in-day"
+
+    df["capacity_mwp"] = df["monitoredcapacity"]  
 
     # Drop invalid rows
     df = df.dropna(
@@ -162,6 +181,8 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
             "target_datetime_utc",
             "solar_generation_kw",
             "region",
+            "forecast_type",
+            "capacity_mwp"
         ]
     )
 
@@ -171,6 +192,9 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
             "solar_generation_kw",
             "region",
             "forecast_type",
+            "gsp_id",
+            "regime",
+            "capacity_mwp"
         ]
     ]
 

@@ -56,6 +56,9 @@ async def app(
         model_tag = "ned-nl-national"
     elif country == "de":
         model_tag = "entsoe-de"
+    elif country == "be":
+        model_tag = "elia-be-forecast"
+
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
     logger.info(f"Fetching {historic_or_forecast} data for {country}.")
