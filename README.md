@@ -1,6 +1,6 @@
 # Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-15-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-16-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
@@ -11,6 +11,7 @@ We currently collect
 - NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
 - DE: Generation values from ENTSOE for several TSOs. 
 - BE: Solar PV forecast data (national and regional) from Elia Open Data API.
+- India (Rajasthan): Real-time solar and wind generation data from RUVNL (Rajasthan Urja Vikas Nigam Limited).
 
 
 
@@ -24,6 +25,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
 | Elia Open Data | 🇧🇪 | ✅ |  |  |  |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  |  |
 
 
 ## Requirements
@@ -87,7 +89,7 @@ The package provides three main functionalities:
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
 - `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Database Configuration
-- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["nl"] 
+- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
 - `SAVE_METHOD="db"`: Ways to store the data. Currently other options are ["csv", "site-db"]
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
@@ -189,6 +191,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://www.linkedin.com/in/ram-from-tvl"><img src="https://avatars.githubusercontent.com/u/114728749?v=4?s=100" width="100px;" alt="Ramkumar R"/><br /><sub><b>Ramkumar R</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=ram-from-tvl" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/katyalmohit"><img src="https://avatars.githubusercontent.com/u/128162892?v=4?s=100" width="100px;" alt="Mohit"/><br /><sub><b>Mohit</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=katyalmohit" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
