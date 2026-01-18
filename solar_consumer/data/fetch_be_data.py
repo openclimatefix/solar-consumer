@@ -52,7 +52,7 @@ def _fetch_records_time_window(
     all_records: list[dict] = []
     cursor = end_utc
     prev_cursor = None
-
+    
     while True:
         params = {
             "limit": REQUEST_LIMIT,
@@ -163,7 +163,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     # Metadata
     df["forecast_type"] = "most_recent"
     
-    # --- Data Platform required fields ---
+    # --- Extra fields required for Data platform ---
 
     # Map national Belgium forecast to GSP ID (regions ignored by data-platform)
     df["gsp_id"] = df["region"].apply(

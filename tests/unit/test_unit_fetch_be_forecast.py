@@ -1,106 +1,201 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from freezegun import freeze_time
+import requests
 from unittest.mock import patch
-from solar_consumer.data.fetch_be_data import fetch_be_data_forecast
 
-# Mock API records for testing
-MOCK_RECORDS = [
-    {
-        "datetime": "2026-01-13T10:00:00Z",
-        "mostrecentforecast": 0.5,  # MW
-        "region": "Belgium",
-        "monitoredcapacity": 2,     # MW
-    },
-    {
-        "datetime": "2026-01-13T11:00:00Z",
-        "mostrecentforecast": 0.3,
-        "region": "Flanders",
-        "monitoredcapacity": 1,
-    },
-]
+from solar_consumer.data.fetch_be_data import (
+    fetch_be_data_forecast,
+    BASE_URL,
+)
 
-class TestFetchBeForecast:
-    """Unit tests for fetch_be_data_forecast"""
+pytest_plugins = ["requests_mock"]
 
-    @patch("solar_consumer.data.fetch_be_data._fetch_records_time_window")
-    def test_fetch_national_and_regional(self, mock_fetch):
-        """Test normal fetch with mock records (national + regional)"""
-        # Arrange: mock API call
-        mock_fetch.return_value = MOCK_RECORDS
 
-        # Act: call the fetch function
+# Helper utilities
+def load_mock_response(filename: str) -> str:
+    """
+    Load a mocked Elia API response from disk.
+
+    Args:
+        filename: JSON file name under tests/unit/mock/responses/
+
+    Returns:
+        Raw JSON string
+    """
+    path = f"tests/unit/mock/responses/{filename}"
+    with open(path, "r") as f:
+        return f.read()
+
+
+def build_mocked_session(requests_mock) -> requests.Session:
+    """
+    Build a real requests.Session wired to requests-mock.
+
+    This allows the production code to use its normal session-based
+    logic while still hitting mocked HTTP responses.
+    """
+    session = requests.Session()
+    session.mount("https://", requests_mock._adapter)
+    return session
+
+
+# Unit test: national + regional records (pagination covered)
+@freeze_time("2026-01-18T10:00:00Z")
+def test_fetch_be_forecast_mixed_regions(requests_mock):
+    """
+    Validate successful forecast ingestion with:
+    - mocked Elia API URL
+    - national + regional records
+    - MW -> kW conversion
+    - region -> gsp_id mapping
+    - cursor-based pagination termination
+    """
+
+    # Simulate cursor-based pagination:
+    # 1) First request returns data
+    # 2) Second request returns an empty page to stop the loop
+    requests_mock.get(
+        BASE_URL,
+        [
+            {
+                "text": load_mock_response("elia_be_mixed_regions.json"),
+                "status_code": 200,
+            },
+            {
+                "json": {"results": []},
+                "status_code": 200,
+            },
+        ],
+    )
+
+    session = build_mocked_session(requests_mock)
+
+    # Force the fetcher to use the mocked session
+    with patch(
+        "solar_consumer.data.fetch_be_data._build_session",
+        return_value=session,
+    ):
         df = fetch_be_data_forecast(days=1)
 
-        # Assert: check DataFrame type
-        assert isinstance(df, pd.DataFrame)
+    # Basic sanity checks
+    assert not df.empty
+    assert len(df) == 2
 
-        # Assert: all expected columns exist
-        expected_cols = [
-            "target_datetime_utc",
-            "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "gsp_id",
-            "regime",
-            "capacity_mwp",
-        ]
-        for col in expected_cols:
-            assert col in df.columns
+    expected_columns = {
+        "target_datetime_utc",
+        "solar_generation_kw",
+        "region",
+        "forecast_type",
+        "gsp_id",
+        "regime",
+        "capacity_mwp",
+    }
+    assert expected_columns.issubset(df.columns)
 
-        # Assert: Belgium row has gsp_id = 0 and solar generation in kW
-        belgium_row = df[df["region"] == "Belgium"].iloc[0]
-        assert belgium_row["gsp_id"] == 0
-        assert belgium_row["solar_generation_kw"] == 500  # 0.5 MW -> 500 kW
+    # MW -> kW conversion
+    assert df.loc[df["region"] == "Belgium", "solar_generation_kw"].iloc[0] == 1200
+    assert df.loc[df["region"] == "Flanders", "solar_generation_kw"].iloc[0] == 300
 
-        # Assert: Other regions have gsp_id = NaN
-        flanders_row = df[df["region"] == "Flanders"].iloc[0]
-        assert np.isnan(flanders_row["gsp_id"])
+    # Region -> gsp_id mapping
+    assert df.loc[df["region"] == "Belgium", "gsp_id"].iloc[0] == 0
+    assert np.isnan(df.loc[df["region"] == "Flanders", "gsp_id"].iloc[0])
 
-    @patch("solar_consumer.data.fetch_be_data._fetch_records_time_window")
-    def test_empty_response(self, mock_fetch):
-        """Test handling of empty API response"""
-        # Arrange: mock API returns empty list
-        mock_fetch.return_value = []
+    # Static metadata
+    assert (df["forecast_type"] == "most_recent").all()
+    assert (df["regime"] == "in-day").all()
 
-        # Act
+    # Rolling window sanity check
+    now_utc = pd.Timestamp("2026-01-18T10:00:00Z")
+    one_day_ago = now_utc - pd.Timedelta(days=1)
+
+    assert df["target_datetime_utc"].min() >= one_day_ago
+    assert df["target_datetime_utc"].max() <= now_utc
+
+
+# Unit test: empty API response
+def test_fetch_be_forecast_empty_response(requests_mock):
+    """
+    Ensure an empty API response results in:
+    - an empty DataFrame
+    - correct output schema
+    """
+
+    requests_mock.get(
+        BASE_URL,
+        text=load_mock_response("elia_be_empty.json"),
+        status_code=200,
+    )
+
+    session = build_mocked_session(requests_mock)
+
+    with patch(
+        "solar_consumer.data.fetch_be_data._build_session",
+        return_value=session,
+    ):
         df = fetch_be_data_forecast(days=1)
 
-        # Assert: DataFrame is empty but columns exist
-        assert df.empty
-        assert list(df.columns) == [
-            "target_datetime_utc",
-            "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "gsp_id",
-            "regime",
-            "capacity_mwp",
-        ]
+    assert df.empty
+    assert list(df.columns) == [
+        "target_datetime_utc",
+        "solar_generation_kw",
+        "region",
+        "forecast_type",
+        "gsp_id",
+        "regime",
+        "capacity_mwp",
+    ]
 
-    @patch("solar_consumer.data.fetch_be_data._fetch_records_time_window")
-    def test_conversion_and_regime(self, mock_fetch):
-        """Test MW->kW conversion and 'regime' field assignment"""
-        # Arrange
-        mock_fetch.return_value = MOCK_RECORDS
 
-        # Act
+# Unit test: malformed / unexpected payload
+def test_fetch_be_forecast_invalid_payload(requests_mock):
+    """
+    Ensure unexpected / malformed payloads do not crash the fetcher
+    and result in an empty DataFrame.
+    """
+
+    requests_mock.get(
+        BASE_URL,
+        text=load_mock_response("elia_be_invalid.json"),
+        status_code=200,
+    )
+
+    session = build_mocked_session(requests_mock)
+
+    with patch(
+        "solar_consumer.data.fetch_be_data._build_session",
+        return_value=session,
+    ):
         df = fetch_be_data_forecast(days=1)
 
-        # Assert: check conversion MW -> kW
-        assert df["solar_generation_kw"].iloc[0] == 500
-        assert df["solar_generation_kw"].iloc[1] == 300
+    assert df.empty
 
-        # Assert: 'regime' is always 'in-day'
-        assert all(df["regime"] == "in-day")
 
-    @patch("solar_consumer.data.fetch_be_data._fetch_records_time_window")
-    def test_forecast_type_field(self, mock_fetch):
-        """Test that forecast_type is set correctly"""
-        # Arrange
-        mock_fetch.return_value = MOCK_RECORDS
+# Unit test: API timeout / retry handling
+def test_fetch_be_forecast_timeout(requests_mock):
+    """
+    Validate ReadTimeout handling without entering an infinite loop.
 
-        # Act
+    Scenario:
+    - First request raises ReadTimeout
+    - Second request returns an empty page
+    - Pagination loop terminates naturally
+    """
+
+    requests_mock.get(
+        BASE_URL,
+        [
+            {"exc": requests.exceptions.ReadTimeout},
+            {"json": {"results": []}, "status_code": 200},
+        ],
+    )
+
+    session = build_mocked_session(requests_mock)
+
+    with patch(
+        "solar_consumer.data.fetch_be_data._build_session",
+        return_value=session,
+    ):
         df = fetch_be_data_forecast(days=1)
 
-        # Assert
-        assert all(df["forecast_type"] == "most_recent")
+    assert df.empty

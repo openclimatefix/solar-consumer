@@ -4,6 +4,9 @@ from datetime import datetime, timedelta, timezone
 from solar_consumer.data.fetch_be_data import fetch_be_data_forecast
 
 @pytest.mark.integration
+@pytest.mark.skip(
+    reason="Elia BE API may not return data within the expected time window due to upstream delays"
+)
 def test_be_forecast_contains_national_and_regional():
     """
     Integration test for Belgium solar forecast fetching.
