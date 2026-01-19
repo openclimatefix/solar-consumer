@@ -35,5 +35,5 @@ def test_save_ruvnl_generation_to_site_db(db_site_session):
     save_generation_to_site_db(
         generation_data=df,
         session=db_site_session,
-        country="in",
+        country="ind_rajasthan",
     )
