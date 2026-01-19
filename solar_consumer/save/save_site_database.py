@@ -178,7 +178,7 @@ def save_generation_to_site_db(
             generation_data_tso_df = generation_data.copy()
             
         if generation_data_tso_df.empty:
-            logger.debug(f"No rows for {key!r}, skipping")
+            logger.debug("No generation rows for site %r, skipping", pvsite.client_site_name)
             continue
 
         # Derive capacity override once
@@ -191,8 +191,16 @@ def save_generation_to_site_db(
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
-        if "energy_type" not in generation_data_tso_df.columns:
-            raise Exception("generation_data must contain an 'energy_type' column")
+        if country == "in":
+            if "energy_type" not in generation_data_tso_df.columns:
+                raise Exception(
+                    "generation_data must contain an 'energy_type' column when country='in'"
+                )
+        else:
+            generation_data_tso_df = generation_data_tso_df.copy()
+            generation_data_tso_df["energy_type"] = "solar"
+
+        
 
         for energy_type in generation_data_tso_df["energy_type"].unique():
             df_energy = generation_data_tso_df[
