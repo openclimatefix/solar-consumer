@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 from freezegun import freeze_time
 import requests
@@ -48,7 +47,6 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
     - mocked Elia API URL
     - national + regional records
     - MW -> kW conversion
-    - region -> gsp_id mapping
     - cursor-based pagination termination
     """
 
@@ -87,8 +85,6 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
         "solar_generation_kw",
         "region",
         "forecast_type",
-        "gsp_id",
-        "regime",
         "capacity_mwp",
     }
     assert expected_columns.issubset(df.columns)
@@ -97,13 +93,8 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
     assert df.loc[df["region"] == "Belgium", "solar_generation_kw"].iloc[0] == 1200
     assert df.loc[df["region"] == "Flanders", "solar_generation_kw"].iloc[0] == 300
 
-    # Region -> gsp_id mapping
-    assert df.loc[df["region"] == "Belgium", "gsp_id"].iloc[0] == 0
-    assert np.isnan(df.loc[df["region"] == "Flanders", "gsp_id"].iloc[0])
-
     # Static metadata
     assert (df["forecast_type"] == "most_recent").all()
-    assert (df["regime"] == "in-day").all()
 
     # Rolling window sanity check
     now_utc = pd.Timestamp("2026-01-18T10:00:00Z")
@@ -141,8 +132,6 @@ def test_fetch_be_forecast_empty_response(requests_mock):
         "solar_generation_kw",
         "region",
         "forecast_type",
-        "gsp_id",
-        "regime",
         "capacity_mwp",
     ]
 
