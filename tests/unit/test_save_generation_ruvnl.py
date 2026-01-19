@@ -1,7 +1,9 @@
-
-import pytest
-import pandas as pd
 import docker
+import pandas as pd
+import pytest
+
+from solar_consumer.save.save_site_database import save_generation_to_site_db
+
 
 docker_available = True
 try:
@@ -15,15 +17,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-from solar_consumer.save.save_site_database import save_generation_to_site_db
-
-
 def test_save_ruvnl_generation_to_site_db(db_site_session):
     """
     Ensure RUVNL (India) generation data with both solar and wind
     can be saved to the site_database without errors.
     """
-
     df = pd.DataFrame(
         {
             "target_datetime_utc": pd.date_range(
@@ -34,7 +32,6 @@ def test_save_ruvnl_generation_to_site_db(db_site_session):
         }
     )
 
-    # This should not raise
     save_generation_to_site_db(
         generation_data=df,
         session=db_site_session,
