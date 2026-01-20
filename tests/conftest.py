@@ -121,7 +121,7 @@ def nl_mock_data():
     "hydra:member": [
         {
             "id": 1,
-            "point": 0,
+            "point": "v1/points/0",
             "type": 2,
             "granularity": 4,
             "activity": 1,

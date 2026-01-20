@@ -1,0 +1,1 @@
+# Save module for solar consumer

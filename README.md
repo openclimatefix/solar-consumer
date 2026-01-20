@@ -1,12 +1,32 @@
 # Solar Consumer
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-14-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-16-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
 
 This code can be used to download solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
-Forecast can be retreived from NESO, generation values can be retreived from Ned NL. 
+We currently collect
+- UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. 
+- NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
+- DE: Generation values from ENTSOE for several TSOs. 
+- BE: Solar PV forecast data (national and regional) from Elia Open Data API.
+- India (Rajasthan): Real-time solar and wind generation data from RUVNL (Rajasthan Urja Vikas Nigam Limited).
+
+
+
+Here are the different sources of data, and which methods can be used to save the results
+
+| Source | Country | CSV | Data Platform | DB (Legacy) | Site DB (Legacy) |
+| --- | ---  | --- | --- | --- |  ---|
+| PVLive | 🇬🇧 | ✅ | ✅ | | |
+| NESO forecast | 🇬🇧 | ✅ | | ✅| 
+| Ned-nl | 🇳🇱 | ✅ || | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
+| Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
+| Elia Open Data | 🇧🇪 | ✅ |  |  |  |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  |  |
+
 
 ## Requirements
 
@@ -69,9 +89,13 @@ The package provides three main functionalities:
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
 - `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Database Configuration
-- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["nl"] 
+- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
 - `SAVE_METHOD="db"`: Ways to store the data. Currently other options are ["csv", "site-db"]
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
+- `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
+- `UK_PVLIVE_N_GSPS=342`: For UK PVLive, the amount of gsps we pull data for.
+- `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
+- 
 
 ## Development
 
@@ -164,6 +188,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/michael-gendy"><img src="https://avatars.githubusercontent.com/u/64384201?v=4?s=100" width="100px;" alt="michael-gendy"/><br /><sub><b>michael-gendy</b></sub></a><br /><a href="#infra-michael-gendy" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Shohail-Ismail"><img src="https://avatars.githubusercontent.com/u/149825575?v=4?s=100" width="100px;" alt="Shohail Ismail"/><br /><sub><b>Shohail Ismail</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Shohail-Ismail" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Prafful-Vyas"><img src="https://avatars.githubusercontent.com/u/118352579?v=4?s=100" width="100px;" alt="Prafful Vyas"/><br /><sub><b>Prafful Vyas</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=Prafful-Vyas" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://www.linkedin.com/in/ram-from-tvl"><img src="https://avatars.githubusercontent.com/u/114728749?v=4?s=100" width="100px;" alt="Ramkumar R"/><br /><sub><b>Ramkumar R</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=ram-from-tvl" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/katyalmohit"><img src="https://avatars.githubusercontent.com/u/128162892?v=4?s=100" width="100px;" alt="Mohit"/><br /><sub><b>Mohit</b></sub></a><br /><a href="https://github.com/openclimatefix/solar-consumer/commits?author=katyalmohit" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

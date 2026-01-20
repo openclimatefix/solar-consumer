@@ -8,21 +8,29 @@ This script orchestrates the following steps:
 """
 
 import os
+import asyncio
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.format_forecast import format_to_forecast_sql
-from solar_consumer.save_forecast import (
-    save_forecasts_to_csv,
-    save_forecasts_to_db,
+from solar_consumer.save.save_csv import save_forecasts_to_csv
+from solar_consumer.save.save_database import save_forecasts_to_db
+from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
+from dp_sdk.ocf import dp
+from grpclib.client import Channel
 
 
-def app(
+data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
+data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
+
+
+async def app(
     db_url: str,
     save_method: str,
     csv_dir: str = None,
@@ -59,8 +67,6 @@ def app(
         if forecast_data.empty:
             logger.warning("No data fetched. Exiting the pipeline.")
             return
-        # Step 2: Formate and save the forecast data
-        # A. Format forecast to database object and save
         if save_method == "db":
 
             # Initialize database connection
@@ -119,6 +125,18 @@ def app(
                         model_version=__version__,
                     )
 
+        elif save_method == "data-platform":
+
+            logger.info("Saving to data platform")
+
+            async with Channel(host=data_platform_host, port=data_platform_port) as channel:
+                client = dp.DataPlatformDataServiceStub(channel)
+        
+                logger.info("Saving forecasts to the Data Platform.")
+                _ = await save_generation_to_data_platform(data_df=forecast_data, client=client)
+
+            logger.info("Saving to data platform: done")
+
         else:
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
             return
@@ -145,10 +163,10 @@ if __name__ == "__main__":
         exit(1)
 
     # Step 2: Run the application
-    app(
+    asyncio.run(app(
         db_url=db_url,
         save_method=save_method,
         csv_dir=csv_dir,
         country=country,
         historic_or_forecast=historic_or_forecast,
-    )
+    ))

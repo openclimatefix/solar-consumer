@@ -1,6 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "setuptools-git-versioning"
+]
 build-backend = "setuptools.build_meta"
+
 
 [project]
 name = "solar_consumer"
@@ -11,11 +15,18 @@ dependencies = [
     "nowcasting_datamodel==1.5.56",
     "pvsite-datamodel==1.2.0",
     "testcontainers",
-    "pyproj==3.6.1",
+    "pyproj",
     "tqdm",
     "loguru==0.7.3",
     "entsoe-py",
+    "pvlive-api>=1.5.1",
+    "dp-sdk",
+    "betterproto==2.0.0b7",
+    "grpclib==0.4.8",
+    "pytest-asyncio>=1.2.0",
+    "requests-mock>=1.12.1",
 ]
+requires-python = ">=3.12.0, <3.13"
 
 [dependency-groups]
 dev = [
@@ -28,3 +39,18 @@ dev = [
 [tool.setuptools-git-versioning]
 enabled = true
 dirty_template = "{tag}"
+
+[tool.uv.sources]
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.16.0/dp_sdk-0.16.0-py3-none-any.whl" }
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+exclude = ["__init__.py"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks integration tests that call external services",
+]
+
+

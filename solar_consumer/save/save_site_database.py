@@ -1,17 +1,33 @@
 from loguru import logger
-from nowcasting_datamodel.save.save import save
 from pvsite_datamodel.write.generation import insert_generation_values
 from pvsite_datamodel.write.forecast import insert_forecast_values
 from pvsite_datamodel.read.site import get_site_by_client_site_name
 from pvsite_datamodel.write.user_and_site import create_site
 from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
 from sqlalchemy.orm.session import Session
-import os
 import pandas as pd
 from typing import Optional
 
-# Default NL national site
-nl_national = PVSite(client_site_name="nl_national", latitude="52.15", longitude="5.23")
+# Default NL national site, and NL regional
+nl_national = PVSite(client_site_name="nl_national", latitude="52.13", longitude="5.29")
+nl_region_1 = PVSite(client_site_name="nl_region_1_groningen", latitude="53.22", longitude="6.74")
+nl_region_2 = PVSite(client_site_name="nl_region_2_friesland", latitude="53.11", longitude="5.85")
+nl_region_3 = PVSite(client_site_name="nl_region_3_drenthe", latitude="52.86", longitude="6.62")
+nl_region_4 = PVSite(client_site_name="nl_region_4_overijssel", latitude="52.45", longitude="6.45")
+nl_region_5 = PVSite(client_site_name="nl_region_5_flevoland", latitude="52.53", longitude="5.60")
+nl_region_6 = PVSite(client_site_name="nl_region_6_gelderland", latitude="52.06", longitude="5.95")
+nl_region_7 = PVSite(client_site_name="nl_region_7_utrecht", latitude="52.08", longitude="5.17")
+nl_region_8 = PVSite(client_site_name="nl_region_8_noord_holland", latitude="52.58", longitude="4.87")
+nl_region_9 = PVSite(client_site_name="nl_region_9_zuid_holland", latitude="51.94", longitude="4.47")
+nl_region_10 = PVSite(client_site_name="nl_region_10_zeeland", latitude="51.45", longitude="3.84")
+nl_region_11 = PVSite(client_site_name="nl_region_11_noord_brabant", latitude="51.56", longitude="5.20")
+nl_region_12 = PVSite(client_site_name="nl_region_12_limburg", latitude="51.21", longitude="5.94")
+NL_NATIONAL_AND_REGIONS = {"0": nl_national,
+                            "1": nl_region_1, "2": nl_region_2, "3": nl_region_3,
+                            "4": nl_region_4, "5": nl_region_5, "6": nl_region_6,
+                            "7": nl_region_7, "8": nl_region_8, "9": nl_region_9, 
+                            "10": nl_region_10, "11": nl_region_11, "12": nl_region_12
+                         }
 
 # Germany Transmission System Operators (TSOs)
 # Coords ~direct to HQs
@@ -92,12 +108,12 @@ def update_capacity(
         None
     """
   
-    if capacity_override_kw is not None and capacity_override_kw > site.capacity_kw + 1.0:
+    if capacity_override_kw is not None and (abs(capacity_override_kw - site.capacity_kw) >= 1.0):
         old_site_capacity_kw = site.capacity_kw
         site.capacity_kw = capacity_override_kw
         session.commit()
         logger.info(
-            f"Updated site {site.client_site_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
+            f"Updated site {site.client_location_name} capacity from {old_site_capacity_kw } to {site.capacity_kw} kW."
         )
   
 
@@ -127,33 +143,35 @@ def save_generation_to_site_db(
 
     # Determine country
     if country == "nl":
-        country_sites = {"nl_national": nl_national}
+        country_sites = NL_NATIONAL_AND_REGIONS
     elif country == "de":
         country_sites = DE_TSO_SITES
     else:
         raise Exception("Only generation data from the following countries is supported \
             when saving: 'nl', 'de'")
 
-    # Derive capacity override once (test expects max row value if present)
-    capacity_override = (
-        int(generation_data["capacity_kw"].max())
-        if "capacity_kw" in generation_data.columns
-        else None
-    )
-
     # Loop per site
-    for tso, pvsite in country_sites.items():
+    for key, pvsite in country_sites.items():
         
         # Filter by TSO for Germany, or use all data for NL
         if country == "de":
-            generation_data_tso_df = generation_data[generation_data["tso_zone"] == tso].copy()
+            generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
+        elif country == "nl":
+            generation_data_tso_df = generation_data[generation_data["region_id"] == int(key)].copy()
         else:
             generation_data_tso_df = generation_data.copy()
             
         if generation_data_tso_df.empty:
-            logger.debug(f"No rows for TSO {tso!r}, skipping")
+            logger.debug(f"No rows for {key!r}, skipping")
             continue
-            
+
+        # Derive capacity override once
+        capacity_override = None
+        if "capacity_kw" in generation_data_tso_df.columns:
+            max_capacity = generation_data_tso_df["capacity_kw"].max()
+            if not pd.isna(max_capacity):
+                capacity_override = int(max_capacity)
+        
         # Create or fetch site and pass same override for any country
         site = get_or_create_pvsite(session, pvsite, country, 
                                     capacity_override_kw=capacity_override,)
@@ -232,64 +250,3 @@ def save_forecasts_to_site_db(
         ml_model_version=model_version,
         session=session,
     )
-
-
-def save_forecasts_to_db(forecasts: list, session: Session):
-    """Save forecasts to the database.
-
-    Parameters:
-        forecasts (list): List of forecast objects to save.
-        session (Session): SQLAlchemy session for database access.
-
-    Return:
-        None
-    """
-    # Check if forecasts is empty
-    if not forecasts:
-        logger.warning("No forecasts provided to save!")
-        return
-
-    try:
-        logger.info("Saving forecasts to the database.")
-        save(
-            forecasts=forecasts,
-            session=session,
-        )
-        logger.info(f"Successfully saved {len(forecasts)} forecasts to the database.")
-    except Exception as e:
-        logger.error(f"An error occurred while saving forecasts: {e}")
-        raise e
-
-
-def save_forecasts_to_csv(forecasts: pd.DataFrame, csv_dir: str):
-    """Save forecasts to a CSV file.
-
-    Parameters:
-        forecasts (pd.DataFrame): DataFrame containing forecast data to save.
-        csv_dir (str): Directory to save CSV files.
-
-    Return:
-        None
-    """
-    # Check if forecasts is empty
-    if forecasts.empty:
-        logger.warning("No forecasts provided to save!")
-        return
-
-    if not csv_dir:  # check if directory csv directory provided
-        raise ValueError("CSV directory is not provided for CSV saving.")
-
-    os.makedirs(csv_dir, exist_ok=True)
-    csv_path = os.path.join(csv_dir, "forecast_data.csv")
-
-    try:
-        forecasts.drop(
-            columns=["_sa_instance_state"], errors="ignore", inplace=True
-        )  # Remove SQLAlchemy metadata
-
-        logger.info(f"Saving forecasts to CSV at {csv_path}")
-        forecasts.to_csv(csv_path, index=False)
-        logger.info(f"Successfully saved {len(forecasts)} forecasts to CSV.")
-    except Exception as e:
-        logger.error(f"An error occurred while saving forecasts to CSV: {e}")
-        raise e

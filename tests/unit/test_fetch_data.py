@@ -8,15 +8,16 @@ This script validates the functionality and consistency of two data-fetching fun
 ### How to Run the Tests:
 
 Run the entire test suite:
-    pytest tests/test_fetch_data.py
+    pytest tests/unit/test_fetch_data.py
 
 Run with verbose output:
-    pytest tests/test_fetch_data.py -v
+    pytest tests/unit/test_fetch_data.py -v
 
 Run tests matching a specific pattern:
-    pytest tests/test_fetch_data.py -k "fetch_data"
+    pytest tests/unit/test_fetch_data.py -k "fetch_data"
 """
 import pytest
+import os
 
 from solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
 from unittest.mock import patch, Mock
@@ -185,3 +186,27 @@ def test_fetch_nl_data(mock_api, nl_mock_data):
     assert not df.empty
     assert "capacity (kW)" in df.columns
     assert "volume (kWh)" in df.columns
+
+def test_gb_historic_inday():
+
+    # set enviormental variable REGIME to inday
+    os.environ["UK_PVLIVE_REGIME"] = "in-day"
+    os.environ["UK_PVLIVE_N_GSPS"] = "10"
+
+    df = fetch_data(country = "gb", historic_or_forecast = "historic")
+
+    # 10 GSPs for 2 hours is 
+    assert 30<=len(df) <=40
+    # If run at start of 30 mins, its 30, but if run after new results come out its 40
+
+
+def test_gb_historic_day_after():
+
+    # set enviormental variable REGIME to inday
+    os.environ["UK_PVLIVE_REGIME"] = "day-after"
+    os.environ["UK_PVLIVE_N_GSPS"] = "10"
+
+    df = fetch_data(country = "gb", historic_or_forecast = "historic")
+
+    # 10 GSPs for 24 hours is at 30 minutes periods, including the extra two at end
+    assert len(df) == 10*48

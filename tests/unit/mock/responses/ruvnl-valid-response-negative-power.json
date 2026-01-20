@@ -1,0 +1,21 @@
+{
+  "draw": 0,
+  "recordsTotal": 10,
+  "recordsFiltered": 10,
+  "data": [
+    {
+      "0": {
+        "record": "2584",
+        "Key": "03046011",
+        "Average2": -100,
+        "SourceTimeSec": "1706695250",
+        "scada_name": "TEST NEGATIVE",
+        "type": "overview"
+      },
+      "id": "03046011",
+      "scada_name": "TEST NEGATIVE",
+      "value": -100,
+      "date": "31 Jan 2024 15:30:46"
+    }
+  ]
+}
