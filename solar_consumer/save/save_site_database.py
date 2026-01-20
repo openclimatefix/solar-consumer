@@ -29,13 +29,13 @@ NL_NATIONAL_AND_REGIONS = {"0": nl_national,
                             "10": nl_region_10, "11": nl_region_11, "12": nl_region_12
                          }
 ind_rajasthan_solar = PVSite(
-    client_site_name="ind_rajasthan_solar",
+    client_site_name="runvl_solar_site",
     latitude="26.4499",
     longitude="74.65",
 )
 
 ind_rajasthan_wind = PVSite(
-    client_site_name="ind_rajasthan_wind",
+    client_site_name="runvl_wind_site",
     latitude="26.4499",
     longitude="74.65",
 )
@@ -167,71 +167,13 @@ def save_generation_to_site_db(
     elif country == "de":
         country_sites = DE_TSO_SITES
     elif country == "ind_rajasthan":
-        country_sites = {}
+        country_sites = IND_RAJASTHAN_SITES
     else:
         raise Exception( 
             "Only generation data from the following countries is supported "
             "when saving: 'nl', 'de', 'ind_rajasthan'"
         )
-    # Special handling for Rajasthan (India)
-    if country == "ind_rajasthan":
-
-        if "energy_type" not in generation_data.columns:
-            raise Exception(
-                "generation_data must contain an 'energy_type' column when country='ind_rajasthan'"
-            )
-
-        for energy_type in generation_data["energy_type"].unique():
-
-            if energy_type not in IND_RAJASTHAN_SITES:
-                logger.warning("Unknown energy_type %s, skipping", energy_type)
-                continue
-
-            pvsite = IND_RAJASTHAN_SITES[energy_type]
-
-            df_energy = generation_data[
-                generation_data["energy_type"] == energy_type
-            ].copy()
-
-            capacity_override = None
-            if "capacity_kw" in df_energy.columns:
-                max_capacity = df_energy["capacity_kw"].max()
-                if not pd.isna(max_capacity):
-                    capacity_override = int(max_capacity)
-
-            site = get_or_create_pvsite(
-                session,
-                pvsite,
-                country,
-                capacity_override_kw=capacity_override,
-            )
-
-            df_energy = df_energy.rename(
-                columns={
-                    "solar_generation_kw": "power_kw",
-                    "target_datetime_utc": "start_utc",
-                }
-            )
-
-            df_energy["start_utc"] = pd.to_datetime(df_energy["start_utc"])
-            df_energy["site_uuid"] = site.location_uuid
-            df_energy["energy_type"] = energy_type
-
-            insert_generation_values(session=session, df=df_energy)
-            session.commit()
-
-            update_capacity(session, site, capacity_override_kw=capacity_override)
-
-            logger.info(
-                "Successfully saved %d %s rows for site %s",
-                len(df_energy),
-                energy_type,
-                pvsite.client_site_name,
-            )
-
-        return
-
-
+        
     # Loop per site
     for key, pvsite in country_sites.items():
         
@@ -240,6 +182,8 @@ def save_generation_to_site_db(
             generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
         elif country == "nl":
             generation_data_tso_df = generation_data[generation_data["region_id"] == int(key)].copy()
+        elif country == "ind_rajasthan":
+            generation_data_tso_df = generation_data[generation_data["energy_type"] == key].copy()
         else:
             generation_data_tso_df = generation_data.copy()
             
@@ -263,7 +207,11 @@ def save_generation_to_site_db(
         )
 
         generation_data_tso_df = generation_data_tso_df.copy()
-        generation_data_tso_df["energy_type"] = "solar"
+        if country == "ind_rajasthan":
+            generation_data_tso_df["energy_type"] = key
+        else:
+            generation_data_tso_df["energy_type"] = "solar"
+
 
         for energy_type in generation_data_tso_df["energy_type"].unique():
             df_energy = generation_data_tso_df[
