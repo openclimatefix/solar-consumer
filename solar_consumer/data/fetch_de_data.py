@@ -6,14 +6,13 @@ from loguru import logger
 
 # German bidding zone
 DE_TSO_ZONE = "10Y1001A1001A82H"
-API_KEY = os.getenv("ENTSOE_API_KEY", "")
 
 def fetch_de_data_range(start: datetime, end: datetime, chunk_hours: int = 168):
     """    
     Fetch German solar generation over a date range by chunking into windows (smaller payloads for API
     and more robust behaviour for large ranges).
     - start/end: inclusive start/exclusive end datetime (UTC)
-    - chunk_hours: window size, default 168h (oor 7 days)
+    - chunk_hours: window size, default 168h (or 7 days)
 
     Returns DataFrame with columns:
       - target_datetime_utc (UTC)
@@ -21,8 +20,8 @@ def fetch_de_data_range(start: datetime, end: datetime, chunk_hours: int = 168):
       - tso_zone
     """
 
-    # API access handled by entsoe-py, not AXML
-    api_key = os.getenv("ENTSOE_API_KEY") or API_KEY
+    # API access handled by entsoe-py, not XML
+    api_key = os.getenv("ENTSOE_API_KEY")
     if not api_key:
         raise RuntimeError("WARNING: ENTSOE_API_KEY not set in environment")
 
@@ -39,7 +38,7 @@ def fetch_de_data_range(start: datetime, end: datetime, chunk_hours: int = 168):
     start = norm(start)
     end = norm(end)
 
-    client = EntsoePandasClient(api_key=API_KEY)
+    client = EntsoePandasClient(api_key=api_key)
 
     frames = []
     window = start
