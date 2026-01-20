@@ -226,7 +226,6 @@ def save_generation_to_site_db(
             )
             df_energy["start_utc"] = pd.to_datetime(df_energy["start_utc"])
             df_energy["site_uuid"] = site.location_uuid
-            df_energy["energy_type"] = energy_type
 
             insert_generation_values(session=session, df=df_energy)
             session.commit()
