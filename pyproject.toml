@@ -14,6 +14,7 @@ dependencies = [
     "pyproj==3.6.1",
     "tqdm",
     "loguru==0.7.3",
+    "entsoe-py",
 ]
 
 [dependency-groups]
