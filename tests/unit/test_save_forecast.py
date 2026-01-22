@@ -282,3 +282,26 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock)
 
+def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
+    generation_data = {
+        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
+        "solar_generation_kw": [100, 200],
+        "capacity_kw": [500, 600],
+        "energy_type": ["solar", "wind"],
+    }
+
+    generation_df = pd.DataFrame(generation_data)
+
+    save_generation_to_site_db(
+        generation_data=generation_df,
+        session=db_site_session,
+        country="ind_rajasthan",
+    )
+
+    saved_data = db_site_session.query(GenerationSQL).all()
+    assert len(saved_data) == len(generation_df)
+
+    sites = db_site_session.query(LocationSQL).all()
+    site_names = sorted([site.client_location_name for site in sites])
+
+    assert site_names == ["runvl_solar_site", "runvl_wind_site"]
