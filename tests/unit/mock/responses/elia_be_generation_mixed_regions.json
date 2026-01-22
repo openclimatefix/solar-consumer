@@ -1,0 +1,16 @@
+{
+  "results": [
+    {
+      "datetime": "2026-01-18T08:00:00Z",
+      "realtime": 2.5,
+      "region": "Belgium",
+      "monitoredcapacity": 5
+    },
+    {
+      "datetime": "2026-01-18T07:00:00Z",
+      "realtime": 0.8,
+      "region": "Flanders",
+      "monitoredcapacity": 2
+    }
+  ]
+}
