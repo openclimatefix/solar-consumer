@@ -12,7 +12,7 @@ import pandas as pd
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_de_data import fetch_de_data
-from solar_consumer.data.fetch_be_data import fetch_be_data_forecast, fetch_be_data_generation
+from solar_consumer.data.fetch_be_data import fetch_be_data_generation
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
