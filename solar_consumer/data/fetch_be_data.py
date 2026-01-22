@@ -51,7 +51,7 @@ def _fetch_records_time_window(
     all_records: list[dict] = []
     cursor = end_utc
     prev_cursor = None
-
+    
     while True:
         params = {
             "limit": REQUEST_LIMIT,
@@ -123,6 +123,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
           - solar_generation_kw: Forecast solar generation in kW
           - region: Region name (Belgium or sub-region)
           - forecast_type: Forecast type identifier
+          - capacity_mwp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -140,6 +141,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
                 "solar_generation_kw",
                 "region",
                 "forecast_type",
+                "capacity_mwp"
             ]
         )
 
@@ -156,12 +158,16 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     # Metadata
     df["forecast_type"] = "most_recent"
 
+    df["capacity_mwp"] = df["monitoredcapacity"]  
+
     # Drop invalid rows
     df = df.dropna(
         subset=[
             "target_datetime_utc",
             "solar_generation_kw",
             "region",
+            "forecast_type",
+            "capacity_mwp"
         ]
     )
 
@@ -171,6 +177,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
             "solar_generation_kw",
             "region",
             "forecast_type",
+            "capacity_mwp"
         ]
     ]
 
