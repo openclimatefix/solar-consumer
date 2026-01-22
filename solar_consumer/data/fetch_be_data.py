@@ -26,6 +26,8 @@ BASE_URL = (
     "catalog/datasets/ods032/records"
 )
 
+BASE_URL_FORECAST = BASE_URL
+
 BASE_URL_GENERATION = (
     "https://opendata.elia.be/api/explore/v2.1/"
     "catalog/datasets/ods087/records"
