@@ -97,6 +97,49 @@ The package provides three main functionalities:
 - `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
 - 
 
+## Adding a New Country
+
+This guide explains how to add a new country data source to Solar Consumer.
+
+### Overview
+
+Adding a country typically involves:
+- Identifying a reliable data source or API
+- Implementing a country-specific fetch function
+- Adding tests
+- Saving data locally (CSV) and/or to the data platform
+
+---
+
+### Step 1: Find a Data Source / API
+
+Identify a reliable data source for the country:
+- Prefer official grid operators or government-backed APIs
+- Ensure timestamps, units, and generation values are clearly defined
+
+If the API requires credentials:
+- Add the variable to `.example.env`
+- Document the required environment variable name
+
+---
+
+### Step 2: Create a Fetch Function
+
+Add a new country-specific fetch module inside the `solar_consumer` package.
+
+Example naming convention:
+```text
+solar_consumer/fetch_<country>.py
+```
+
+### Next Steps
+After adding the fetch function:
+- Register the country in the main fetch dispatcher
+- Add unit and integration tests under `tests/`
+- Verify the data runs locally and can be saved to CSV
+- If supported, ensure data can be saved to the data platform
+- Open a pull request for review
+
 ## Development
 
 1. Set up the development environment:
