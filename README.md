@@ -129,8 +129,9 @@ Add a new country-specific fetch module inside the `solar_consumer` package.
 
 Example naming convention:
 ```text
-solar_consumer/fetch_<country>.py
+solar_consumer/data/fetch_<country>.py
 ```
+
 
 ### Next Steps
 After adding the fetch function:
@@ -139,6 +140,19 @@ After adding the fetch function:
 - Verify the data runs locally and can be saved to CSV
 - If supported, ensure data can be saved to the data platform
 - Open a pull request for review
+
+### Saving Data to the Data Platform
+
+If the country supports saving data to the data platform:
+
+1. Clone the data platform repository:
+   ```bash
+   git clone https://github.com/openclimatefix/data-platform.git
+   ```
+2. Follow the data-platform README to start it locally (Docker-based setup).
+3. Configure Solar Consumer to point to the local data-platform instance.
+4. Run the consumer and verify data is ingested successfully.
+
 
 ## Development
 
