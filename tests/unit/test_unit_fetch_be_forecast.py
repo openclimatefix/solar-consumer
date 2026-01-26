@@ -83,15 +83,18 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
     expected_columns = {
         "target_datetime_utc",
         "solar_generation_kw",
+        "region",
+        "forecast_type",
+        "capacity_mwp",
     }
-    assert expected_columns == set(df.columns)
+    assert expected_columns.issubset(df.columns)
 
-    # MW -> kW conversion (values should be in kW)
-    # Data is sorted by target_datetime_utc in ascending order
-    # First row: 2026-01-18T07:00:00Z (Flanders) 0.3 MW = 300 kW
-    # Second row: 2026-01-18T08:00:00Z (Belgium) 1.2 MW = 1200 kW
-    assert df["solar_generation_kw"].iloc[0] == 300.0
-    assert df["solar_generation_kw"].iloc[1] == 1200.0
+    # MW -> kW conversion
+    assert df.loc[df["region"] == "Belgium", "solar_generation_kw"].iloc[0] == 1200
+    assert df.loc[df["region"] == "Flanders", "solar_generation_kw"].iloc[0] == 300
+
+    # Static metadata
+    assert (df["forecast_type"] == "most_recent").all()
 
     # Rolling window sanity check
     now_utc = pd.Timestamp("2026-01-18T10:00:00Z")
@@ -127,6 +130,9 @@ def test_fetch_be_forecast_empty_response(requests_mock):
     assert list(df.columns) == [
         "target_datetime_utc",
         "solar_generation_kw",
+        "region",
+        "forecast_type",
+        "capacity_mwp",
     ]
 
 

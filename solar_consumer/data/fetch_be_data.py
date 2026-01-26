@@ -149,6 +149,9 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
         pd.DataFrame with columns:
           - target_datetime_utc: Forecast timestamp in UTC
           - solar_generation_kw: Forecast solar generation in kW
+          - region: Region name (Belgium or sub-region)
+          - forecast_type: Forecast type identifier
+          - capacity_mwp: Monitored capacity in MWp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -165,6 +168,9 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
             columns=[
                 "target_datetime_utc",
                 "solar_generation_kw",
+                "region",
+                "forecast_type",
+                "capacity_mwp",
             ]
         )
 
@@ -178,11 +184,18 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     # Convert MW -> kW
     df["solar_generation_kw"] = df["mostrecentforecast"] * 1000
 
+    # Metadata
+    df["forecast_type"] = "most_recent"
+    df["capacity_mwp"] = df["monitoredcapacity"]
+
     # Drop invalid rows
     df = df.dropna(
         subset=[
             "target_datetime_utc",
             "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
         ]
     )
 
@@ -190,14 +203,19 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
         [
             "target_datetime_utc",
             "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
         ]
     ]
 
     df = df.sort_values("target_datetime_utc").reset_index(drop=True)
 
     logger.info(
-        "Assembled {} rows of Belgian solar forecast data",
+        "Assembled {} rows of Belgian solar forecast data "
+        "across {} regions",
         len(df),
+        df["region"].nunique(),
     )
 
     return df
@@ -224,6 +242,9 @@ def fetch_be_data_generation(
         pd.DataFrame with columns:
           - target_datetime_utc: Generation timestamp in UTC
           - solar_generation_kw: Solar generation in kW
+          - region: Region name (Belgium or sub-region)
+          - forecast_type: Forecast type identifier
+          - capacity_mwp: Monitored capacity in MWp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -241,6 +262,9 @@ def fetch_be_data_generation(
             columns=[
                 "target_datetime_utc",
                 "solar_generation_kw",
+                "region",
+                "forecast_type",
+                "capacity_mwp",
             ]
         )
 
@@ -254,11 +278,18 @@ def fetch_be_data_generation(
     # Convert MW -> kW (realtime field contains generation data)
     df["solar_generation_kw"] = df["realtime"] * 1000
 
+    # Metadata
+    df["forecast_type"] = "generation"
+    df["capacity_mwp"] = df["monitoredcapacity"]
+
     # Drop invalid rows
     df = df.dropna(
         subset=[
             "target_datetime_utc",
             "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
         ]
     )
 
@@ -266,19 +297,19 @@ def fetch_be_data_generation(
         [
             "target_datetime_utc",
             "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
         ]
     ]
 
     df = df.sort_values("target_datetime_utc").reset_index(drop=True)
 
-    print("GENERATION DF \n\n\n\n\n==")
-    print(df.head())
-    print("==\n\n\n\n\n")
-
     logger.info(
-        "Assembled {} rows of Belgian solar generation data",
+        "Assembled {} rows of Belgian solar generation data "
+        "across {} regions",
         len(df),
+        df["region"].nunique(),
     )
-
 
     return df
