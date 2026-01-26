@@ -32,7 +32,7 @@ def test_real_forecasts(db_session, test_config):
     forecasts.
     """
     # Step 1: Fetch data from the NESO API
-    df = fetch_data()
+    df = fetch_data(historic_or_forecast="forecast")
 
     assert not df.empty, "fetch_data returned an empty DataFrame!"
     assert set(df.columns) == {

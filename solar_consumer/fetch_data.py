@@ -16,7 +16,7 @@ from solar_consumer.data.fetch_be_data import fetch_be_data
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
-def fetch_data(country: str = "gb", historic_or_forecast: str = "generation") -> pd.DataFrame:
+def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Get data from different countries
 
