@@ -12,22 +12,28 @@ import pandas as pd
 from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_de_data import fetch_de_data
-from solar_consumer.data.fetch_be_data import fetch_be_data_forecast, fetch_be_data_generation
+from solar_consumer.data.fetch_be_data import fetch_be_data
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
-def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
+def fetch_data(country: str = "gb", historic_or_forecast: str = "generation") -> pd.DataFrame:
     """
     Get data from different countries
 
-    :param country: "gb", or "nl"
+    :param country: "gb", "nl", "de", "ind_rajasthan", or "be"
     :param historic_or_forecast: "generation" or "forecast"
     :return: Pandas dataframe with the following columns:
         target_datetime_utc: Combined date and time in UTC.
         solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
     """
 
-    country_data_functions = {"gb": fetch_gb_data, "nl": fetch_nl_data, "de": fetch_de_data, "be_forecast": fetch_be_data_forecast, "ind_rajasthan": fetch_ind_rajasthan_data, "be_generation": fetch_be_data_generation}
+    country_data_functions = {
+        "gb": fetch_gb_data,
+        "nl": fetch_nl_data,
+        "de": fetch_de_data,
+        "ind_rajasthan": fetch_ind_rajasthan_data,
+        "be": fetch_be_data
+    }
 
     if country in country_data_functions:
         try:
@@ -42,7 +48,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
             raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
-        print("Only UK (gb), Netherlands (nl), Germany (de), and Rajasthan India (ind_rajasthan) data can be fetched at the moment")
+        print("Only UK (gb), Netherlands (nl), Germany (de), Belgium (be), and Rajasthan India (ind_rajasthan) data can be fetched at the moment")
 
     return pd.DataFrame()  # Always return a DataFrame (never None)
 

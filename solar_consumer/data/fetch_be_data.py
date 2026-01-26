@@ -21,12 +21,10 @@ def _build_session() -> requests.Session:
 
     return session
 
-BASE_URL = (
+BASE_URL_FORECAST = (
     "https://opendata.elia.be/api/explore/v2.1/"
     "catalog/datasets/ods032/records"
 )
-
-BASE_URL_FORECAST = BASE_URL
 
 BASE_URL_GENERATION = (
     "https://opendata.elia.be/api/explore/v2.1/"
@@ -36,10 +34,32 @@ BASE_URL_GENERATION = (
 REQUEST_LIMIT = 50
 
 
+def fetch_be_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
+    """
+    Fetch Belgian solar PV data from the Elia Open Data API.
+    
+    This unified function retrieves either forecast or generation data
+    and returns it in the standard format used by other countries.
+
+    Parameters:
+        historic_or_forecast (str): "forecast" for forecast data, 
+                                   anything else for generation data (default: "forecast")
+
+    Returns:
+        pd.DataFrame with columns:
+          - target_datetime_utc: Timestamp in UTC
+          - solar_generation_kw: Solar generation in kW
+    """
+    if historic_or_forecast == "forecast":
+        return fetch_be_data_forecast()
+    else:
+        return fetch_be_data_generation()
+
+
 def _fetch_records_time_window(
     start_utc: datetime,
     end_utc: datetime,
-    base_url: str = BASE_URL,
+    base_url: str = BASE_URL_FORECAST,
 ) -> list[dict]:
     
     """
@@ -129,9 +149,6 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
         pd.DataFrame with columns:
           - target_datetime_utc: Forecast timestamp in UTC
           - solar_generation_kw: Forecast solar generation in kW
-          - region: Region name (Belgium or sub-region)
-          - forecast_type: Forecast type identifier
-          - capacity_mwp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -139,7 +156,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     raw_records = _fetch_records_time_window(
         start_utc=start_utc,
         end_utc=end_utc,
-        base_url=BASE_URL,
+        base_url=BASE_URL_FORECAST,
     )
 
     if not raw_records:
@@ -148,9 +165,6 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
             columns=[
                 "target_datetime_utc",
                 "solar_generation_kw",
-                "region",
-                "forecast_type",
-                "capacity_mwp"
             ]
         )
 
@@ -164,19 +178,11 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     # Convert MW -> kW
     df["solar_generation_kw"] = df["mostrecentforecast"] * 1000
 
-    # Metadata
-    df["forecast_type"] = "most_recent"
-
-    df["capacity_mwp"] = df["monitoredcapacity"]  
-
     # Drop invalid rows
     df = df.dropna(
         subset=[
             "target_datetime_utc",
             "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "capacity_mwp"
         ]
     )
 
@@ -184,26 +190,20 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
         [
             "target_datetime_utc",
             "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "capacity_mwp"
         ]
     ]
 
     df = df.sort_values("target_datetime_utc").reset_index(drop=True)
 
     logger.info(
-        "Assembled {} rows of Belgian solar forecast data "
-        "across {} regions",
+        "Assembled {} rows of Belgian solar forecast data",
         len(df),
-        df["region"].nunique(),
     )
 
     return df
 
 
 def fetch_be_data_generation(
-    historic_or_forecast: str = "generation", 
     days: int = 1
 ) -> pd.DataFrame:
     """
@@ -218,21 +218,16 @@ def fetch_be_data_generation(
     and is suitable for scheduled ingestion jobs.
 
     Parameters:
-        historic_or_forecast (str): Type of data - "generation" or "forecast" (default: "generation")
         days (int): Number of days to look back from now (default: 1)
 
     Returns:
         pd.DataFrame with columns:
           - target_datetime_utc: Generation timestamp in UTC
           - solar_generation_kw: Solar generation in kW
-          - region: Region name (Belgium or sub-region)
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
 
-    # Select appropriate API endpoint based on data type
-    if historic_or_forecast == "forecast":
-        return fetch_be_data_forecast(days=days)
     
     raw_records = _fetch_records_time_window(
         start_utc=start_utc,
@@ -246,7 +241,6 @@ def fetch_be_data_generation(
             columns=[
                 "target_datetime_utc",
                 "solar_generation_kw",
-                "region",
             ]
         )
 
@@ -265,7 +259,6 @@ def fetch_be_data_generation(
         subset=[
             "target_datetime_utc",
             "solar_generation_kw",
-            "region",
         ]
     )
 
@@ -273,17 +266,18 @@ def fetch_be_data_generation(
         [
             "target_datetime_utc",
             "solar_generation_kw",
-            "region",
         ]
     ]
 
     df = df.sort_values("target_datetime_utc").reset_index(drop=True)
 
+    print("GENERATION DF \n\n\n\n\n==")
+    print(df.head())
+    print("==\n\n\n\n\n")
+
     logger.info(
-        "Assembled {} rows of Belgian solar generation data "
-        "across {} regions",
+        "Assembled {} rows of Belgian solar generation data",
         len(df),
-        df["region"].nunique(),
     )
 
 
