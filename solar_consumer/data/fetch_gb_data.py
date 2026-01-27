@@ -27,6 +27,7 @@ def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
         return fetch_gb_data_historic(regime=regime)
 
 
+
 def fetch_gb_data_forecast() -> pd.DataFrame:
     """
     Fetch data from the NESO API and process it into a Pandas DataFrame.
