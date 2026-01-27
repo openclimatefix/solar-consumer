@@ -36,7 +36,7 @@ def test_format_to_forecast_sql_real(db_session, test_config):
     # Patch `fetch_data` to return the mock data
     with patch("solar_consumer.fetch_data.fetch_data", return_value=mock_data):
         # Step 1: Fetch data (mocked)
-        data = fetch_data()
+        data = fetch_data(historic_or_forecast="forecast")
 
         assert not data.empty, "fetch_data returned an empty DataFrame!"
         assert set(data.columns) == {

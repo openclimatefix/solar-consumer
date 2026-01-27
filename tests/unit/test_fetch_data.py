@@ -91,7 +91,7 @@ def test_fetch_data_mock_failure(test_config):
         mock_urlopen.side_effect = Exception("API failure simulated")
 
         with pytest.raises(Exception):
-            _ = fetch_data()
+            _ = fetch_data(historic_or_forecast="forecast")
 
 
 

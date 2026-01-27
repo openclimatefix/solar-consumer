@@ -21,17 +21,45 @@ def _build_session() -> requests.Session:
 
     return session
 
-BASE_URL = (
+BASE_URL_FORECAST = (
     "https://opendata.elia.be/api/explore/v2.1/"
     "catalog/datasets/ods032/records"
+)
+
+BASE_URL_GENERATION = (
+    "https://opendata.elia.be/api/explore/v2.1/"
+    "catalog/datasets/ods087/records"
 )
 
 REQUEST_LIMIT = 50
 
 
+def fetch_be_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
+    """
+    Fetch Belgian solar PV data from the Elia Open Data API.
+    
+    This unified function retrieves either forecast or generation data
+    and returns it in the standard format used by other countries.
+
+    Parameters:
+        historic_or_forecast (str): "forecast" for forecast data, 
+                                   anything else for generation data (default: "forecast")
+
+    Returns:
+        pd.DataFrame with columns:
+          - target_datetime_utc: Timestamp in UTC
+          - solar_generation_kw: Solar generation in kW
+    """
+    if historic_or_forecast == "forecast":
+        return fetch_be_data_forecast()
+    else:
+        return fetch_be_data_generation()
+
+
 def _fetch_records_time_window(
     start_utc: datetime,
     end_utc: datetime,
+    base_url: str = BASE_URL_FORECAST,
 ) -> list[dict]:
     
     """
@@ -65,7 +93,7 @@ def _fetch_records_time_window(
         logger.debug("Fetching Elia BE data with params {}", params)
 
         try:
-            response = session.get(BASE_URL, params=params, timeout=30)
+            response = session.get(base_url, params=params, timeout=30)
             response.raise_for_status()
         except requests.exceptions.ReadTimeout:
             logger.warning("Timeout hit, retrying window ending at {}", cursor)
@@ -102,6 +130,74 @@ def _fetch_records_time_window(
     logger.info("Fetched {} Elia records", len(all_records))
     return all_records
 
+
+def _process_be_data(
+    raw_records: list[dict],
+    generation_field: str,
+    forecast_type: str,
+    data_type: str,
+) -> pd.DataFrame:
+    """
+    Common processing logic for both forecast and generation data.
+    
+    Parameters:
+        raw_records: Raw API records
+        generation_field: Field name to use for solar_generation_kw
+        forecast_type: Value for forecast_type column
+        data_type: Description for logging ("forecast" or "generation")
+    """
+    if not raw_records:
+        logger.warning("No Belgian {} data returned from Elia API", data_type)
+        return pd.DataFrame(
+            columns=[
+                "target_datetime_utc",
+                "solar_generation_kw",
+                "region",
+                "forecast_type",
+                "capacity_mwp",
+            ]
+        )
+
+    df = pd.DataFrame(raw_records)
+    df["target_datetime_utc"] = pd.to_datetime(
+        df["datetime"], utc=True, errors="coerce"
+    )
+    df["solar_generation_kw"] = df[generation_field] * 1000
+    df["forecast_type"] = forecast_type
+    df["capacity_mwp"] = df["monitoredcapacity"]
+
+    df = df.dropna(
+        subset=[
+            "target_datetime_utc",
+            "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
+        ]
+    )
+
+    df = df[
+        [
+            "target_datetime_utc",
+            "solar_generation_kw",
+            "region",
+            "forecast_type",
+            "capacity_mwp",
+        ]
+    ]
+
+    df = df.sort_values("target_datetime_utc").reset_index(drop=True)
+
+    logger.info(
+        "Assembled {} rows of Belgian solar {} data across {} regions",
+        len(df),
+        data_type,
+        df["region"].nunique(),
+    )
+
+    return df
+
+
 def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     """
     Fetch Belgian solar PV forecast data (national + regional)
@@ -123,7 +219,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
           - solar_generation_kw: Forecast solar generation in kW
           - region: Region name (Belgium or sub-region)
           - forecast_type: Forecast type identifier
-          - capacity_mwp
+          - capacity_mwp: Monitored capacity in MWp
     """
     end_utc = datetime.now(timezone.utc)
     start_utc = end_utc - timedelta(days=days)
@@ -131,63 +227,54 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
     raw_records = _fetch_records_time_window(
         start_utc=start_utc,
         end_utc=end_utc,
+        base_url=BASE_URL_FORECAST,
     )
 
-    if not raw_records:
-        logger.warning("No Belgian forecast data returned from Elia API")
-        return pd.DataFrame(
-            columns=[
-                "target_datetime_utc",
-                "solar_generation_kw",
-                "region",
-                "forecast_type",
-                "capacity_mwp"
-            ]
-        )
-
-    df = pd.DataFrame(raw_records)
-
-    # Parse datetime
-    df["target_datetime_utc"] = pd.to_datetime(
-        df["datetime"], utc=True, errors="coerce"
+    return _process_be_data(
+        raw_records,
+        generation_field="mostrecentforecast",
+        forecast_type="most_recent",
+        data_type="forecast",
     )
 
-    # Convert MW -> kW
-    df["solar_generation_kw"] = df["mostrecentforecast"] * 1000
 
-    # Metadata
-    df["forecast_type"] = "most_recent"
+def fetch_be_data_generation(
+    days: int = 1
+) -> pd.DataFrame:
+    """
+    Fetch Belgian solar PV generation data (national + regional)
+    from the Elia Open Data API (realtime data).
 
-    df["capacity_mwp"] = df["monitoredcapacity"]  
+    This function retrieves generation data for a rolling time window
+    (default: last 1 day) ending at the current UTC time. Both national
+    ("Belgium") and regional generation data are included.
 
-    # Drop invalid rows
-    df = df.dropna(
-        subset=[
-            "target_datetime_utc",
-            "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "capacity_mwp"
-        ]
+    The rolling-window approach avoids API pagination limits
+    and is suitable for scheduled ingestion jobs.
+
+    Parameters:
+        days (int): Number of days to look back from now (default: 1)
+
+    Returns:
+        pd.DataFrame with columns:
+          - target_datetime_utc: Generation timestamp in UTC
+          - solar_generation_kw: Solar generation in kW
+          - region: Region name (Belgium or sub-region)
+          - forecast_type: Forecast type identifier
+          - capacity_mwp: Monitored capacity in MWp
+    """
+    end_utc = datetime.now(timezone.utc)
+    start_utc = end_utc - timedelta(days=days)
+
+    raw_records = _fetch_records_time_window(
+        start_utc=start_utc,
+        end_utc=end_utc,
+        base_url=BASE_URL_GENERATION,
     )
 
-    df = df[
-        [
-            "target_datetime_utc",
-            "solar_generation_kw",
-            "region",
-            "forecast_type",
-            "capacity_mwp"
-        ]
-    ]
-
-    df = df.sort_values("target_datetime_utc").reset_index(drop=True)
-
-    logger.info(
-        "Assembled {} rows of Belgian solar forecast data "
-        "across {} regions",
-        len(df),
-        df["region"].nunique(),
+    return _process_be_data(
+        raw_records,
+        generation_field="realtime",
+        forecast_type="generation",
+        data_type="generation",
     )
-
-    return df
