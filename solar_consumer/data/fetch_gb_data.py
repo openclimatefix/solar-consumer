@@ -110,7 +110,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     all_gsps_yields = []
     n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 342))
-    for gsp_id in range(0, n_gsps + 1):
+    # Iterate through GSP IDs from 0 to n_gsps (exclusive), excluding ignored GSPs
+    for gsp_id in range(0, n_gsps):
         if gsp_id in ignore_gsp_ids:
             continue
 
