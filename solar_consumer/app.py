@@ -18,7 +18,10 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.save_data_platform import (
+    save_be_generation_to_data_platform,
+    save_generation_to_data_platform,
+)
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
@@ -136,7 +139,16 @@ async def app(
                 client = dp.DataPlatformDataServiceStub(channel)
         
                 logger.info("Saving forecasts to the Data Platform.")
-                _ = await save_generation_to_data_platform(data_df=forecast_data, client=client)
+                if country == "be":
+                    _ = await save_be_generation_to_data_platform(
+                        data_df=forecast_data,
+                        client=client,
+                    )
+                else:
+                    _ = await save_generation_to_data_platform(
+                        data_df=forecast_data,
+                        client=client,
+                    )
 
             logger.info("Saving to data platform: done")
 
