@@ -18,7 +18,7 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform, save_nl_generation_to_data_platform
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
@@ -59,12 +59,12 @@ async def app(
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
     logger.info(f"Fetching {historic_or_forecast} data for {country}.")
-    forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
+    data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
 
 
     try:
 
-        if forecast_data.empty:
+        if data.empty:
             logger.warning("No data fetched. Exiting the pipeline.")
             return
         if save_method == "db":
@@ -76,9 +76,9 @@ async def app(
 
             # Step 2: Formate and save the forecast data
             # A. Format forecast to database object and save
-                logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
+                logger.info(f"Formatting {len(data)} rows of forecast data.")
                 forecasts = format_to_forecast_sql(
-                    data=forecast_data,
+                    data=data,
                     model_tag=model_tag,
                     model_version=__version__,  # Use the version from __init__.py
                     session=session,
@@ -96,8 +96,8 @@ async def app(
 
         # B. Save directly to CSV
         elif save_method == "csv":
-            logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
-            save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
+            logger.info(f"Saving {len(data)} rows of forecast data directly to CSV.")
+            save_forecasts_to_csv(data, csv_dir=csv_dir)
 
         # C. TODO: Potential new save methods
         elif save_method == "site-db":
@@ -111,7 +111,7 @@ async def app(
                 if historic_or_forecast == "generation":
                     save_generation_to_site_db(
                         session=session,
-                        generation_data=forecast_data,
+                        generation_data=data,
                         country=country,
                     )
 
@@ -119,7 +119,7 @@ async def app(
                     logger.info("Saving forecasts to the site database.")
                     save_forecasts_to_site_db(
                         session=session,
-                        forecast_data=forecast_data,
+                        forecast_data=data,
                         country=country,
                         model_tag=model_tag,
                         model_version=__version__,
@@ -133,7 +133,10 @@ async def app(
                 client = dp.DataPlatformDataServiceStub(channel)
         
                 logger.info("Saving forecasts to the Data Platform.")
-                _ = await save_generation_to_data_platform(data_df=forecast_data, client=client)
+                if country == "nl":
+                    _ = await save_nl_generation_to_data_platform(data_df=data, client=client)
+                else:
+                    _ = await save_generation_to_data_platform(data_df=data, client=client)
 
             logger.info("Saving to data platform: done")
 
