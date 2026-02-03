@@ -34,7 +34,7 @@ async def app(
     db_url: str,
     save_method: str,
     csv_dir: str = None,
-    country: str = "uk",
+    country: str = "gb",
     historic_or_forecast: str = "generation",
 ):
     """
@@ -44,13 +44,13 @@ async def app(
         db_url (str): Database connection URL from an environment variable.
         save_method (str): Method to save the forecast data. Options are "db" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
-        country (str): Country code for fetching data. Default is "uk".
+        country (str): Country code for fetching data. Default is "gb".
         historic_or_forecast: (str): Type of data to fetch. Default is "generation".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
     # Use the `Neso` class for hardcoded configuration]
-    if country == "uk":
+    if country == "gb":
         model_tag = "neso-solar-forecast"
     elif country == "nl":
         model_tag = "ned-nl-national"
@@ -58,6 +58,9 @@ async def app(
         model_tag = "entsoe-de"
     elif country == "be":
         model_tag = "elia-be-forecast"
+    else:
+        raise ValueError(f"Unsupported country code: {country}")
+
 
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
@@ -77,8 +80,8 @@ async def app(
 
             with connection.get_session() as session:
 
-            # Step 2: Formate and save the forecast data
-            # A. Format forecast to database object and save
+                # Step 2: Formate and save the forecast data
+                # A. Format forecast to database object and save
                 logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
                 forecasts = format_to_forecast_sql(
                     data=forecast_data,
@@ -153,7 +156,7 @@ async def app(
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
-    country = os.getenv("COUNTRY", "uk")
+    country = os.getenv("COUNTRY", "gb")
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
     historic_or_forecast = os.getenv("HISTORIC_OR_FORECAST", "generation").lower()
