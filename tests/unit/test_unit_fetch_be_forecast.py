@@ -4,8 +4,8 @@ import requests
 from unittest.mock import patch
 
 from solar_consumer.data.fetch_be_data import (
-    fetch_be_data_forecast,
-    BASE_URL,
+    fetch_be_data,
+    BASE_URL_FORECAST,
 )
 
 pytest_plugins = ["requests_mock"]
@@ -54,7 +54,7 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
     # 1) First request returns data
     # 2) Second request returns an empty page to stop the loop
     requests_mock.get(
-        BASE_URL,
+        BASE_URL_FORECAST,
         [
             {
                 "text": load_mock_response("elia_be_mixed_regions.json"),
@@ -74,7 +74,7 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
         "solar_consumer.data.fetch_be_data._build_session",
         return_value=session,
     ):
-        df = fetch_be_data_forecast(days=1)
+        df = fetch_be_data(historic_or_forecast="forecast")
 
     # Basic sanity checks
     assert not df.empty
@@ -113,7 +113,7 @@ def test_fetch_be_forecast_empty_response(requests_mock):
     """
 
     requests_mock.get(
-        BASE_URL,
+        BASE_URL_FORECAST,
         text=load_mock_response("elia_be_empty.json"),
         status_code=200,
     )
@@ -124,7 +124,7 @@ def test_fetch_be_forecast_empty_response(requests_mock):
         "solar_consumer.data.fetch_be_data._build_session",
         return_value=session,
     ):
-        df = fetch_be_data_forecast(days=1)
+        df = fetch_be_data(historic_or_forecast="forecast")
 
     assert df.empty
     assert list(df.columns) == [
@@ -144,7 +144,7 @@ def test_fetch_be_forecast_invalid_payload(requests_mock):
     """
 
     requests_mock.get(
-        BASE_URL,
+        BASE_URL_FORECAST,
         text=load_mock_response("elia_be_invalid.json"),
         status_code=200,
     )
@@ -155,7 +155,7 @@ def test_fetch_be_forecast_invalid_payload(requests_mock):
         "solar_consumer.data.fetch_be_data._build_session",
         return_value=session,
     ):
-        df = fetch_be_data_forecast(days=1)
+        df = fetch_be_data(historic_or_forecast="forecast")
 
     assert df.empty
 
@@ -172,7 +172,7 @@ def test_fetch_be_forecast_timeout(requests_mock):
     """
 
     requests_mock.get(
-        BASE_URL,
+        BASE_URL_FORECAST,
         [
             {"exc": requests.exceptions.ReadTimeout},
             {"json": {"results": []}, "status_code": 200},
@@ -185,6 +185,6 @@ def test_fetch_be_forecast_timeout(requests_mock):
         "solar_consumer.data.fetch_be_data._build_session",
         return_value=session,
     ):
-        df = fetch_be_data_forecast(days=1)
+        df = fetch_be_data(historic_or_forecast="forecast")
 
     assert df.empty
