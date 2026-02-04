@@ -170,6 +170,9 @@ async def save_be_generation_to_data_platform(
     Incoming data is joined to Data Platform locations using a "region" key
     from location metadata (preferred) or location name.
     """
+    if data_df.empty:
+        logging.info("No Belgian generation data to save.")
+        return
     tasks: list[asyncio.Task] = []
     required_observers = {"elia_be"}
 
