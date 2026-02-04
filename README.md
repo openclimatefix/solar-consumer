@@ -13,6 +13,17 @@ We currently collect
 - BE: Solar PV forecast data (national and regional) from Elia Open Data API.
 - India (Rajasthan): Real-time solar and wind generation data from RUVNL (Rajasthan Urja Vikas Nigam Limited).
 
+### India – RUVNL (Rajasthan)
+
+The solar consumer supports **RUVNL (Rajasthan, India)** real-time generation data.
+
+- Both **solar and wind** generation are supported
+- Data is fetched via `solar-consumer`
+- Generation data can be saved directly to the **site_database**
+- Separate sites are created for solar and wind generation
+- No separate `ruvnl-consumer` service is required
+
+
 
 
 Here are the different sources of data, and which methods can be used to save the results
@@ -25,7 +36,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
 | Elia Open Data | 🇧🇪 | ✅ | ✅ |  |  |
-| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  |  |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  | ✅ |
 
 
 ## Requirements
@@ -90,12 +101,69 @@ The package provides three main functionalities:
 
 - `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Database Configuration
 - `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
-- `SAVE_METHOD="db"`: Ways to store the data. Currently other options are ["csv", "site-db"]
+- `SAVE_METHOD`: Ways to store the data. Options are ["db", "csv", "site-db"].  
+  `site-db` is supported for NL, DE, and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
 - `UK_PVLIVE_N_GSPS=342`: For UK PVLive, the amount of gsps we pull data for.
 - `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
-- 
+
+## Adding a New Country
+
+This guide explains how to add a new country data source to Solar Consumer.
+
+### Overview
+
+Adding a country typically involves:
+- Identifying a reliable data source or API
+- Implementing a country-specific fetch function
+- Adding tests
+- Saving data locally (CSV) and/or to the data platform
+
+---
+
+### Step 1: Find a Data Source / API
+
+Identify a reliable data source for the country:
+- Prefer official grid operators or government-backed APIs
+- Ensure timestamps, units, and generation values are clearly defined
+
+If the API requires credentials:
+- Add the variable to `.example.env`
+- Document the required environment variable name
+
+---
+
+### Step 2: Create a Fetch Function
+
+Add a new country-specific fetch module inside the `solar_consumer` package.
+
+Example naming convention:
+```text
+solar_consumer/data/fetch_<country>.py
+```
+
+
+### Next Steps
+After adding the fetch function:
+- Register the country in the main fetch dispatcher
+- Add unit and integration tests under `tests/`
+- Verify the data runs locally and can be saved to CSV
+- If supported, ensure data can be saved to the data platform
+- Open a pull request for review
+
+### Saving Data to the Data Platform
+
+If the country supports saving data to the data platform:
+
+1. Clone the data platform repository:
+   ```bash
+   git clone https://github.com/openclimatefix/data-platform.git
+   ```
+2. Follow the data-platform README to start it locally (Docker-based setup).
+3. Configure Solar Consumer to point to the local data-platform instance.
+4. Run the consumer and verify data is ingested successfully.
+
 
 ## Development
 
