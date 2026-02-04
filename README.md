@@ -200,7 +200,7 @@ pytest tests/test_fetch_data.py
 
 # Run with coverage
 pytest --cov=neso_solar_consumer
-
+```
 ### Continuous Integration (CI)
 
 This reposistory has 2 main CI workflows - `branch-ci` and `merged-ci`. 
