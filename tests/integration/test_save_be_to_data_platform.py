@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import pytest
 import pytest_asyncio
 import time
@@ -7,6 +6,7 @@ import datetime
 from testcontainers.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 from betterproto.lib.google.protobuf import Struct, Value
+import betterproto
 from importlib.metadata import version
 
 from solar_consumer.save.save_data_platform import save_be_generation_to_data_platform
