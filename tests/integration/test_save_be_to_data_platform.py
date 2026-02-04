@@ -254,23 +254,23 @@ async def test_save_be_generation_zero_capacity(client):
         casing=betterproto.Casing.SNAKE, include_default_values=True
     ).get("locations", [])
     
-location_exists = any(loc.get("location_name") == "be_belgium_zero_test" for loc in locations_data)
-      
-          if not location_exists:
-              metadata = Struct(fields={"region": Value(string_value="Belgium")})
-              create_location_request = dp.CreateLocationRequest(
-                  location_name="be_belgium_zero_test",
-                  energy_source=dp.EnergySource.SOLAR,
-                  location_type=dp.LocationType.NATION,
-                  geometry_wkt="POINT(4.35 50.85)",
-                  effective_capacity_watts=100_000_000,
-                  metadata=metadata,
-                  valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
-              )
-              create_location_response = await client.create_location(create_location_request)
-          else:
-              # Find existing location
-              belgium_location = next(loc for loc in locations_data if loc.get("location_name") == "be_belgium_zero_test")
+    location_exists = any(loc.get("location_name") == "be_belgium_zero_test" for loc in locations_data)
+    
+    if not location_exists:
+        metadata = Struct(fields={"region": Value(string_value="Belgium")})
+        create_location_request = dp.CreateLocationRequest(
+            location_name="be_belgium_zero_test",
+            energy_source=dp.EnergySource.SOLAR,
+            location_type=dp.LocationType.NATION,
+            geometry_wkt="POINT(4.35 50.85)",
+            effective_capacity_watts=100_000_000,
+            metadata=metadata,
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        )
+        create_location_response = await client.create_location(create_location_request)
+    else:
+        # Find existing location
+        belgium_location = next(loc for loc in locations_data if loc.get("location_name") == "be_belgium_zero_test")
         create_location_response = type('MockResponse', (), {'location_uuid': belgium_location['location_uuid']})()
 
     # Create observer if it doesn't exist
@@ -298,8 +298,13 @@ location_exists = any(loc.get("location_name") == "be_belgium_zero_test" for loc
         observer_name="elia_be",
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
-                  start_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
-                  end_timestamp_utc=datetime.datetime(2025, 1, 3, tzinfo=datetime.timezone.utc),
+            start_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+            end_timestamp_utc=datetime.datetime(2025, 1, 3, tzinfo=datetime.timezone.utc),
+        ),
+    )
+
+    get_observations_response = await client.get_observations_as_timeseries(
+        get_observations_request
     )
 
     assert len(get_observations_response.values) == 0, "Observations created for zero capacity location"
