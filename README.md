@@ -201,38 +201,6 @@ pytest tests/test_fetch_data.py
 # Run with coverage
 pytest --cov=neso_solar_consumer
 
-# Run Belgium data platform tests via Docker Compose
-docker compose --profile test up test
-
-# Run Belgium data platform integration tests (with full data platform)
-docker compose -f docker-compose.test.yml --profile test up test-with-data-platform
-```
-
-### Belgium Data Platform Tests
-
-The Belgium data platform tests verify that solar generation data from Elia can be correctly stored in the Open Climate Fix Data Platform. These tests include:
-
-- **Unit tests** (`tests/unit/test_save_be_generation_unit.py`): Fast tests with mocked clients
-- **Integration tests** (`tests/integration/test_save_be_to_data_platform.py`): Full end-to-end tests with real containers
-
-To run these tests:
-
-```bash
-# Unit tests only (fast, no external dependencies)
-make test-be-unit
-
-# Integration tests locally (requires testcontainers)
-make test-be-data-platform
-
-# Unit tests in Docker
-make test-docker
-
-# Integration tests in Docker with full data platform
-make test-docker-full
-```
-
-The integration tests use testcontainers to spin up PostgreSQL and Data Platform containers automatically.
-
 ### Continuous Integration (CI)
 
 This reposistory has 2 main CI workflows - `branch-ci` and `merged-ci`. 
