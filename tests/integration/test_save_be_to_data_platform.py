@@ -131,7 +131,7 @@ async def test_save_be_generation_to_data_platform(client):
 
             # Verify the values are correct (generation in watts)
             expected_value_watts = int(region_data.iloc[0]["solar_generation_kw"] * 1000)
-            actual_value_watts = get_observations_response.values[0].value_watts
+            actual_value_watts = int(get_observations_response.values[0].value_fraction * get_observations_response.values[0].effective_capacity_watts)
             assert actual_value_watts == expected_value_watts, f"Value mismatch for {region}"
 
     # Verify location capacities were updated where necessary
@@ -160,9 +160,12 @@ async def test_save_be_generation_no_matching_locations(client):
 
     # Don't create any locations initially - let the function create defaults
 
-    # Create the required observer
-    create_observer_request = dp.CreateObserverRequest(name="elia_be")
-    await client.create_observer(create_observer_request)
+    # Create the required observer if it doesn't exist
+    list_observer_request = dp.ListObserversRequest(observer_names_filter=["elia_be"])
+    list_observer_response = await client.list_observers(list_observer_request)
+    if not any(obs.observer_name == "elia_be" for obs in list_observer_response.observers):
+        create_observer_request = dp.CreateObserverRequest(name="elia_be")
+        await client.create_observer(create_observer_request)
 
     # Create fake Belgian generation data
     fake_data = pd.DataFrame({
@@ -241,22 +244,41 @@ async def test_save_be_generation_zero_capacity(client):
     Zero capacity locations should be filtered out.
     """
 
-    # Create a location
-    metadata = Struct(fields={"region": Value(string_value="Belgium")})
-    create_location_request = dp.CreateLocationRequest(
-        location_name="be_belgium",
-        energy_source=dp.EnergySource.SOLAR,
-        location_type=dp.LocationType.NATION,
-        geometry_wkt="POINT(4.35 50.85)",
-        effective_capacity_watts=100_000_000,
-        metadata=metadata,
-        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+    # Create a location if it doesn't exist
+    list_locations_request = dp.ListLocationsRequest(
+        location_type_filter=dp.LocationType.NATION,
+        energy_source_filter=dp.EnergySource.SOLAR,
     )
-    create_location_response = await client.create_location(create_location_request)
+    list_locations_response = await client.list_locations(list_locations_request)
+    locations_data = list_locations_response.to_dict(
+        casing=betterproto.Casing.SNAKE, include_default_values=True
+    ).get("locations", [])
+    
+    location_exists = any(loc.get("location_name") == "be_belgium" for loc in locations_data)
+    
+    if not location_exists:
+        metadata = Struct(fields={"region": Value(string_value="Belgium")})
+        create_location_request = dp.CreateLocationRequest(
+            location_name="be_belgium",
+            energy_source=dp.EnergySource.SOLAR,
+            location_type=dp.LocationType.NATION,
+            geometry_wkt="POINT(4.35 50.85)",
+            effective_capacity_watts=100_000_000,
+            metadata=metadata,
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        )
+        create_location_response = await client.create_location(create_location_request)
+    else:
+        # Find existing location
+        belgium_location = next(loc for loc in locations_data if loc.get("location_name") == "be_belgium")
+        create_location_response = type('MockResponse', (), {'location_uuid': belgium_location['location_uuid']})()
 
-    # Create observer
-    create_observer_request = dp.CreateObserverRequest(name="elia_be")
-    await client.create_observer(create_observer_request)
+    # Create observer if it doesn't exist
+    list_observer_request = dp.ListObserversRequest(observer_names_filter=["elia_be"])
+    list_observer_response = await client.list_observers(list_observer_request)
+    if not any(obs.observer_name == "elia_be" for obs in list_observer_response.observers):
+        create_observer_request = dp.CreateObserverRequest(name="elia_be")
+        await client.create_observer(create_observer_request)
 
     # Create data with zero capacity
     fake_data = pd.DataFrame({

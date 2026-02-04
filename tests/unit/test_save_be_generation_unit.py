@@ -40,17 +40,23 @@ async def test_save_be_generation_zero_capacity_filtered():
     mock_client = AsyncMock()
 
     # Mock observer exists
+    mock_observer_response = MagicMock()
     mock_observer = MagicMock()
     mock_observer.observer_name = "elia_be"
-    mock_client.list_observers.return_value = MagicMock(observers=[mock_observer])
+    mock_observer_response.observers = [mock_observer]
+    mock_client.list_observers.return_value = mock_observer_response
 
     # Mock existing locations
-    mock_location = MagicMock()
-    mock_location.location_uuid = "existing-uuid"
-    mock_location.location_name = "be_belgium"
-    mock_location.metadata = {"region": {"string_value": "Belgium"}}
-    mock_location.effective_capacity_watts = 100_000_000
-    mock_client.list_locations.return_value = MagicMock(locations=[mock_location])
+    mock_location_response = MagicMock()
+    mock_location_response.to_dict.return_value = {
+        "locations": [{
+            "location_uuid": "existing-uuid",
+            "location_name": "be_belgium", 
+            "metadata": {"region": {"string_value": "Belgium"}},
+            "effective_capacity_watts": 100_000_000
+        }]
+    }
+    mock_client.list_locations.return_value = mock_location_response
 
     # Test data with zero capacity
     test_data = pd.DataFrame({
