@@ -10,7 +10,7 @@ from solar_consumer.save.save_data_platform import save_generation_to_data_platf
 from dp_sdk.ocf import dp
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="module")
 async def test_save_be_generation_to_data_platform(client):
     """
     Test saving Belgian generation data to the Data Platform.
@@ -35,7 +35,7 @@ async def test_save_be_generation_to_data_platform(client):
             geometry_wkt=f"POINT({region_data['longitude']} {region_data['latitude']})",
             effective_capacity_watts=100_000_000,  # 100 MW
             metadata=metadata,
-            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+            valid_from_utc=datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc),
         )
         create_location_response = await client.create_location(create_location_request)
         location_uuids[region_data["region"]] = create_location_response.location_uuid
@@ -104,7 +104,7 @@ async def test_save_be_generation_to_data_platform(client):
                     f"Capacity not updated correctly for {region}"
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="module")
 async def test_save_be_generation_no_matching_locations(client):
     """
     Test saving Belgian generation data when no matching locations exist.
@@ -174,7 +174,7 @@ async def test_save_be_generation_no_matching_locations(client):
     assert int(get_observations_response.values[0].value_fraction * get_observations_response.values[0].effective_capacity_watts) == 50_000_000  # 50 MW in watts
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="module")
 async def test_save_be_generation_empty_dataframe(client):
     """
     Test saving empty Belgian generation data.
@@ -190,7 +190,7 @@ async def test_save_be_generation_empty_dataframe(client):
     await save_generation_to_data_platform(empty_data, client=client, country="be")
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="module")
 async def test_save_be_generation_zero_capacity(client):
     """
     Test saving Belgian generation data with zero capacity locations.
