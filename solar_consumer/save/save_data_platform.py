@@ -90,6 +90,8 @@ async def save_generation_to_data_platform(
         if not locations_data:
             # Load NL locations from CSV
             csv_path = Path(__file__).parent.parent / "data" / "nl_locations.csv"
+            if not csv_path.exists():
+                raise FileNotFoundError(f"NL locations CSV not found at {csv_path}")
             locations_df_csv = pd.read_csv(csv_path)
             locations = locations_df_csv.to_dict(orient="records")
             for loc in locations:
