@@ -63,6 +63,89 @@ def _extract_metadata_value(metadata: dict, key: str, metadata_type: str) -> any
         return metadata.get(key, {}).get("string_value")
 
 
+async def _list_locations(
+    client: dp.DataPlatformDataServiceStub,
+    location_type: dp.LocationType | list[dp.LocationType],
+) -> list[dict]:
+    """List locations from data platform and convert to dict format."""
+    if isinstance(location_type, list):
+        # Handle multiple location types (e.g., GB with GSP and NATION)
+        tasks = [
+            asyncio.create_task(
+                client.list_locations(
+                    dp.ListLocationsRequest(
+                        location_type_filter=loc_type,
+                        energy_source_filter=dp.EnergySource.SOLAR,
+                    )
+                )
+            )
+            for loc_type in location_type
+        ]
+        list_results = await asyncio.gather(*tasks, return_exceptions=True)
+        for exc in filter(lambda x: isinstance(x, Exception), list_results):
+            raise exc
+        
+        return list(
+            itertools.chain(
+                *[
+                    r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
+                        "locations"
+                    ]
+                    for r in list_results
+                ]
+            )
+        )
+    else:
+        # Single location type
+        list_locations_request = dp.ListLocationsRequest(
+            location_type_filter=location_type,
+            energy_source_filter=dp.EnergySource.SOLAR,
+        )
+        list_locations_response = await client.list_locations(list_locations_request)
+        return list_locations_response.to_dict(
+            casing=betterproto.Casing.SNAKE,
+            include_default_values=True,
+        ).get("locations", [])
+
+
+async def _create_locations_from_csv(
+    client: dp.DataPlatformDataServiceStub,
+    country: str,
+    id_key: str,
+    metadata_type: str,
+) -> None:
+    """Create locations from CSV file for countries that support it (NL, BE)."""
+    csv_path = Path(__file__).parent.parent / "data" / f"{country}_locations.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(f"{country.upper()} locations CSV not found at {csv_path}")
+    
+    locations_df_csv = pd.read_csv(csv_path)
+    locations = locations_df_csv.to_dict(orient="records")
+    
+    for location in locations:
+        if country == "nl":
+            location_name = location["name"]
+            metadata = Struct(fields={id_key: Value(number_value=location[id_key])})
+        else:  # BE
+            location_name = f"{country}_{location[id_key].lower().replace(' ', '_')}"
+            metadata = Struct(fields={id_key: Value(string_value=location[id_key])})
+        
+        create_location_request = dp.CreateLocationRequest(
+            location_name=location_name,
+            energy_source=dp.EnergySource.SOLAR,
+            location_type=dp.LocationType.NATION,
+            geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
+            effective_capacity_watts=100_000_000_000,
+            metadata=metadata,
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        )
+        await client.create_location(create_location_request)
+    
+    logging.warning(
+        f"No {country.upper()} locations found in data platform. Created new locations."
+    )
+
+
 async def save_generation_to_data_platform(
     data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
 ) -> None:
@@ -115,118 +198,17 @@ async def save_generation_to_data_platform(
             raise exc
 
     # 1. Get locations and join to the incoming data.
-    # Handle special NL location creation from CSV
-    if country == "nl":
-        list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=config["location_type"],
-            energy_source_filter=dp.EnergySource.SOLAR,
-        )
-        list_locations_response = await client.list_locations(list_locations_request)
-        locations_data = list_locations_response.to_dict(
-            casing=betterproto.Casing.SNAKE,
-            include_default_values=True,
-        ).get("locations", [])
-
-        if not locations_data:
-            # Load NL locations from CSV
-            csv_path = Path(__file__).parent.parent / "data" / "nl_locations.csv"
-            if not csv_path.exists():
-                raise FileNotFoundError(f"NL locations CSV not found at {csv_path}")
-            locations_df_csv = pd.read_csv(csv_path)
-            locations = locations_df_csv.to_dict(orient="records")
-            for loc in locations:
-                location_name = loc["name"]
-                create_location_request = dp.CreateLocationRequest(
-                    location_name=location_name,
-                    energy_source=dp.EnergySource.SOLAR,
-                    location_type=dp.LocationType.NATION,
-                    geometry_wkt="POINT({} {})".format(loc["longitude"], loc["latitude"]),
-                    effective_capacity_watts=100_000_000_000,
-                    metadata=Struct(fields={"region_id": Value(number_value=loc["region_id"])}),
-                    valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
-                )
-                await client.create_location(create_location_request)
-            logging.warning("No NL locations found in data platform. Created new locations.")
-
-            # Re-fetch locations after creating them
-            list_locations_response = await client.list_locations(list_locations_request)
-            locations_data = list_locations_response.to_dict(
-                casing=betterproto.Casing.SNAKE,
-                include_default_values=True,
-            ).get("locations", [])
-    
-    # Handle special BE location creation
-    elif country == "be":
-        list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=config["location_type"],
-            energy_source_filter=dp.EnergySource.SOLAR,
-        )
-        list_locations_response = await client.list_locations(list_locations_request)
-        locations_data = list_locations_response.to_dict(
-            casing=betterproto.Casing.SNAKE,
-            include_default_values=True,
-        ).get("locations", [])
-
-        if not locations_data:
-            # Load BE locations from CSV
-            csv_path = Path(__file__).parent.parent / "data" / "be_locations.csv"
-            if not csv_path.exists():
-                raise FileNotFoundError(f"BE locations CSV not found at {csv_path}")
-            locations_df_csv = pd.read_csv(csv_path)
-            locations = locations_df_csv.to_dict(orient="records")
-
-            for location in locations:
-                location_name = f"be_{location['region'].lower().replace(' ', '_')}"
-                create_location_request = dp.CreateLocationRequest(
-                    location_name=location_name,
-                    energy_source=dp.EnergySource.SOLAR,
-                    location_type=dp.LocationType.NATION,
-                    geometry_wkt="POINT({} {})".format(
-                        location["longitude"], location["latitude"]
-                    ),
-                    effective_capacity_watts=100_000_000_000,
-                    metadata=Struct(
-                        fields={"region": Value(string_value=location["region"])}
-                    ),
-                    valid_from_utc=datetime.datetime(
-                        2020, 1, 1, tzinfo=datetime.timezone.utc
-                    ),
-                )
-                await client.create_location(create_location_request)
-            logging.warning(
-                "No BE locations found in data platform. Creating default locations."
-            )
-
-            # Re-fetch locations after creating them
-            list_locations_response = await client.list_locations(list_locations_request)
-            locations_data = list_locations_response.to_dict(
-                casing=betterproto.Casing.SNAKE,
-                include_default_values=True,
-            ).get("locations", [])
-    
-    # Handle GB with multiple location types
-    elif country == "gb":
-        tasks = [
-            asyncio.create_task(
-                client.list_locations(
-                    dp.ListLocationsRequest(
-                        location_type_filter=loc_type,
-                        energy_source_filter=dp.EnergySource.SOLAR,
-                    )
-                )
-            )
-            for loc_type in config["location_type"]
-        ]
-        list_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), list_results):
-            raise exc
+    if country in ["nl", "be"]:
+        # NL and BE support CSV-based location creation
+        locations_data = await _list_locations(client, config["location_type"])
         
-        locations_data = list(itertools.chain(
-            *[
-                r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)["locations"]
-                for r in list_results
-            ]
-        ))
+        if not locations_data:
+            await _create_locations_from_csv(client, country, id_key, metadata_type)
+            # Re-fetch locations after creating them
+            locations_data = await _list_locations(client, config["location_type"])
+    else:
+        # GB - no CSV creation support
+        locations_data = await _list_locations(client, config["location_type"])
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
