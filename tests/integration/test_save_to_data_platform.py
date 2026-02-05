@@ -1,58 +1,12 @@
 import pandas as pd
 import numpy as np
 import pytest
-import pytest_asyncio
-import time
 import datetime
-from testcontainers.postgres import PostgresContainer
-from testcontainers.core.container import DockerContainer
 from betterproto.lib.google.protobuf import Struct, Value
-from importlib.metadata import version
 
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
-from grpclib.client import Channel
-
-
-
-@pytest_asyncio.fixture(scope="session")
-async def client():
-    """
-    Fixture to spin up a PostgreSQL container for the entire test session.
-    This fixture uses `testcontainers` to start a fresh PostgreSQL container and provides
-    the connection URL dynamically for use in other fixtures.
-    """
-
-    # we use a specific postgres image with postgis and pgpartman installed
-    # TODO make a release of this, not using logging tag.
-    with PostgresContainer(
-        "ghcr.io/openclimatefix/data-platform-pgdb:logging",
-        username="postgres",
-        password="postgres",
-        dbname="postgres",
-        env={"POSTGRES_HOST": "db"},
-    ) as postgres:
-        database_url = postgres.get_connection_url()
-        # we need to get ride of psycopg2, so the go driver works
-        database_url = database_url.replace("postgresql+psycopg2", "postgres")
-        # we need to change to host.docker.internal so the data platform container can see it
-        # https://stackoverflow.com/questions/46973456/docker-access-localhost-port-from-container
-        database_url = database_url.replace("localhost", "host.docker.internal")
-
-        with DockerContainer(
-            image=f"ghcr.io/openclimatefix/data-platform:{version('dp_sdk')}", env={"DATABASE_URL": database_url}, ports=[50051]
-        ) as data_platform_server:
-            time.sleep(1)  # Give some time for the server to start
-
-            port = data_platform_server.get_exposed_port(50051)
-            host = data_platform_server.get_container_host_ip()
-            channel = Channel(host=host, port=port)
-            client = dp.DataPlatformDataServiceStub(channel)
-            yield client
-            channel.close()
-
-
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -97,13 +51,15 @@ async def test_save_to_data_platform(client):
     _ = await client.create_observer(create_observer_request)
 
     # make fake data
-    fake_data = pd.DataFrame({
-        "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
-        "solar_generation_kw": [100.0],
-        "gsp_id": [1],
-        "regime": ["in-day"],
-        "capacity_mwp": [2],
-    })
+    fake_data = pd.DataFrame(
+        {
+            "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
+            "solar_generation_kw": [100.0],
+            "gsp_id": [1],
+            "regime": ["in-day"],
+            "capacity_mwp": [2],
+        }
+    )
     _ = await save_generation_to_data_platform(fake_data, client=client)
 
     # read from the data platform to check it was saved
@@ -122,9 +78,7 @@ async def test_save_to_data_platform(client):
     )
     assert len(get_observations_response.values) == 1
     # check fraction value is 100 kw / 2 mwp = 0.05
-    assert (
-        np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
-    )
+    assert np.abs(get_observations_response.values[0].value_fraction - 0.05) < 1e-6
 
     # check location capacity has been updated
     get_location_request = dp.GetLocationRequest(

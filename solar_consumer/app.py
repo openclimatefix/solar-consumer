@@ -18,10 +18,7 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
-from solar_consumer.save.save_data_platform import (
-    save_be_generation_to_data_platform,
-    save_generation_to_data_platform,
-)
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
@@ -37,7 +34,7 @@ async def app(
     db_url: str,
     save_method: str,
     csv_dir: str = None,
-    country: str = "uk",
+    country: str = "gb",
     historic_or_forecast: str = "generation",
 ):
     """
@@ -47,13 +44,13 @@ async def app(
         db_url (str): Database connection URL from an environment variable.
         save_method (str): Method to save the forecast data. Options are "db" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
-        country (str): Country code for fetching data. Default is "uk".
+        country (str): Country code for fetching data. Default is "gb".
         historic_or_forecast: (str): Type of data to fetch. Default is "generation".
     """
     logger.info(f"Starting the NESO Solar Forecast pipeline (version: {__version__}).")
 
     # Use the `Neso` class for hardcoded configuration]
-    if country == "uk":
+    if country == "gb":
         model_tag = "neso-solar-forecast"
     elif country == "nl":
         model_tag = "ned-nl-national"
@@ -65,26 +62,22 @@ async def app(
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
     logger.info(f"Fetching {historic_or_forecast} data for {country}.")
-    forecast_data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
-
+    data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
 
     try:
-
-        if forecast_data.empty:
+        if data.empty:
             logger.warning("No data fetched. Exiting the pipeline.")
             return
         if save_method == "db":
-
             # Initialize database connection
             connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
 
             with connection.get_session() as session:
-
-            # Step 2: Formate and save the forecast data
-            # A. Format forecast to database object and save
-                logger.info(f"Formatting {len(forecast_data)} rows of forecast data.")
+                # Step 2: Formate and save the forecast data
+                # A. Format forecast to database object and save
+                logger.info(f"Formatting {len(data)} rows of forecast data.")
                 forecasts = format_to_forecast_sql(
-                    data=forecast_data,
+                    data=data,
                     model_tag=model_tag,
                     model_version=__version__,  # Use the version from __init__.py
                     session=session,
@@ -102,22 +95,20 @@ async def app(
 
         # B. Save directly to CSV
         elif save_method == "csv":
-            logger.info(f"Saving {len(forecast_data)} rows of forecast data directly to CSV.")
-            save_forecasts_to_csv(forecast_data, csv_dir=csv_dir)
+            logger.info(f"Saving {len(data)} rows of forecast data directly to CSV.")
+            save_forecasts_to_csv(data, csv_dir=csv_dir)
 
         # C. TODO: Potential new save methods
         elif save_method == "site-db":
-
             # Initialize database connection
             connection = DatabaseConnection(url=db_url, echo=False)
 
             with connection.get_session() as session:
-
                 logger.info("Saving generations to the site database.")
                 if historic_or_forecast == "generation":
                     save_generation_to_site_db(
                         session=session,
-                        generation_data=forecast_data,
+                        generation_data=data,
                         country=country,
                     )
 
@@ -125,30 +116,20 @@ async def app(
                     logger.info("Saving forecasts to the site database.")
                     save_forecasts_to_site_db(
                         session=session,
-                        forecast_data=forecast_data,
+                        forecast_data=data,
                         country=country,
                         model_tag=model_tag,
                         model_version=__version__,
                     )
 
         elif save_method == "data-platform":
-
             logger.info("Saving to data platform")
 
             async with Channel(host=data_platform_host, port=data_platform_port) as channel:
                 client = dp.DataPlatformDataServiceStub(channel)
-        
+
                 logger.info("Saving forecasts to the Data Platform.")
-                if country == "be":
-                    _ = await save_be_generation_to_data_platform(
-                        data_df=forecast_data,
-                        client=client,
-                    )
-                else:
-                    _ = await save_generation_to_data_platform(
-                        data_df=forecast_data,
-                        client=client,
-                    )
+                await save_generation_to_data_platform(data_df=data, client=client, country=country)
 
             logger.info("Saving to data platform: done")
 
@@ -156,7 +137,7 @@ async def app(
             logger.error(f"Unsupported save method: {save_method}. Exiting.")
             return
 
-            logger.info("Forecast pipeline completed successfully.")
+        logger.info("Forecast pipeline completed successfully.")
     except Exception as e:
         logger.error(f"Error in the forecast pipeline: {e}")
         raise
@@ -165,7 +146,7 @@ async def app(
 if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
-    country = os.getenv("COUNTRY", "uk")
+    country = os.getenv("COUNTRY", "gb")
     save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
     csv_dir = os.getenv("CSV_DIR")
     historic_or_forecast = os.getenv("HISTORIC_OR_FORECAST", "generation").lower()
@@ -178,10 +159,12 @@ if __name__ == "__main__":
         exit(1)
 
     # Step 2: Run the application
-    asyncio.run(app(
-        db_url=db_url,
-        save_method=save_method,
-        csv_dir=csv_dir,
-        country=country,
-        historic_or_forecast=historic_or_forecast,
-    ))
+    asyncio.run(
+        app(
+            db_url=db_url,
+            save_method=save_method,
+            csv_dir=csv_dir,
+            country=country,
+            historic_or_forecast=historic_or_forecast,
+        )
+    )

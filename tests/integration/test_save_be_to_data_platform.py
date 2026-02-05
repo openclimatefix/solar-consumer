@@ -9,7 +9,7 @@ from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
 from importlib.metadata import version
 
-from solar_consumer.save.save_data_platform import save_be_generation_to_data_platform
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
@@ -105,7 +105,7 @@ async def test_save_be_generation_to_data_platform(client):
     })
 
     # Save the data to data platform
-    await save_be_generation_to_data_platform(fake_data, client=client)
+    await save_generation_to_data_platform(fake_data, client=client, country="be")
 
     # Verify observations were created for each region
     for region, location_uuid in location_uuids.items():
@@ -177,7 +177,7 @@ async def test_save_be_generation_no_matching_locations(client):
     })
 
     # Save the data - this should create default locations
-    await save_be_generation_to_data_platform(fake_data, client=client)
+    await save_generation_to_data_platform(fake_data, client=client, country="be")
 
     # Verify that default locations were created and data was saved
     list_locations_request = dp.ListLocationsRequest(
@@ -234,7 +234,7 @@ async def test_save_be_generation_empty_dataframe(client):
     )
 
     # This should not raise an error
-    await save_be_generation_to_data_platform(empty_data, client=client)
+    await save_generation_to_data_platform(empty_data, client=client, country="be")
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -290,7 +290,7 @@ async def test_save_be_generation_zero_capacity(client):
     })
 
     # Save the data
-    await save_be_generation_to_data_platform(fake_data, client=client)
+    await save_generation_to_data_platform(fake_data, client=client, country="be")
 
     # Verify no observations were created (zero capacity filtered out)
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(

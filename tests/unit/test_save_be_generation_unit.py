@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from solar_consumer.save.save_data_platform import save_be_generation_to_data_platform
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 
 @pytest.mark.asyncio
@@ -25,7 +25,7 @@ async def test_save_be_generation_empty_data():
     )
 
     # Should not raise error
-    await save_be_generation_to_data_platform(test_data, mock_client)
+    await save_generation_to_data_platform(test_data, mock_client, country="be")
 
     # Verify no observations were created
     mock_client.create_observations.assert_not_called()
@@ -68,7 +68,7 @@ async def test_save_be_generation_zero_capacity_filtered():
     })
 
     # Call the function
-    await save_be_generation_to_data_platform(test_data, mock_client)
+    await save_generation_to_data_platform(test_data, mock_client, country="be")
 
     # Verify no observations were created (filtered out)
     mock_client.create_observations.assert_not_called()
