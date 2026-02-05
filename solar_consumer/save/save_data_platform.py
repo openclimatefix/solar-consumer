@@ -21,6 +21,48 @@ from betterproto.lib.google.protobuf import Struct, Value
 from pathlib import Path
 
 
+def _get_country_config(country: str) -> dict:
+    """Get country-specific configuration for data platform operations."""
+    configs = {
+        "nl": {
+            "required_observers": {"nednl"},
+            "id_key": "region_id",
+            "capacity_col": "capacity_kw",
+            "capacity_multiplier": 1000,
+            "location_type": dp.LocationType.NATION,
+            "metadata_type": "number",  
+            "observer_name": "nednl",
+        },
+        "be": {
+            "required_observers": {"elia_be"},
+            "id_key": "region",
+            "capacity_col": "capacity_mwp",
+            "capacity_multiplier": 1e6,
+            "location_type": dp.LocationType.NATION,
+            "metadata_type": "string",  
+            "observer_name": "elia_be",
+        },
+        "gb": {
+            "required_observers": {"pvlive_in_day", "pvlive_day_after"},
+            "id_key": "gsp_id",
+            "capacity_col": "capacity_mwp",
+            "capacity_multiplier": 1e6,
+            "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
+            "metadata_type": "number", 
+            "observer_name": None, 
+        },
+    }
+    return configs.get(country, configs["gb"])
+
+
+def _extract_metadata_value(metadata: dict, key: str, metadata_type: str) -> any:
+    """Extract value from location metadata based on type."""
+    if metadata_type == "number":
+        return metadata.get(key, {}).get("number_value")
+    else:  # string
+        return metadata.get(key, {}).get("string_value")
+
+
 async def save_generation_to_data_platform(
     data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
 ) -> None:
@@ -43,23 +85,15 @@ async def save_generation_to_data_platform(
         country: Country identifier ('gb', 'nl', or 'be')
     """
     tasks: list[asyncio.Task] = []
+    config = _get_country_config(country)
+    
+    id_key = config["id_key"]
+    capacity_col = config["capacity_col"]
+    capacity_multiplier = config["capacity_multiplier"]
+    required_observers = config["required_observers"]
+    metadata_type = config["metadata_type"]
 
     # 0. Create the observers required if they don't exist already
-    if country == "nl":
-        required_observers = {"nednl"}
-        id_key = "region_id"
-        capacity_col = "capacity_kw"
-        capacity_multiplier = 1000
-    elif country == "be":
-        required_observers = {"elia_be"}
-        id_key = "region"
-        capacity_col = "capacity_mwp"
-        capacity_multiplier = 1e6
-    else:  # gb
-        required_observers = {"pvlive_in_day", "pvlive_day_after"}
-        id_key = "gsp_id"
-        capacity_col = "capacity_mwp"
-        capacity_multiplier = 1e6
 
     list_observer_request = dp.ListObserversRequest(
         observer_names_filter=list(required_observers),
@@ -81,14 +115,13 @@ async def save_generation_to_data_platform(
             raise exc
 
     # 1. Get locations and join to the incoming data.
+    # Handle special NL location creation from CSV
     if country == "nl":
-        # Get NL locations (NATION only)
         list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=dp.LocationType.NATION,
+            location_type_filter=config["location_type"],
             energy_source_filter=dp.EnergySource.SOLAR,
         )
         list_locations_response = await client.list_locations(list_locations_request)
-
         locations_data = list_locations_response.to_dict(
             casing=betterproto.Casing.SNAKE,
             include_default_values=True,
@@ -121,39 +154,14 @@ async def save_generation_to_data_platform(
                 casing=betterproto.Casing.SNAKE,
                 include_default_values=True,
             ).get("locations", [])
-
-        locations_df = pd.DataFrame.from_dict(locations_data)
-
-        # Prepare incoming data: map region_id to int
-        data_df = data_df.copy()
-        data_df["region_id"] = data_df["region_id"].astype(int)
-
-        joined_df = (
-            locations_df.assign(
-                region_id=lambda df: df["metadata"].apply(lambda x: x["region_id"]["number_value"])
-            )
-            .set_index("region_id")
-            .join(
-                data_df.query(f"{capacity_col}>0").set_index("region_id"),
-                on="region_id",
-                how="inner",
-                lsuffix="_loc",
-            )
-            .assign(
-                new_effective_capacity_watts=lambda df: (
-                    df[capacity_col] * capacity_multiplier
-                ).astype(int)
-            )
-            .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
-        )
+    
+    # Handle special BE location creation
     elif country == "be":
-        # Get BE locations (NATION only)
         list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=dp.LocationType.NATION,
+            location_type_filter=config["location_type"],
             energy_source_filter=dp.EnergySource.SOLAR,
         )
         list_locations_response = await client.list_locations(list_locations_request)
-
         locations_data = list_locations_response.to_dict(
             casing=betterproto.Casing.SNAKE,
             include_default_values=True,
@@ -196,48 +204,9 @@ async def save_generation_to_data_platform(
                 casing=betterproto.Casing.SNAKE,
                 include_default_values=True,
             ).get("locations", [])
-
-        locations_df = pd.DataFrame.from_dict(locations_data)
-
-        # Prepare incoming data: normalize region strings for matching
-        data_df = data_df.copy()
-        data_df["region_key"] = data_df["region"].astype(str).str.strip().str.lower()
-
-        # Handle empty locations DataFrame
-        if locations_df.empty or data_df.empty:
-            joined_df = pd.DataFrame()
-        else:
-            joined_df = (
-                locations_df
-                .assign(
-                    region_key=lambda df: df["metadata"].apply(
-                    lambda x: (
-                        x.get("region", {}).get("string_value")
-                        if isinstance(x, dict) and "region" in x
-                        else None
-                    )
-                )
-            )
-            .assign(
-                region_key=lambda df: df["region_key"].fillna(df["location_name"])
-            )
-            .assign(region_key=lambda df: df["region_key"].astype(str).str.strip().str.lower())
-            .set_index("region_key")
-            .join(
-                data_df.query(f"{capacity_col}>0").set_index("region_key"),
-                on="region_key",
-                how="inner",
-                lsuffix="_loc",
-            )
-            .assign(
-                new_effective_capacity_watts=lambda df: (
-                    df[capacity_col] * capacity_multiplier
-                ).astype(int)
-            )
-            .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
-            )
-    else:  # gb
-        # Get UK GSP locations, as well as national
+    
+    # Handle GB with multiple location types
+    elif country == "gb":
         tasks = [
             asyncio.create_task(
                 client.list_locations(
@@ -247,29 +216,67 @@ async def save_generation_to_data_platform(
                     )
                 )
             )
-            for loc_type in [dp.LocationType.GSP, dp.LocationType.NATION]
+            for loc_type in config["location_type"]
         ]
         list_results = await asyncio.gather(*tasks, return_exceptions=True)
         for exc in filter(lambda x: isinstance(x, Exception), list_results):
             raise exc
+        
+        locations_data = list(itertools.chain(
+            *[
+                r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)["locations"]
+                for r in list_results
+            ]
+        ))
 
-        joined_df = (
-            pd.DataFrame.from_dict(
-                itertools.chain(
-                    *[
-                        r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
-                            "locations"
-                        ]
-                        for r in list_results
-                    ]
+    # Convert locations to DataFrame
+    locations_df = pd.DataFrame.from_dict(locations_data)
+    
+    # Prepare incoming data copy
+    data_df = data_df.copy()
+    
+    # Extract metadata and create join key based on country
+    if country == "be":
+        # BE uses string matching with normalization
+        data_df["join_key"] = data_df[id_key].astype(str).str.strip().str.lower()
+        
+        if locations_df.empty or data_df.empty:
+            joined_df = pd.DataFrame()
+        else:
+            locations_df = locations_df.assign(
+                join_key=lambda df: df["metadata"].apply(
+                    lambda x: _extract_metadata_value(x, id_key, metadata_type)
+                )
+            ).assign(
+                join_key=lambda df: df["join_key"].fillna(df["location_name"])
+            ).assign(
+                join_key=lambda df: df["join_key"].astype(str).str.strip().str.lower()
+            )
+    else:
+        # NL and GB use numeric matching
+        if country == "nl":
+            data_df["join_key"] = data_df[id_key].astype(int)
+        else:  # gb
+            data_df["join_key"] = data_df[id_key]
+        
+        locations_df = (
+            locations_df
+            .loc[lambda df: df["metadata"].apply(lambda x: id_key in x)]
+            .assign(
+                join_key=lambda df: df["metadata"].apply(
+                    lambda x: _extract_metadata_value(x, id_key, metadata_type)
                 )
             )
-            .loc[lambda df: df["metadata"].apply(lambda x: "gsp_id" in x)]
-            .assign(gsp_id=lambda df: df["metadata"].apply(lambda x: x["gsp_id"]["number_value"]))
-            .set_index("gsp_id")
+        )
+    
+    # Common join logic for all countries
+    if not (locations_df.empty or data_df.empty):
+        joined_df = (
+            locations_df
+            .set_index("join_key")
             .join(
-                data_df.query(f"{capacity_col}>0").set_index("gsp_id"),
-                on="gsp_id",
+                data_df.query(f"{capacity_col}>0").set_index("join_key"),
+                on="join_key",
                 how="inner",
                 lsuffix="_loc",
             )
@@ -280,6 +287,8 @@ async def save_generation_to_data_platform(
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
+    else:
+        joined_df = pd.DataFrame()
 
     if joined_df.empty:
         logging.warning(
@@ -348,11 +357,8 @@ async def save_generation_to_data_platform(
         )
 
     # Determine observer name based on country
-    if country == "nl":
-        observer_name = "nednl"
-    elif country == "be":
-        observer_name = "elia_be"
-    else:  # gb
+    observer_name = config["observer_name"]
+    if observer_name is None:  # GB needs regime from data
         regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
