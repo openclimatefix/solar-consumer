@@ -1,57 +1,13 @@
 import pandas as pd
 import pytest
-import pytest_asyncio
-import time
 import datetime
-from testcontainers.postgres import PostgresContainer
-from testcontainers.core.container import DockerContainer
+from pathlib import Path
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
-from importlib.metadata import version
 
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
-from grpclib.client import Channel
-
-
-@pytest_asyncio.fixture(scope="session")
-async def client():
-    """
-    Fixture to spin up a PostgreSQL container for the entire test session.
-    This fixture uses `testcontainers` to start a fresh PostgreSQL container and provides
-    the connection URL dynamically for use in other fixtures.
-    """
-
-    # we use a specific postgres image with postgis and pgpartman installed
-    # TODO make a release of this, not using logging tag.
-    with PostgresContainer(
-        "ghcr.io/openclimatefix/data-platform-pgdb:logging",
-        username="postgres",
-        password="postgres",
-        dbname="postgres",
-        env={"POSTGRES_HOST": "db"},
-    ) as postgres:
-        database_url = postgres.get_connection_url()
-        # we need to get ride of psycopg2, so the go driver works
-        database_url = database_url.replace("postgresql+psycopg2", "postgres")
-        # we need to change to host.docker.internal so the data platform container can see it
-        # https://stackoverflow.com/questions/46973456/docker-access-localhost-port-from-container
-        database_url = database_url.replace("localhost", "host.docker.internal")
-
-        with DockerContainer(
-            image=f"ghcr.io/openclimatefix/data-platform:{version('dp_sdk')}",
-            env={"DATABASE_URL": database_url},
-            ports=[50051]
-        ) as data_platform_server:
-            time.sleep(1)  # Give some time for the server to start
-
-            port = data_platform_server.get_exposed_port(50051)
-            host = data_platform_server.get_container_host_ip()
-            channel = Channel(host=host, port=port)
-            client = dp.DataPlatformDataServiceStub(channel)
-            yield client
-            channel.close()
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -63,12 +19,9 @@ async def test_save_be_generation_to_data_platform(client):
     """
 
     # Create Belgium locations with region metadata
-    belgium_regions = [
-        {"name": "Belgium", "region": "Belgium", "latitude": 50.85, "longitude": 4.35},
-        {"name": "Flanders", "region": "Flanders", "latitude": 51.00, "longitude": 4.46},
-        {"name": "Wallonia", "region": "Wallonia", "latitude": 50.50, "longitude": 4.70},
-        {"name": "Brussels", "region": "Brussels", "latitude": 50.85, "longitude": 4.35},
-    ]
+    csv_path = Path(__file__).parent.parent.parent / "solar_consumer" / "data" / "be_locations.csv"
+    belgium_regions_df = pd.read_csv(csv_path)
+    belgium_regions = belgium_regions_df.to_dict(orient="records")
 
     location_uuids = {}
     for region_data in belgium_regions:

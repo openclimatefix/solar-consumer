@@ -168,15 +168,14 @@ async def save_generation_to_data_platform(
         ).get("locations", [])
 
         if not locations_data:
-            # Create default BE locations
-            default_locations = [
-                {"name": "Belgium", "region": "Belgium", "latitude": "50.85", "longitude": "4.35"},
-                {"name": "Flanders", "region": "Flanders", "latitude": "51.00", "longitude": "4.46"},
-                {"name": "Wallonia", "region": "Wallonia", "latitude": "50.50", "longitude": "4.70"},
-                {"name": "Brussels", "region": "Brussels", "latitude": "50.85", "longitude": "4.35"},
-            ]
+            # Load BE locations from CSV
+            csv_path = Path(__file__).parent.parent / "data" / "be_locations.csv"
+            if not csv_path.exists():
+                raise FileNotFoundError(f"BE locations CSV not found at {csv_path}")
+            locations_df_csv = pd.read_csv(csv_path)
+            locations = locations_df_csv.to_dict(orient="records")
 
-            for location in default_locations:
+            for location in locations:
                 location_name = f"be_{location['region'].lower().replace(' ', '_')}"
                 create_location_request = dp.CreateLocationRequest(
                     location_name=location_name,
