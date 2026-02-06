@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
 import datetime
-from pathlib import Path
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
 
