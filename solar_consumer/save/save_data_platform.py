@@ -115,20 +115,24 @@ async def _create_locations_from_csv(
     metadata_type: str,
 ) -> None:
     """Create locations from CSV file for countries that support it (NL, BE)."""
-    csv_path = Path(__file__).parent.parent / "data" / f"{country}_locations.csv"
+    csv_path = Path(__file__).parent.parent / "data" / "locations.csv"
     if not csv_path.exists():
-        raise FileNotFoundError(f"{country.upper()} locations CSV not found at {csv_path}")
+        raise FileNotFoundError(f"Unified locations CSV not found at {csv_path}")
     
     locations_df_csv = pd.read_csv(csv_path)
+    # Filter by country code
+    locations_df_csv = locations_df_csv[locations_df_csv['country_code'] == country]
     locations = locations_df_csv.to_dict(orient="records")
     
     for location in locations:
-        if country == "nl":
-            location_name = location["name"]
-            metadata = Struct(fields={id_key: Value(number_value=location[id_key])})
-        else:  # BE
-            location_name = f"{country}_{location[id_key].lower().replace(' ', '_')}"
-            metadata = Struct(fields={id_key: Value(string_value=location[id_key])})
+        location_name = location["name"]
+        
+        # Create metadata based on type (number or string)
+        id_value = location[id_key]
+        if metadata_type == "number":
+            metadata = Struct(fields={id_key: Value(number_value=id_value)})
+        else:  # string
+            metadata = Struct(fields={id_key: Value(string_value=id_value)})
         
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
@@ -272,15 +276,21 @@ async def save_generation_to_data_platform(
         joined_df = pd.DataFrame()
 
     if joined_df.empty:
-        logging.warning(
-            "No matching %s locations found for the incoming data. "
-            "Ensure locations exist in the data platform with %s metadata matching %s: %s",
-            country.upper(),
-            id_key,
-            id_key,
-            data_df[id_key].unique().tolist() if id_key in data_df.columns else "N/A",
+        # Check if the input data was empty or had no valid capacity data
+        has_valid_capacity_data = not data_df.empty and (data_df[capacity_col] > 0).any()
+        
+        if data_df.empty or not has_valid_capacity_data:
+            # Empty input or all zero-capacity data - this is expected, return silently
+            return
+        
+        # Non-empty data with capacity but no matching locations - this is unexpected
+        incoming_ids = data_df[id_key].unique().tolist() if id_key in data_df.columns else []
+        raise ValueError(
+            f"No matching {country.upper()} locations found for the incoming data. "
+            f"Expected locations to exist in the data platform with {id_key} metadata "
+            f"matching the following {id_key} values: {incoming_ids}. "
+            f"This is unexpected - locations should have been created or already exist."
         )
-        return
 
     logging.info(
         "handling %s data for %d matched locations",
