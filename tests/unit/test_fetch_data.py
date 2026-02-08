@@ -193,7 +193,7 @@ def test_gb_historic_inday():
     os.environ["UK_PVLIVE_REGIME"] = "in-day"
     os.environ["UK_PVLIVE_N_GSPS"] = "10"
 
-    df = fetch_data(country = "gb", historic_or_forecast = "historic")
+    df = fetch_data(country = "gbr_gb", historic_or_forecast = "historic")
 
     # 10 GSPs for 2 hours is 
     assert 30<=len(df) <=40
@@ -206,7 +206,7 @@ def test_gb_historic_day_after():
     os.environ["UK_PVLIVE_REGIME"] = "day-after"
     os.environ["UK_PVLIVE_N_GSPS"] = "10"
 
-    df = fetch_data(country = "gb", historic_or_forecast = "historic")
+    df = fetch_data(country = "gbr_gb", historic_or_forecast = "historic")
 
     # 10 GSPs for 24 hours is at 30 minutes periods, including the extra two at end
     assert len(df) == 10*48

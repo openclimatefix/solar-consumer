@@ -22,7 +22,7 @@ from pathlib import Path
 
 
 async def save_generation_to_data_platform(
-    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
+    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gbr_gb"
 ) -> None:
     """
     Saves model data via the data platform.
@@ -30,25 +30,25 @@ async def save_generation_to_data_platform(
     Incoming data is enriched with location information from the data platform. Anything with zero
     capacity, or without a corresponding entry in the data platform, is ignored.
 
-    For GB: Data is joined via the gsp_id, which is a column in the incoming data, and has to be
+    For GBR_GB: Data is joined via the gsp_id, which is a column in the incoming data, and has to be
     extracted from the metadata field in the data platform location data.
 
-    For NL: Data is joined via the region_id.
+    For NLD: Data is joined via the region_id.
 
     Args:
         data_df: DataFrame containing the generation data
         client: Data platform client stub
-        location: Location identifier ('gb' or 'nl')
+        location: Location identifier ('gbr_gb' or 'nld')
     """
     tasks: list[asyncio.Task] = []
 
     # 0. Create the observers required if they don't exist already
-    if country == "nl":
+    if country == "nld":
         required_observers = {"nednl"}
         id_key = "region_id"
         capacity_col = "capacity_kw"
         capacity_multiplier = 1000
-    else:  # gb
+    else:  # gbr_gb
         required_observers = {"pvlive_in_day", "pvlive_day_after"}
         id_key = "gsp_id"
         capacity_col = "capacity_mwp"
@@ -74,7 +74,7 @@ async def save_generation_to_data_platform(
             raise exc
 
     # 1. Get locations and join to the incoming data.
-    if country == "nl":
+    if country == "nld":
         # Get NL locations (NATION only)
         list_locations_request = dp.ListLocationsRequest(
             location_type_filter=dp.LocationType.NATION,
@@ -139,7 +139,7 @@ async def save_generation_to_data_platform(
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
-    else:  # gb
+    else:  # gbr_gb
         # Get UK GSP locations, as well as national
         tasks = [
             asyncio.create_task(
@@ -236,7 +236,7 @@ async def save_generation_to_data_platform(
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
         update_results = await asyncio.gather(*tasks, return_exceptions=True)
         for exc in filter(lambda x: isinstance(x, Exception), update_results):
-            if country != "nl":  # NL was previously ignoring these exceptions
+            if country != "nld":  # NLD was previously ignoring these exceptions
                 raise exc
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
@@ -251,9 +251,9 @@ async def save_generation_to_data_platform(
         )
 
     # Determine observer name based on country
-    if country == "nl":
+    if country == "nld":
         observer_name = "nednl"
-    else:  # gb
+    else:  # gbr_gb
         regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
