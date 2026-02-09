@@ -16,11 +16,11 @@ from solar_consumer.data.fetch_be_data import fetch_be_data
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
-def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
+def fetch_data(country: str = "gbr_gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
     Get data from different countries
 
-    :param country: "gb", "nl", "de", "ind_rajasthan", or "be"
+    :param country: "gbr_gb", "nld", "deu", "ind_rj", or "bel"
     :param historic_or_forecast: "generation" or "forecast"
     :return: Pandas dataframe with the following columns:
         target_datetime_utc: Combined date and time in UTC.
@@ -28,11 +28,11 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
     """
 
     country_data_functions = {
-        "gb": fetch_gb_data,
-        "nl": fetch_nl_data,
-        "de": fetch_de_data,
-        "ind_rajasthan": fetch_ind_rajasthan_data,
-        "be": fetch_be_data
+        "gbr_gb": fetch_gb_data,
+        "nld": fetch_nl_data,
+        "deu": fetch_de_data,
+        "ind_rj": fetch_ind_rajasthan_data,
+        "bel": fetch_be_data
     }
 
     if country in country_data_functions:
@@ -48,7 +48,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
             raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
-        print("Only UK (gb), Netherlands (nl), Germany (de), Belgium (be), and Rajasthan India (ind_rajasthan) data can be fetched at the moment")
+        print("Only UK (gbr_gb), Netherlands (nld), Germany (deu), Belgium (bel), and Rajasthan India (ind_rj) data can be fetched at the moment")
 
     return pd.DataFrame()  # Always return a DataFrame (never None)
 

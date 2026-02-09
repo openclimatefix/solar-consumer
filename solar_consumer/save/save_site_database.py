@@ -72,7 +72,7 @@ def get_or_create_pvsite(
     Parameters:
         session (Session): CurrentSQLAlchemy session
         pvsite (PVSite): Pydantic model with site metadata
-        country (str): Country code ('nl' or 'de')
+        country (str): Country code ('nld' or 'deu')
         capacity_override_kw (Optional[int]): Force a specific capacity on creation
 
     Returns:
@@ -88,14 +88,14 @@ def get_or_create_pvsite(
     except Exception:
         logger.info(f"Creating site {pvsite.client_site_name} in the database.")
         
-        # Choose capacity based on country; per-TSO for de; nl only has 20GW hard‑coded
+        # Choose capacity based on country; per-TSO for deu; nld only has 20GW hard‑coded
         if capacity_override_kw is not None:
             capacity = capacity_override_kw
-        elif country == "de":
+        elif country == "deu":
             capacity = DE_TSO_CAPACITY[pvsite.client_site_name]
-        elif country == "nl":
+        elif country == "nld":
             capacity = 20_000_000
-        else: #in
+        else: #ind_rj
             capacity = capacity_override_kw or 0
         
         site, _ = create_site(
@@ -137,7 +137,7 @@ def update_capacity(
   
 
 def save_generation_to_site_db(
-    generation_data: pd.DataFrame, session: Session, country: str = "nl"
+    generation_data: pd.DataFrame, session: Session, country: str = "nld"
 ):
     """Save generation data to the database.
 
@@ -147,9 +147,9 @@ def save_generation_to_site_db(
             - solar_generation_kw
             - target_datetime_utc
             - capacity_kw (optional, used when present)
-            - tso_zone (only when country="de")
+            - tso_zone (only when country="deu")
         session (Session): SQLAlchemy session for database access.
-        country: (str): Country code for the generation data ('nl', 'de', 'ind_rajasthan')
+        country: (str): Country code for the generation data ('nld', 'deu', 'ind_rj')
 
     
     Return:
@@ -162,27 +162,27 @@ def save_generation_to_site_db(
         return
 
     # Determine country
-    if country == "nl":
+    if country == "nld":
         country_sites = NL_NATIONAL_AND_REGIONS
-    elif country == "de":
+    elif country == "deu":
         country_sites = DE_TSO_SITES
-    elif country == "ind_rajasthan":
+    elif country == "ind_rj":
         country_sites = IND_RAJASTHAN_SITES
     else:
         raise Exception( 
             "Only generation data from the following countries is supported "
-            "when saving: 'nl', 'de', 'ind_rajasthan'"
+            "when saving: 'nld', 'deu', 'ind_rj'"
         )
         
     # Loop per site
     for key, pvsite in country_sites.items():
         
         # Filter by TSO for Germany, or use all data for NL
-        if country == "de":
+        if country == "deu":
             generation_data_tso_df = generation_data[generation_data["tso_zone"] == key].copy()
-        elif country == "nl":
+        elif country == "nld":
             generation_data_tso_df = generation_data[generation_data["region_id"] == int(key)].copy()
-        elif country == "ind_rajasthan":
+        elif country == "ind_rj":
             generation_data_tso_df = generation_data[generation_data["energy_type"] == key].copy()
         else:
             generation_data_tso_df = generation_data.copy()
@@ -207,7 +207,7 @@ def save_generation_to_site_db(
         )
 
         generation_data_tso_df = generation_data_tso_df.copy()
-        if country == "ind_rajasthan":
+        if country == "ind_rj":
             generation_data_tso_df["energy_type"] = key
         else:
             generation_data_tso_df["energy_type"] = "solar"
@@ -242,7 +242,7 @@ def save_forecasts_to_site_db(
     session: Session,
     model_tag: str,
     model_version: str,
-    country: str = "nl",
+    country: str = "nld",
 ):
     """Save generation data to the database.
 
@@ -252,14 +252,14 @@ def save_forecasts_to_site_db(
         session (Session): SQLAlchemy session for database access.
         model_tag (str): Model tag to fetch model metadata.
         model_version (str): Model version to fetch model metadata.
-        country: (str): Country code for the generation data. Currently only 'nl' is supported.
+        country: (str): Country code for the generation data. Currently only 'nld' is supported.
         
     Return:
         None
     """
 
-    if country != "nl":
-        raise Exception("Only NL forecast data is supported when saving (atm).")
+    if country != "nld":
+        raise Exception("Only NLD forecast data is supported when saving (atm).")
 
     site = get_or_create_pvsite(session, nl_national, country)
 

@@ -63,7 +63,7 @@ async def test_save_nl_to_data_platform(client):
             "capacity_kw": [80_000_000, 80_000_000, 60_000_000, 60_000_000],
         }
     )
-    _ = await save_generation_to_data_platform(fake_data, client=client, country="nl")
+    _ = await save_generation_to_data_platform(fake_data, client=client, country="nld")
 
     # read from the data platform to check national data was saved
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
