@@ -8,13 +8,13 @@ This script validates the functionality and consistency of two data-fetching fun
 ### How to Run the Tests:
 
 Run the entire test suite:
-    pytest tests/test_fetch_data.py
+    pytest tests/unit/test_fetch_data.py
 
 Run with verbose output:
-    pytest tests/test_fetch_data.py -v
+    pytest tests/unit/test_fetch_data.py -v
 
 Run tests matching a specific pattern:
-    pytest tests/test_fetch_data.py -k "fetch_data"
+    pytest tests/unit/test_fetch_data.py -k "fetch_data"
 """
 import pytest
 import os
@@ -91,7 +91,7 @@ def test_fetch_data_mock_failure(test_config):
         mock_urlopen.side_effect = Exception("API failure simulated")
 
         with pytest.raises(Exception):
-            _ = fetch_data()
+            _ = fetch_data(historic_or_forecast="forecast")
 
 
 

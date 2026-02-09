@@ -1,0 +1,133 @@
+{
+  "draw": 0,
+  "recordsTotal": 10,
+  "recordsFiltered": 10,
+  "data": [
+    {
+      "0": {
+        "record": "2574",
+        "Key": "03046001",
+        "Average2": 123.48,
+        "SourceTimeSec": "1674119486",
+        "scada_name": "DSM RATE",
+        "type": "overview"
+      },
+      "id": "03046001",
+      "scada_name": "DSM RATE",
+      "value": 123.48,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2577",
+        "Key": "03046004",
+        "Average2": 49.98,
+        "SourceTimeSec": "1706695215",
+        "scada_name": "FREQUENCY",
+        "type": "overview"
+      },
+      "id": "03046004",
+      "scada_name": "FREQUENCY",
+      "value": 49.98,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2575",
+        "Key": "03046002",
+        "Average2": 6999.67,
+        "SourceTimeSec": "1706695220",
+        "scada_name": "NR SCHEDULE",
+        "type": "overview"
+      },
+      "id": "03046002",
+      "scada_name": "NR SCHEDULE",
+      "value": 6999.67,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2580",
+        "Key": "03046007",
+        "Average2": 6488.4,
+        "SourceTimeSec": "1706695240",
+        "scada_name": "NR DRAWL",
+        "type": "overview"
+      },
+      "id": "03046007",
+      "scada_name": "NR DRAWL",
+      "value": 6488.4,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2579",
+        "Key": "03046006",
+        "Average2": -511.27,
+        "SourceTimeSec": "1706695240",
+        "scada_name": "NR OD\/UD",
+        "type": "overview"
+      },
+      "id": "03046006",
+      "scada_name": "NR OD\/UD",
+      "value": -511.27,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2582",
+        "Key": "03046009",
+        "Average2": 9849.89,
+        "SourceTimeSec": "1706695240",
+        "scada_name": "OWN GEN",
+        "type": "overview"
+      },
+      "id": "03046009",
+      "scada_name": "OWN GEN",
+      "value": 9849.89,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2581",
+        "Key": "03046008",
+        "Average2": 16338.29,
+        "SourceTimeSec": "1706695240",
+        "scada_name": "RAJ DEMAND",
+        "type": "overview"
+      },
+      "id": "03046008",
+      "scada_name": "RAJ DEMAND",
+      "value": 16338.29,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2578",
+        "Key": "03046005",
+        "Average2": 208.97,
+        "SourceTimeSec": "1706695240",
+        "scada_name": "WIND GEN",
+        "type": "overview"
+      },
+      "id": "03046005",
+      "scada_name": "WIND GEN",
+      "value": 208.97,
+      "date": "31 Jan 2024 15:30:46"
+    },
+    {
+      "0": {
+        "record": "2583",
+        "Key": "03046010",
+        "Average2": 28,
+        "SourceTimeSec": "1704862769",
+        "scada_name": "BIOMAS",
+        "type": "overview"
+      },
+      "id": "03046010",
+      "scada_name": "BIOMAS",
+      "value": 28,
+      "date": "31 Jan 2024 15:30:46"
+    }
+  ]
+}
