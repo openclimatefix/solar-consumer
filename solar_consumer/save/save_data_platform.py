@@ -126,6 +126,12 @@ async def _create_locations_from_csv(
     
     for location in locations:
         location_name = location["name"]
+
+        capacity_mwp = location.get("capacity_mwp")
+        if pd.notna(capacity_mwp) and float(capacity_mwp) > 0:
+            effective_capacity_watts = int(float(capacity_mwp) * 1e6)
+        else:
+            effective_capacity_watts = 100_000_000_000
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
@@ -139,7 +145,7 @@ async def _create_locations_from_csv(
             energy_source=dp.EnergySource.SOLAR,
             location_type=dp.LocationType.NATION,
             geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
-            effective_capacity_watts=100_000_000_000,
+            effective_capacity_watts=effective_capacity_watts,
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
         )
