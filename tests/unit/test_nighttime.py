@@ -1,8 +1,5 @@
 from datetime import datetime, timezone
-
 import pandas as pd
-import pytest
-
 from solar_consumer.data.nighttime import make_night_time_zeros
 
 
