@@ -58,8 +58,12 @@ async def app(
         model_tag = "entsoe-de"
     elif country == "bel":
         model_tag = "elia-be-forecast"
-
-
+    else:
+        supported_countries = ["gbr_gb", "nld", "deu", "bel"]
+        raise ValueError(
+            f"Unsupported country code: {country!r}. "
+            f"Supported country codes are: {', '.join(supported_countries)}."
+        )
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
     logger.info(f"Fetching {historic_or_forecast} data for {country}.")
     data = fetch_data(country=country, historic_or_forecast=historic_or_forecast)
