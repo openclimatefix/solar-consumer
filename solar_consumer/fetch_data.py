@@ -21,7 +21,9 @@ def fetch_data(country: str = "gbr_gb", historic_or_forecast: str = "forecast") 
     Get data from different countries
 
     :param country: "gbr_gb", "nld", "deu", "ind_rj", or "bel"
-    :param historic_or_forecast: "generation" or "forecast"
+    :param historic_or_forecast: Indicator passed through to the country-specific fetcher, e.g. "forecast",
+        "generation", or "historic". The exact accepted values are backend-specific; see the corresponding
+        fetch_<country>_data function for details.
     :return: Pandas dataframe with the following columns:
         target_datetime_utc: Combined date and time in UTC.
         solar_generation_kw: Solar generation in kW. Can be a forecast, or historic values
