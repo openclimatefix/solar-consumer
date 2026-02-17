@@ -179,20 +179,31 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     if missing_gsps and national_df is not None:
         logger.info(f"Creating backup data for {len(missing_gsps)} missing GSPs using national data")
         db_url = os.getenv("DB_URL")
-        if not db_url:
-            logger.warning("DB_URL not set, cannot create backup GSP data")
+        use_db_backup = os.getenv("ENABLE_DB_BACKUP_GSP", "false").lower() in ("1", "true", "yes")
+        if not db_url or not use_db_backup:
+            if not db_url:
+                logger.warning("DB_URL not set, cannot create backup GSP data")
+            else:
+                logger.info("ENABLE_DB_BACKUP_GSP is not enabled; skipping DB-backed backup GSP data")
         else:
             try:
                 connection = DatabaseConnection(url=db_url)
                 with connection.get_session() as session:
-                    locations = session.query(LocationSQL).filter(LocationSQL.gsp_id.in_(missing_gsps)).all()
+                    locations = (
+                        session.query(LocationSQL)
+                        .filter(LocationSQL.gsp_id.in_(missing_gsps))
+                        .all()
+                    )
                     backup_rows = []
                     for _, national_row in national_df.iterrows():
                         national_capacity = national_row['installedcapacity_mwp']
                         if national_capacity == 0 or pd.isna(national_capacity):
                             continue
                         for location in locations:
-                            if location.installed_capacity_mw is not None and location.installed_capacity_mw > 0:
+                            if (
+                                location.installed_capacity_mw is not None
+                                and location.installed_capacity_mw > 0
+                            ):
                                 factor = location.installed_capacity_mw / national_capacity
                                 new_row = national_row.copy()
                                 new_row['solar_generation_kw'] *= factor
