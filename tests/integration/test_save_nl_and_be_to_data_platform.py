@@ -56,7 +56,7 @@ BE_CONFIG = {
         {
             "name": "be_belgium",
             "metadata_key": "region",
-            "metadata_value": "Belgium",
+            "metadata_value": "belgium",
             "metadata_type": "string",
             "geometry": "POINT(4.35 50.85)",
             "capacity": 100_000_000,
@@ -64,7 +64,7 @@ BE_CONFIG = {
         {
             "name": "be_flanders",
             "metadata_key": "region",
-            "metadata_value": "Flanders",
+            "metadata_value": "flanders",
             "metadata_type": "string",
             "geometry": "POINT(4.46 51.00)",
             "capacity": 100_000_000,
@@ -72,7 +72,7 @@ BE_CONFIG = {
         {
             "name": "be_wallonia",
             "metadata_key": "region",
-            "metadata_value": "Wallonia",
+            "metadata_value": "wallonia",
             "metadata_type": "string",
             "geometry": "POINT(4.70 50.50)",
             "capacity": 100_000_000,
@@ -85,7 +85,7 @@ BE_CONFIG = {
             pd.to_datetime("2025-01-01T02:00:00Z"),
         ],
         "solar_generation_kw": [50000.0, 25000.0, 10000.0],
-        "region": ["Belgium", "Flanders", "Wallonia"],
+        "region": ["belgium", "flanders", "wallonia"],
         "forecast_type": ["generation", "generation", "generation"],
         "capacity_kw": [100.0 * 1000, 50.0 * 1000, 75.0 * 1000],
     },
@@ -170,7 +170,7 @@ async def test_save_generation_to_data_platform(client, config):
 @pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("country,observer_name,id_column,test_value", [
     ("nl", "nednl", "region_id", 0),
-    ("be", "elia_be", "region", "Belgium"),
+    ("be", "elia_be", "region", "belgium"),
 ], ids=["nl", "be"])
 async def test_save_generation_no_matching_locations(client, country, observer_name, id_column, test_value):
     """

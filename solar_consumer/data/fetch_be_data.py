@@ -165,6 +165,7 @@ def _process_be_data(
     df["solar_generation_kw"] = df[generation_field] * 1000
     df["forecast_type"] = forecast_type
     df["capacity_kw"] = df["monitoredcapacity"] * 1000
+    df["region"] = df["region"].astype(str).str.strip().str.lower()
 
     df = df.dropna(
         subset=[

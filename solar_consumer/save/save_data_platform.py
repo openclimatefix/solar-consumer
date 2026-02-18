@@ -233,7 +233,7 @@ async def save_generation_to_data_platform(
     # Extract metadata and create join key based on country
     if country == "be":
         # BE uses string matching with normalization
-        data_df["join_key"] = data_df[id_key].astype(str).str.strip().str.lower()
+        data_df["join_key"] = data_df[id_key]
         
         if locations_df.empty or data_df.empty:
             joined_df = pd.DataFrame()
