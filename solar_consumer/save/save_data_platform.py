@@ -25,19 +25,13 @@ def _get_country_config(country: str) -> dict:
     """Get country-specific configuration for data platform operations."""
     configs = {
         "nl": {
-            "required_observers": {"nednl"},
             "id_key": "region_id",
-            "capacity_col": "capacity_kw",
-            "capacity_multiplier": 1000,
             "location_type": dp.LocationType.NATION,
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
         "be": {
-            "required_observers": {"elia_be"},
             "id_key": "region",
-            "capacity_col": "capacity_mwp",
-            "capacity_multiplier": 1e6,
             "location_type": dp.LocationType.NATION,
             "metadata_type": "string",  
             "observer_name": "elia_be",
@@ -45,8 +39,6 @@ def _get_country_config(country: str) -> dict:
         "gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
             "id_key": "gsp_id",
-            "capacity_col": "capacity_mwp",
-            "capacity_multiplier": 1e6,
             "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
             "metadata_type": "number", 
             "observer_name": None, 
@@ -61,6 +53,20 @@ def _extract_metadata_value(metadata: dict, key: str, metadata_type: str) -> any
         return metadata.get(key, {}).get("number_value")
     else:  # string
         return metadata.get(key, {}).get("string_value")
+
+
+async def _execute_async_tasks(
+    tasks: list[asyncio.Task],
+    ignore_exceptions: bool = False,
+) -> list[any]:
+    """Execute a list of tasks and check for exceptions."""
+    if not tasks:
+        return []
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    if not ignore_exceptions:
+        for exc in filter(lambda x: isinstance(x, Exception), results):
+            raise exc
+    return results
 
 
 async def _list_locations(
@@ -81,10 +87,7 @@ async def _list_locations(
             )
             for loc_type in location_type
         ]
-        list_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), list_results):
-            raise exc
-        
+        list_results = await _execute_async_tasks(tasks)        
         return list(
             itertools.chain(
                 *[
@@ -127,11 +130,7 @@ async def _create_locations_from_csv(
     for location in locations:
         location_name = location["name"]
 
-        capacity_mwp = location.get("capacity_mwp")
-        if pd.notna(capacity_mwp) and float(capacity_mwp) > 0:
-            effective_capacity_watts = int(float(capacity_mwp) * 1e6)
-        else:
-            effective_capacity_watts = 100_000_000_000
+        effective_capacity_watts = 100_000_000_000
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
@@ -181,10 +180,17 @@ async def save_generation_to_data_platform(
     config = _get_country_config(country)
     
     id_key = config["id_key"]
-    capacity_col = config["capacity_col"]
-    capacity_multiplier = config["capacity_multiplier"]
-    required_observers = config["required_observers"]
+    # capacity_col and capacity_multiplier are no longer needed as we standardized on capacity_kw
     metadata_type = config["metadata_type"]
+    
+    # Determine required observers
+    # If observer_name is in config (NL/BE), use it as the single required observer
+    # If not (GB), use the explicit list from config
+    observer_name_config = config["observer_name"]
+    if observer_name_config:
+        required_observers = {observer_name_config}
+    else:
+        required_observers = config["required_observers"]
 
     # 0. Create the observers required if they don't exist already
 
@@ -203,9 +209,7 @@ async def save_generation_to_data_platform(
         )
     if len(tasks) > 0:
         logging.info("creating %d observers", len(tasks))
-        create_observer_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), create_observer_results):
-            raise exc
+        await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
     if country in ["nl", "be"]:
@@ -266,14 +270,14 @@ async def save_generation_to_data_platform(
             locations_df
             .set_index("join_key")
             .join(
-                data_df.query(f"{capacity_col}>0").set_index("join_key"),
+                data_df.query("capacity_kw>0").set_index("join_key"),
                 on="join_key",
                 how="inner",
                 lsuffix="_loc",
             )
             .assign(
                 new_effective_capacity_watts=lambda df: (
-                    df[capacity_col] * capacity_multiplier
+                    df["capacity_kw"] * 1000
                 ).astype(int)
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
@@ -283,7 +287,7 @@ async def save_generation_to_data_platform(
 
     if joined_df.empty:
         # Check if the input data was empty or had no valid capacity data
-        has_valid_capacity_data = not data_df.empty and (data_df[capacity_col] > 0).any()
+        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] > 0).any()
         
         if data_df.empty or not has_valid_capacity_data:
             # Empty input or all zero-capacity data - this is expected, return silently
@@ -337,10 +341,8 @@ async def save_generation_to_data_platform(
 
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
-        update_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), update_results):
-            if country != "nl":  # NL was previously ignoring these exceptions
-                raise exc
+        # NL was previously ignoring these exceptions
+        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nl"))
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
@@ -375,6 +377,4 @@ async def save_generation_to_data_platform(
 
     if len(tasks) > 0:
         logging.info("creating observations for %d %s locations", len(tasks), country.upper())
-        create_results = await asyncio.gather(*tasks)
-        for exc in filter(lambda x: isinstance(x, Exception), create_results):
-            raise exc
+        await _execute_async_tasks(tasks)

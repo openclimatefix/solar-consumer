@@ -154,7 +154,7 @@ def _process_be_data(
                 "solar_generation_kw",
                 "region",
                 "forecast_type",
-                "capacity_mwp",
+                "capacity_kw",
             ]
         )
 
@@ -164,7 +164,7 @@ def _process_be_data(
     )
     df["solar_generation_kw"] = df[generation_field] * 1000
     df["forecast_type"] = forecast_type
-    df["capacity_mwp"] = df["monitoredcapacity"]
+    df["capacity_kw"] = df["monitoredcapacity"] * 1000
 
     df = df.dropna(
         subset=[
@@ -172,7 +172,7 @@ def _process_be_data(
             "solar_generation_kw",
             "region",
             "forecast_type",
-            "capacity_mwp",
+            "capacity_kw",
         ]
     )
 
@@ -182,7 +182,7 @@ def _process_be_data(
             "solar_generation_kw",
             "region",
             "forecast_type",
-            "capacity_mwp",
+            "capacity_kw",
         ]
     ]
 

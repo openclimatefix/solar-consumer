@@ -87,7 +87,7 @@ BE_CONFIG = {
         "solar_generation_kw": [50000.0, 25000.0, 10000.0],
         "region": ["Belgium", "Flanders", "Wallonia"],
         "forecast_type": ["generation", "generation", "generation"],
-        "capacity_mwp": [100.0, 50.0, 75.0],
+        "capacity_kw": [100.0 * 1000, 50.0 * 1000, 75.0 * 1000],
     },
     "capacity_updates": {},  # BE doesn't check capacity updates
     "id_column": "region",
@@ -199,7 +199,7 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
             "solar_generation_kw": [50000.0],
             "region": [test_value],
             "forecast_type": ["generation"],
-            "capacity_mwp": [100.0],
+            "capacity_kw": [100.0 * 1000],
         })
         expected_location_name = "be_belgium"
 
@@ -260,7 +260,7 @@ async def test_save_generation_empty_dataframe(client, country):
         )
     else:  # be
         empty_data = pd.DataFrame(
-            columns=["target_datetime_utc", "solar_generation_kw", "region", "forecast_type", "capacity_mwp"]
+            columns=["target_datetime_utc", "solar_generation_kw", "region", "forecast_type", "capacity_kw"]
         )
 
     # This should not raise an error
@@ -332,7 +332,7 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
             "solar_generation_kw": [50000.0],
             "region": [metadata_value],
             "forecast_type": ["generation"],
-            "capacity_mwp": [0.0],  # Zero capacity
+            "capacity_kw": [0.0],  # Zero capacity
         })
 
     # Save the data
@@ -387,7 +387,7 @@ async def test_save_generation_missing_location_raises_error(client, country, ob
             "solar_generation_kw": [50000.0],
             "region": [id_value],
             "forecast_type": ["generation"],
-            "capacity_mwp": [100.0],
+            "capacity_kw": [100.0 * 1000],
         })
 
     # Attempt to save data - should raise ValueError
