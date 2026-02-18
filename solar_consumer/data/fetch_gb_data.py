@@ -92,7 +92,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     pvlive_domain_url = "api.pvlive.uk"
     pvlive = PVLive(domain_url=pvlive_domain_url)
     # ignore these gsp ids from PVLive as they are no longer used
-    ignore_gsp_ids = [5, 17, 53, 75, 139, 140, 143, 157, 163, 225, 310]
+    ignore_gsp_ids = [5, 17, 41, 53, 75, 139, 140, 143, 157, 158, 163, 225, 257, 310]
 
     datetime_utc = datetime.now(timezone.utc)
 
@@ -148,12 +148,17 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         gsp_yield_df["solar_generation_kw"] = 1000 * gsp_yield_df["generation_mw"]
         gsp_yield_df["target_datetime_utc"] = gsp_yield_df["datetime_gmt"]
         gsp_yield_df["pvlive_updated_utc"] = pd.to_datetime(gsp_yield_df["updated_gmt"])
+        
+        # Convert capacity to kW
+        gsp_yield_df["installedcapacity_kw"] = gsp_yield_df["installedcapacity_mwp"] * 1000
+        gsp_yield_df["capacity_kw"] = gsp_yield_df["capacity_mwp"] * 1000
+        
         gsp_yield_df = gsp_yield_df[
             [
                 "solar_generation_kw",
                 "target_datetime_utc",
-                "installedcapacity_mwp",
-                "capacity_mwp",
+                "installedcapacity_kw",
+                "capacity_kw",
                 "pvlive_updated_utc",
             ]
         ]

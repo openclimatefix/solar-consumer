@@ -8,10 +8,10 @@ from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="module")
 async def client():
     """
-    Fixture to spin up a PostgreSQL container and Data Platform container for the entire test session.
+    Fixture to spin up a PostgreSQL container and Data Platform container for each test module.
     This fixture uses `testcontainers` to start fresh containers and provides
     the data platform client dynamically for use in integration tests.
     """

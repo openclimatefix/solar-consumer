@@ -21,6 +21,140 @@ from betterproto.lib.google.protobuf import Struct, Value
 from pathlib import Path
 
 
+def _get_country_config(country: str) -> dict:
+    """Get country-specific configuration for data platform operations."""
+    configs = {
+        "nld": {
+            "id_key": "region_id",
+            "location_type": dp.LocationType.NATION,
+            "metadata_type": "number",  
+            "observer_name": "nednl",
+        },
+        "bel": {
+            "id_key": "region",
+            "location_type": dp.LocationType.NATION,
+            "metadata_type": "string",  
+            "observer_name": "elia_be",
+        },
+        "gbr_gb": {
+            "required_observers": {"pvlive_in_day", "pvlive_day_after"},
+            "id_key": "gsp_id",
+            "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
+            "metadata_type": "number", 
+            "observer_name": None, 
+        },
+    }
+    return configs.get(country, configs["gbr_gb"])
+
+
+def _extract_metadata_value(metadata: dict, key: str, metadata_type: str) -> any:
+    """Extract value from location metadata based on type."""
+    if metadata_type == "number":
+        return metadata.get(key, {}).get("number_value")
+    else:  # string
+        return metadata.get(key, {}).get("string_value")
+
+
+async def _execute_async_tasks(
+    tasks: list[asyncio.Task],
+    ignore_exceptions: bool = False,
+) -> list[any]:
+    """Execute a list of tasks and check for exceptions."""
+    if not tasks:
+        return []
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    if not ignore_exceptions:
+        for exc in filter(lambda x: isinstance(x, Exception), results):
+            raise exc
+    return results
+
+
+async def _list_locations(
+    client: dp.DataPlatformDataServiceStub,
+    location_type: dp.LocationType | list[dp.LocationType],
+) -> list[dict]:
+    """List locations from data platform and convert to dict format."""
+    if isinstance(location_type, list):
+        # Handle multiple location types (e.g., GB with GSP and NATION)
+        tasks = [
+            asyncio.create_task(
+                client.list_locations(
+                    dp.ListLocationsRequest(
+                        location_type_filter=loc_type,
+                        energy_source_filter=dp.EnergySource.SOLAR,
+                    )
+                )
+            )
+            for loc_type in location_type
+        ]
+        list_results = await _execute_async_tasks(tasks)        
+        return list(
+            itertools.chain(
+                *[
+                    r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
+                        "locations"
+                    ]
+                    for r in list_results
+                ]
+            )
+        )
+    else:
+        # Single location type
+        list_locations_request = dp.ListLocationsRequest(
+            location_type_filter=location_type,
+            energy_source_filter=dp.EnergySource.SOLAR,
+        )
+        list_locations_response = await client.list_locations(list_locations_request)
+        return list_locations_response.to_dict(
+            casing=betterproto.Casing.SNAKE,
+            include_default_values=True,
+        ).get("locations", [])
+
+
+async def _create_locations_from_csv(
+    client: dp.DataPlatformDataServiceStub,
+    country: str,
+    id_key: str,
+    metadata_type: str,
+) -> None:
+    """Create locations from CSV file for countries that support it (NL, BE)."""
+    csv_path = Path(__file__).parent.parent / "data" / "locations.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Unified locations CSV not found at {csv_path}")
+    
+    locations_df_csv = pd.read_csv(csv_path)
+    # Filter by country code
+    locations_df_csv = locations_df_csv[locations_df_csv['country_code'] == country]
+    locations = locations_df_csv.to_dict(orient="records")
+    
+    for location in locations:
+        location_name = location["name"]
+
+        effective_capacity_watts = 100_000_000_000
+        
+        # Create metadata based on type (number or string)
+        id_value = location[id_key]
+        if metadata_type == "number":
+            metadata = Struct(fields={id_key: Value(number_value=id_value)})
+        else:  # string
+            metadata = Struct(fields={id_key: Value(string_value=id_value)})
+        
+        create_location_request = dp.CreateLocationRequest(
+            location_name=location_name,
+            energy_source=dp.EnergySource.SOLAR,
+            location_type=dp.LocationType.NATION,
+            geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
+            effective_capacity_watts=effective_capacity_watts,
+            metadata=metadata,
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        )
+        await client.create_location(create_location_request)
+    
+    logging.warning(
+        f"No {country.upper()} locations found in data platform. Created new locations."
+    )
+
+
 async def save_generation_to_data_platform(
     data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gbr_gb"
 ) -> None:
@@ -35,24 +169,30 @@ async def save_generation_to_data_platform(
 
     For NLD: Data is joined via the region_id.
 
+    For BEL: Data is joined via the region (string-based matching).
+
     Args:
         data_df: DataFrame containing the generation data
         client: Data platform client stub
-        country: Country identifier ('gbr_gb' or 'nld')
+        country: Country identifier ('gbr_gb', 'nld', or 'bel')
     """
     tasks: list[asyncio.Task] = []
+    config = _get_country_config(country)
+    
+    id_key = config["id_key"]
+    # capacity_col and capacity_multiplier are no longer needed as we standardized on capacity_kw
+    metadata_type = config["metadata_type"]
+    
+    # Determine required observers
+    # If observer_name is in config (NL/BE), use it as the single required observer
+    # If not (GB), use the explicit list from config
+    observer_name_config = config["observer_name"]
+    if observer_name_config:
+        required_observers = {observer_name_config}
+    else:
+        required_observers = config["required_observers"]
 
     # 0. Create the observers required if they don't exist already
-    if country == "nld":
-        required_observers = {"nednl"}
-        id_key = "region_id"
-        capacity_col = "capacity_kw"
-        capacity_multiplier = 1000
-    else:  # gbr_gb
-        required_observers = {"pvlive_in_day", "pvlive_day_after"}
-        id_key = "gsp_id"
-        capacity_col = "capacity_mwp"
-        capacity_multiplier = 1e6
 
     list_observer_request = dp.ListObserversRequest(
         observer_names_filter=list(required_observers),
@@ -69,131 +209,95 @@ async def save_generation_to_data_platform(
         )
     if len(tasks) > 0:
         logging.info("creating %d observers", len(tasks))
-        create_observer_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), create_observer_results):
-            raise exc
+        await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country == "nld":
-        # Get NL locations (NATION only)
-        list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=dp.LocationType.NATION,
-            energy_source_filter=dp.EnergySource.SOLAR,
-        )
-        list_locations_response = await client.list_locations(list_locations_request)
-
-        locations_data = list_locations_response.to_dict(
-            casing=betterproto.Casing.SNAKE,
-            include_default_values=True,
-        ).get("locations", [])
-
+    if country in ["nld", "bel"]:
+        # NL and BE support CSV-based location creation
+        locations_data = await _list_locations(client, config["location_type"])
+        
         if not locations_data:
-            # Load NL locations from CSV
-            csv_path = Path(__file__).parent.parent / "data" / "nl_locations.csv"
-            if not csv_path.exists():
-                raise FileNotFoundError(f"NL locations CSV not found at {csv_path}")
-            locations_df_csv = pd.read_csv(csv_path)
-            locations = locations_df_csv.to_dict(orient="records")
-            for loc in locations:
-                location_name = loc["name"]
-                create_location_request = dp.CreateLocationRequest(
-                    location_name=location_name,
-                    energy_source=dp.EnergySource.SOLAR,
-                    location_type=dp.LocationType.NATION,
-                    geometry_wkt="POINT({} {})".format(loc["longitude"], loc["latitude"]),
-                    effective_capacity_watts=100_000_000_000,
-                    metadata=Struct(fields={"region_id": Value(number_value=loc["region_id"])}),
-                    valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
-                )
-                await client.create_location(create_location_request)
-            logging.warning("No NL locations found in data platform. Created new locations.")
-
+            await _create_locations_from_csv(client, country, id_key, metadata_type)
             # Re-fetch locations after creating them
-            list_locations_response = await client.list_locations(list_locations_request)
-            locations_data = list_locations_response.to_dict(
-                casing=betterproto.Casing.SNAKE,
-                include_default_values=True,
-            ).get("locations", [])
+            locations_data = await _list_locations(client, config["location_type"])
+    else:
+        # GB - no CSV creation support
+        locations_data = await _list_locations(client, config["location_type"])
 
-        locations_df = pd.DataFrame.from_dict(locations_data)
-
-        # Prepare incoming data: map region_id to int
-        data_df = data_df.copy()
-        data_df["region_id"] = data_df["region_id"].astype(int)
-
-        joined_df = (
-            locations_df.assign(
-                region_id=lambda df: df["metadata"].apply(lambda x: x["region_id"]["number_value"])
+    # Convert locations to DataFrame
+    locations_df = pd.DataFrame.from_dict(locations_data)
+    
+    # Prepare incoming data copy
+    data_df = data_df.copy()
+    
+    # Extract metadata and create join key based on country
+    if country == "bel":
+        # BE uses string matching with normalization
+        data_df["join_key"] = data_df[id_key]
+        
+        if locations_df.empty or data_df.empty:
+            joined_df = pd.DataFrame()
+        else:
+            locations_df = locations_df.assign(
+                join_key=lambda df: df["metadata"].apply(
+                    lambda x: _extract_metadata_value(x, id_key, metadata_type)
+                )
+            ).assign(
+                join_key=lambda df: df["join_key"].fillna(df["location_name"])
+            ).assign(
+                join_key=lambda df: df["join_key"].astype(str).str.strip().str.lower()
             )
-            .set_index("region_id")
+    else:
+        # NL and GB use numeric matching
+        data_df["join_key"] = data_df[id_key]
+        
+        locations_df = (
+            locations_df
+            .loc[lambda df: df["metadata"].apply(lambda x: id_key in x)]
+            .assign(
+                join_key=lambda df: df["metadata"].apply(
+                    lambda x: _extract_metadata_value(x, id_key, metadata_type)
+                )
+            )
+        )
+    
+    # Common join logic for all countries
+    if not (locations_df.empty or data_df.empty):
+        joined_df = (
+            locations_df
+            .set_index("join_key")
             .join(
-                data_df.query(f"{capacity_col}>0").set_index("region_id"),
-                on="region_id",
+                data_df.query("capacity_kw>0").set_index("join_key"),
+                on="join_key",
                 how="inner",
                 lsuffix="_loc",
             )
             .assign(
                 new_effective_capacity_watts=lambda df: (
-                    df[capacity_col] * capacity_multiplier
+                    df["capacity_kw"] * 1000
                 ).astype(int)
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
-    else:  # gbr_gb
-        # Get UK GSP locations, as well as national
-        tasks = [
-            asyncio.create_task(
-                client.list_locations(
-                    dp.ListLocationsRequest(
-                        location_type_filter=loc_type,
-                        energy_source_filter=dp.EnergySource.SOLAR,
-                    )
-                )
-            )
-            for loc_type in [dp.LocationType.GSP, dp.LocationType.NATION]
-        ]
-        list_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), list_results):
-            raise exc
-
-        joined_df = (
-            pd.DataFrame.from_dict(
-                itertools.chain(
-                    *[
-                        r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
-                            "locations"
-                        ]
-                        for r in list_results
-                    ]
-                )
-            )
-            .loc[lambda df: df["metadata"].apply(lambda x: "gsp_id" in x)]
-            .assign(gsp_id=lambda df: df["metadata"].apply(lambda x: x["gsp_id"]["number_value"]))
-            .set_index("gsp_id")
-            .join(
-                data_df.query(f"{capacity_col}>0").set_index("gsp_id"),
-                on="gsp_id",
-                how="inner",
-                lsuffix="_loc",
-            )
-            .assign(
-                new_effective_capacity_watts=lambda df: (
-                    df[capacity_col] * capacity_multiplier
-                ).astype(int)
-            )
-            .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
-        )
+    else:
+        joined_df = pd.DataFrame()
 
     if joined_df.empty:
-        logging.warning(
-            "No matching %s locations found for the incoming data. "
-            "Ensure locations exist in the data platform with %s metadata matching %s: %s",
-            country.upper(),
-            id_key,
-            id_key,
-            data_df[id_key].unique().tolist() if id_key in data_df.columns else "N/A",
+        # Check if the input data was empty or had no valid capacity data
+        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] > 0).any()
+        
+        if data_df.empty or not has_valid_capacity_data:
+            # Empty input or all zero-capacity data - this is expected, return silently
+            return
+        
+        # Non-empty data with capacity but no matching locations - this is unexpected
+        incoming_ids = data_df[id_key].unique().tolist() if id_key in data_df.columns else []
+        raise ValueError(
+            f"No matching {country.upper()} locations found for the incoming data. "
+            f"Expected locations to exist in the data platform with {id_key} metadata "
+            f"matching the following {id_key} values: {incoming_ids}. "
+            f"This is unexpected - locations should have been created or already exist."
         )
-        return
 
     logging.info(
         "handling %s data for %d matched locations",
@@ -234,10 +338,8 @@ async def save_generation_to_data_platform(
 
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
-        update_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for exc in filter(lambda x: isinstance(x, Exception), update_results):
-            if country != "nld":  # NL was previously ignoring these exceptions
-                raise exc
+        # NL was previously ignoring these exceptions
+        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nld"))
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
@@ -251,9 +353,8 @@ async def save_generation_to_data_platform(
         )
 
     # Determine observer name based on country
-    if country == "nld":
-        observer_name = "nednl"
-    else:  # gbr_gb
+    observer_name = config["observer_name"]
+    if observer_name is None:  # GB needs regime from data
         regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
@@ -273,6 +374,4 @@ async def save_generation_to_data_platform(
 
     if len(tasks) > 0:
         logging.info("creating observations for %d %s locations", len(tasks), country.upper())
-        create_results = await asyncio.gather(*tasks)
-        for exc in filter(lambda x: isinstance(x, Exception), create_results):
-            raise exc
+        await _execute_async_tasks(tasks)
