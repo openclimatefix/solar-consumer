@@ -85,13 +85,13 @@ def test_fetch_be_forecast_mixed_regions(requests_mock):
         "solar_generation_kw",
         "region",
         "forecast_type",
-        "capacity_mwp",
+        "capacity_kw",
     }
     assert expected_columns.issubset(df.columns)
 
     # MW -> kW conversion
-    assert df.loc[df["region"] == "Belgium", "solar_generation_kw"].iloc[0] == 1200
-    assert df.loc[df["region"] == "Flanders", "solar_generation_kw"].iloc[0] == 300
+    assert df.loc[df["region"] == "belgium", "solar_generation_kw"].iloc[0] == 1200
+    assert df.loc[df["region"] == "flanders", "solar_generation_kw"].iloc[0] == 300
 
     # Static metadata
     assert (df["forecast_type"] == "most_recent").all()
@@ -132,7 +132,7 @@ def test_fetch_be_forecast_empty_response(requests_mock):
         "solar_generation_kw",
         "region",
         "forecast_type",
-        "capacity_mwp",
+        "capacity_kw",
     ]
 
 

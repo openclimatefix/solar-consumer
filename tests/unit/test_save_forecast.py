@@ -175,7 +175,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [0, 0, 2, 2, 3, 3],
                     "regime": ["test"] * 6,
-                    "capacity_mwp": [100, 100, 1, 1, 1, 1],
+                    "capacity_kw": [100e3, 100e3, 1e3, 1e3, 1e3, 1e3],
                     "solar_generation_kw": [5e3, 5e3, 25, 25, 0, 0],
                     "target_datetime_utc": [
                         np.datetime64('2023-01-01T00:00:00'),
@@ -195,7 +195,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [0, 1],
                     "regime": ["test"] * 2,
-                    "capacity_mwp": [100, 0.2],
+                    "capacity_kw": [100e3, 0.2e3],
                     "solar_generation_kw": [5e3, 50],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=2, freq="h"),
                 }),
@@ -208,7 +208,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [1, 1, 2, 2],
                     "regime": ["test"] * 4,
-                    "capacity_mwp": [10, 10, 0, 0],
+                    "capacity_kw": [10e3, 10e3, 0, 0],
                     "solar_generation_kw": [50, 50, 10, 10],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=4, freq="h"),
                 }),
@@ -221,7 +221,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [1, 99],
                     "regime": ["test"] * 2,
-                    "capacity_mwp": [1, 10],
+                    "capacity_kw": [1e3, 10e3],
                     "solar_generation_kw": [50, 100],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=2, freq="h"),
                 }),
@@ -234,7 +234,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "gsp_id": [1, 1, 1],
                     "regime": ["test"] * 3,
-                    "capacity_mwp": [5, 10, 2],
+                    "capacity_kw": [5e3, 10e3, 2e3],
                     "solar_generation_kw": [50, 100, 20],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=3, freq="h"),
                 }),
