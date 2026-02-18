@@ -150,6 +150,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # get the total site capacity
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
 
+    # change region_id to integer, just to be safe
+    all_data["region_id"] = all_data["region_id"].astype(int)
+
     # Drop unnecessary columns
     all_data = all_data.drop(
         columns=[

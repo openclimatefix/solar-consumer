@@ -249,10 +249,7 @@ async def save_generation_to_data_platform(
             )
     else:
         # NL and GB use numeric matching
-        if country == "nl":
-            data_df["join_key"] = data_df[id_key].astype(int)
-        else:  # gb
-            data_df["join_key"] = data_df[id_key]
+        data_df["join_key"] = data_df[id_key]
         
         locations_df = (
             locations_df
