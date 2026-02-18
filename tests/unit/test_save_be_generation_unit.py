@@ -21,7 +21,7 @@ async def test_save_be_generation_empty_data():
 
     # Empty test data
     test_data = pd.DataFrame(
-        columns=["target_datetime_utc", "solar_generation_kw", "region", "forecast_type", "capacity_mwp"]
+        columns=["target_datetime_utc", "solar_generation_kw", "region", "forecast_type", "capacity_kw"]
     )
 
     # Should not raise error
@@ -64,7 +64,7 @@ async def test_save_be_generation_zero_capacity_filtered():
         "solar_generation_kw": [50000.0],
         "region": ["Belgium"],
         "forecast_type": ["generation"],
-        "capacity_mwp": [0.0],  # Zero capacity
+        "capacity_kw": [0.0],  # Zero capacity
     })
 
     # Call the function

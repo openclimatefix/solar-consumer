@@ -57,7 +57,7 @@ async def test_save_to_data_platform(client):
             "solar_generation_kw": [100.0],
             "gsp_id": [1],
             "regime": ["in-day"],
-            "capacity_mwp": [2],
+            "capacity_kw": [2000],
         }
     )
     _ = await save_generation_to_data_platform(fake_data, client=client)
