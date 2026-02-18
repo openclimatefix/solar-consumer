@@ -72,7 +72,7 @@ def get_or_create_pvsite(
     Parameters:
         session (Session): CurrentSQLAlchemy session
         pvsite (PVSite): Pydantic model with site metadata
-        country (str): Country code ('nld' or 'deu')
+        country (str): Country code ('nld', 'deu', or 'ind_rj')
         capacity_override_kw (Optional[int]): Force a specific capacity on creation
 
     Returns:
