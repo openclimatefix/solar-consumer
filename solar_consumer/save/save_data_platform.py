@@ -382,12 +382,13 @@ async def save_generation_to_data_platform(
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
         )
-        tasks.append(asyncio.create_task(client.update_location(req)))
+        _ = await client.update_location(req)
+        # tasks.append(asyncio.create_task(client.update_location(req)))
 
-    if len(tasks) > 0:
-        logging.info("updating %d %s location capacities", len(tasks), country.upper())
-        # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=False)
+    # if len(tasks) > 0:
+    #     logging.info("updating %d %s location capacities", len(tasks), country.upper())
+    #     # NL was previously ignoring these exceptions
+    #     await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     for lid, t, new_cap in zip(
         updates_df["location_uuid"],
