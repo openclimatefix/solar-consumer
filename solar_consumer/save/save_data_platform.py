@@ -369,6 +369,12 @@ async def save_generation_to_data_platform(
     if not updates_df.empty:
         logging.info(f"DEBUG: updates_df sample:\n{updates_df[['location_name', 'effective_capacity_watts', 'new_effective_capacity_watts']].head()}")
 
+    semaphore = asyncio.Semaphore(10)
+
+    async def _bounded_update_location(req):
+        async with semaphore:
+            return await client.update_location(req)
+
     tasks = []
     for lid, t, new_cap in zip(
         updates_df["location_uuid"],
@@ -390,7 +396,7 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=False)
+        await asyncio.gather(*tasks, return_exceptions=False)
 
     ######## code that doesnt work (maybe)
 
