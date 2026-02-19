@@ -35,8 +35,8 @@ NL_CONFIG = {
         "target_datetime_utc": [
             pd.to_datetime("2025-01-01T00:00:00Z"),
             pd.to_datetime("2025-01-01T01:00:00Z"),
-            pd.to_datetime("2025-01-01T00:00:00Z"),
-            pd.to_datetime("2025-01-01T01:00:00Z"),
+            pd.to_datetime("2025-01-01T02:00:00Z"),
+            pd.to_datetime("2025-01-01T03:00:00Z"),
         ],
         "solar_generation_kw": [5000.0, 6000.0, 2500.0, 3000.0],
         "region_id": [0, 0, 1, 1],
@@ -171,16 +171,8 @@ async def test_save_generation_to_data_platform(client, config):
             energy_source=dp.EnergySource.SOLAR,
             pivot_timestamp_utc=pivot_time
         )
-        get_location_response = await client.get_location(get_location_request)
-        
-        # Retry loop to handle potential eventual consistency in CI
-        # for i in range(10):
-        #  if get_location_response.effective_capacity_watts == expected_capacity:
-        #         break
-        #     print(f"DEBUG: Retry {i+1}/10 - Capacity mismatch. Got {get_location_response.effective_capacity_watts}, expected {expected_capacity}")
-        #     await asyncio.sleep(1.0)
-            
-        assert get_location_response.effective_capacity_watts == 100000000000, \
+        get_location_response = await client.get_location(get_location_request)    
+        assert get_location_response.effective_capacity_watts == expected_capacity, \
             f"Capacity not updated correctly for {location_name}"
 
 
