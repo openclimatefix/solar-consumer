@@ -26,13 +26,13 @@ def _get_country_config(country: str) -> dict:
     configs = {
         "nl": {
             "id_key": "region_id",
-            "location_type": dp.LocationType.NATION,
+            "location_type": [dp.LocationType.NATION, dp.LocationType.GSP],
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
         "be": {
             "id_key": "region",
-            "location_type": dp.LocationType.NATION,
+            "location_type": [dp.LocationType.NATION, dp.LocationType.GSP],
             "metadata_type": "string",  
             "observer_name": "elia_be",
         },
@@ -153,6 +153,7 @@ async def _create_locations_from_csv(
     
     for location in locations:
         location_name = location["name"]
+        location_type_str = location.get("location_type", "NATION")
 
         effective_capacity_watts = 100_000_000_000
         
@@ -168,10 +169,18 @@ async def _create_locations_from_csv(
 
         metadata = Struct(fields=metadata_fields)
         
+        if location_type_str == "NATION":
+             location_type = dp.LocationType.NATION
+        elif location_type_str == "COUNTY":
+             # We map COUNTY to GSP for now as it's the closest equivalent in the proto
+             location_type = dp.LocationType.GSP
+        else:
+             location_type = dp.LocationType.NATION
+
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
             energy_source=dp.EnergySource.SOLAR,
-            location_type=dp.LocationType.NATION,
+            location_type=location_type,
             geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
             effective_capacity_watts=effective_capacity_watts,
             metadata=metadata,

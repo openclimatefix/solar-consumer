@@ -461,13 +461,12 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
         def mock_list_locations(req: dp.ListLocationsRequest) -> dp.ListLocationsResponse:
             nonlocal call_count
             call_count += 1
-            if call_count == 1:
+            if call_count <= 2:
                 # First call returns empty (no locations exist)
                 return dp.ListLocationsResponse(locations=[])
             else:
                 # Second call (after creation) returns the created locations
-                return dp.ListLocationsResponse(
-                    locations=[
+                all_locations = [
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_national",
                             location_uuid=str(uuid.uuid4()),
@@ -478,7 +477,9 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
                         ),
                     ]
-                )
+                
+                filtered = [loc for loc in all_locations if loc.location_type == req.location_type_filter]
+                return dp.ListLocationsResponse(locations=filtered)
 
         def mock_list_observers(req: dp.ListObserversRequest) -> dp.ListObserversResponse:
             return dp.ListObserversResponse(
@@ -510,7 +511,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client_mock.create_location.call_count, 13)
 
         # Verify list_locations was called twice (once before, once after creation)
-        self.assertEqual(client_mock.list_locations.call_count, 2)
+        self.assertEqual(client_mock.list_locations.call_count, 4)
 
 def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
     generation_data = {
