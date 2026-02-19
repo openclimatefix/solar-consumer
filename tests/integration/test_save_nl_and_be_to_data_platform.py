@@ -1,7 +1,6 @@
 import pandas as pd
 import pytest
 import datetime
-import asyncio
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
 
@@ -172,11 +171,11 @@ async def test_save_generation_to_data_platform(client, config):
             energy_source=dp.EnergySource.SOLAR,
             pivot_timestamp_utc=pivot_time
         )
+        get_location_response = await client.get_location(get_location_request)
         
         # Retry loop to handle potential eventual consistency in CI
         # for i in range(10):
-        #     get_location_response = await client.get_location(get_location_request)
-        #     if get_location_response.effective_capacity_watts == expected_capacity:
+        #  if get_location_response.effective_capacity_watts == expected_capacity:
         #         break
         #     print(f"DEBUG: Retry {i+1}/10 - Capacity mismatch. Got {get_location_response.effective_capacity_watts}, expected {expected_capacity}")
         #     await asyncio.sleep(1.0)
