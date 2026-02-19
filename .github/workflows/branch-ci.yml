@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@log-debug
     secrets: inherit
     with:
       enable_linting: true
