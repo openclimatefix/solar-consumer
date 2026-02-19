@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 import datetime
+import asyncio
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
 
@@ -167,11 +168,18 @@ async def test_save_generation_to_data_platform(client, config):
         # Use a pivot time after the update to ensure we see the new capacity
         pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc)
         get_location_request = dp.GetLocationRequest(
-            location_uuid=location_uuid, 
+            location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
             pivot_timestamp_utc=pivot_time
         )
-        get_location_response = await client.get_location(get_location_request)
+        
+        # Retry loop to handle potential eventual consistency in CI
+        for _ in range(5):
+            get_location_response = await client.get_location(get_location_request)
+            if get_location_response.effective_capacity_watts == expected_capacity:
+                break
+            await asyncio.sleep(0.5)
+            
         assert get_location_response.effective_capacity_watts == expected_capacity, \
             f"Capacity not updated correctly for {location_name}"
 

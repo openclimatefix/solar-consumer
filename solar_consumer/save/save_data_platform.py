@@ -352,6 +352,12 @@ async def save_generation_to_data_platform(
         (joined_df["effective_capacity_watts"].astype(float))
         / (joined_df["new_effective_capacity_watts"].astype(float))
     ).abs()
+
+    joined_df["capacity_change"] = (
+        (joined_df["effective_capacity_watts"].astype(float))
+        / (joined_df["new_effective_capacity_watts"].astype(float))
+    ).abs()
+
     updates_df = (
         joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
         .sort_values(by="target_datetime_utc", ascending=False)
@@ -359,6 +365,7 @@ async def save_generation_to_data_platform(
         .head(1)
         .sort_index()
     )
+
     tasks = []
     for lid, t, new_cap in zip(
         updates_df["location_uuid"],
