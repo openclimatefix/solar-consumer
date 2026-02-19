@@ -382,13 +382,17 @@ async def save_generation_to_data_platform(
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
         )
-        _ = await client.update_location(req)
-        # tasks.append(asyncio.create_task(client.update_location(req)))
+        # TODO if we run the next line, the tests seem to pass
+        # _ = await client.update_location(req)
+        ######## code that doesnt work (maybe)
+        tasks.append(asyncio.create_task(client.update_location(req)))
 
-    # if len(tasks) > 0:
-    #     logging.info("updating %d %s location capacities", len(tasks), country.upper())
-    #     # NL was previously ignoring these exceptions
-    #     await _execute_async_tasks(tasks, ignore_exceptions=False)
+    if len(tasks) > 0:
+        logging.info("updating %d %s location capacities", len(tasks), country.upper())
+        # NL was previously ignoring these exceptions
+        await _execute_async_tasks(tasks, ignore_exceptions=False)
+
+    ######## code that doesnt work (maybe)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
