@@ -164,8 +164,12 @@ async def test_save_generation_to_data_platform(client, config):
     # Verify location capacities were updated where expected
     for location_name, expected_capacity in config.get("capacity_updates", {}).items():
         location_uuid = location_uuids[location_name]
+        # Use a pivot time after the update to ensure we see the new capacity
+        pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc)
         get_location_request = dp.GetLocationRequest(
-            location_uuid=location_uuid, energy_source=dp.EnergySource.SOLAR
+            location_uuid=location_uuid, 
+            energy_source=dp.EnergySource.SOLAR,
+            pivot_timestamp_utc=pivot_time
         )
         get_location_response = await client.get_location(get_location_request)
         assert get_location_response.effective_capacity_watts == expected_capacity, \
