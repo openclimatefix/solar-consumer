@@ -26,13 +26,13 @@ def _get_country_config(country: str) -> dict:
     configs = {
         "nl": {
             "id_key": "region_id",
-            "location_type": [dp.LocationType.NATION, dp.LocationType.GSP],
+            "location_type": [dp.LocationType.NATION, dp.LocationType.COUNTY],
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
         "be": {
             "id_key": "region",
-            "location_type": [dp.LocationType.NATION, dp.LocationType.GSP],
+            "location_type": [dp.LocationType.NATION, dp.LocationType.COUNTY],
             "metadata_type": "string",  
             "observer_name": "elia_be",
         },
@@ -172,8 +172,7 @@ async def _create_locations_from_csv(
         if location_type_str == "NATION":
              location_type = dp.LocationType.NATION
         elif location_type_str == "COUNTY":
-             # We map COUNTY to GSP for now as it's the closest equivalent in the proto
-             location_type = dp.LocationType.GSP
+             location_type = dp.LocationType.COUNTY
         else:
              location_type = dp.LocationType.NATION
 
@@ -377,7 +376,7 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nl"))
+        await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)

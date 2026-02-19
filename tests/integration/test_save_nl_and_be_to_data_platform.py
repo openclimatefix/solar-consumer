@@ -117,11 +117,15 @@ async def test_save_generation_to_data_platform(client, config):
 
         metadata = Struct(fields=metadata_fields)
         
+        location_type = dp.LocationType.NATION
+        if loc_config.get("metadata_key") in ["region_id", "region"] and loc_config["name"] not in ["nl_national", "be_belgium"]:
+            location_type = dp.LocationType.COUNTY
+
         create_location_request = dp.CreateLocationRequest(
             location_name=loc_config["name"],
             energy_source=dp.EnergySource.SOLAR,
             geometry_wkt=loc_config["geometry"],
-            location_type=dp.LocationType.NATION,
+            location_type=location_type,
             effective_capacity_watts=loc_config["capacity"],
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),

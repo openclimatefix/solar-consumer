@@ -13,6 +13,6 @@ nl_region_10_zeeland,51.45,3.84,10,,nl,COUNTY
 nl_region_11_noord_brabant,51.56,5.20,11,,nl,COUNTY
 nl_region_12_limburg,51.21,5.94,12,,nl,COUNTY
 be_belgium,50.85,4.35,,Belgium,be,NATION
-be_flanders,51.00,4.46,,Flanders,be,NATION
-be_wallonia,50.50,4.70,,Wallonia,be,NATION
-be_brussels,50.85,4.35,,Brussels,be,NATION
+be_flanders,51.00,4.46,,Flanders,be,COUNTY
+be_wallonia,50.50,4.70,,Wallonia,be,COUNTY
+be_brussels,50.85,4.35,,Brussels,be,COUNTY
