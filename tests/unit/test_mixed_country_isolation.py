@@ -1,8 +1,6 @@
 import unittest
-from unittest.mock import AsyncMock, patch, MagicMock
-import datetime
+from unittest.mock import AsyncMock, patch
 import pandas as pd
-import numpy as np
 from dp_sdk.ocf import dp
 from betterproto.lib.google.protobuf import Struct, Value
 import uuid
