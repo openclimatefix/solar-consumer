@@ -418,7 +418,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
             with self.subTest(case.name):
                 if not case.should_error:
-                    await save_generation_to_data_platform(case.input_df, client_mock, country="nl")
+                    await save_generation_to_data_platform(case.input_df, client_mock, country="nld")
                     # Assert the data platform functions were called the expected number of times
                     self.assertEqual(
                         client_mock.update_location.call_count,
@@ -449,7 +449,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(call.args[0].observer_name, "nednl")
                 else:
                     with self.assertRaises(Exception):
-                        await save_generation_to_data_platform(case.input_df, client_mock, country="nl")
+                        await save_generation_to_data_platform(case.input_df, client_mock, country="nld")
 
     @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
     async def test_save_nl_generation_creates_locations_when_none_exist(self, client_mock):
@@ -503,7 +503,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             "target_datetime_utc": [np.datetime64('2023-01-01T00:00:00')],
         })
 
-        await save_generation_to_data_platform(input_df, client_mock, country="nl")
+        await save_generation_to_data_platform(input_df, client_mock, country="nld")
 
         # Verify create_location was called for each location in the CSV (13 locations)
         self.assertEqual(client_mock.create_location.call_count, 13)
@@ -524,7 +524,7 @@ def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
     save_generation_to_site_db(
         generation_data=generation_df,
         session=db_site_session,
-        country="ind_rajasthan",
+        country="ind_rj",
     )
 
     saved_data = db_site_session.query(GenerationSQL).all()

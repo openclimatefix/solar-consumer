@@ -25,7 +25,7 @@ async def test_save_be_generation_empty_data():
     )
 
     # Should not raise error
-    await save_generation_to_data_platform(test_data, mock_client, country="be")
+    await save_generation_to_data_platform(test_data, mock_client, country="bel")
 
     # Verify no observations were created
     mock_client.create_observations.assert_not_called()
@@ -68,7 +68,7 @@ async def test_save_be_generation_zero_capacity_filtered():
     })
 
     # Call the function
-    await save_generation_to_data_platform(test_data, mock_client, country="be")
+    await save_generation_to_data_platform(test_data, mock_client, country="bel")
 
     # Verify no observations were created (filtered out)
     mock_client.create_observations.assert_not_called()

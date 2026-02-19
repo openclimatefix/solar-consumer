@@ -24,19 +24,19 @@ from pathlib import Path
 def _get_country_config(country: str) -> dict:
     """Get country-specific configuration for data platform operations."""
     configs = {
-        "nl": {
+        "nld": {
             "id_key": "region_id",
             "location_type": dp.LocationType.NATION,
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
-        "be": {
+        "bel": {
             "id_key": "region",
             "location_type": dp.LocationType.NATION,
             "metadata_type": "string",  
             "observer_name": "elia_be",
         },
-        "gb": {
+        "gbr_gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
             "id_key": "gsp_id",
             "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
@@ -44,7 +44,7 @@ def _get_country_config(country: str) -> dict:
             "observer_name": None, 
         },
     }
-    return configs.get(country, configs["gb"])
+    return configs.get(country, configs["gbr_gb"])
 
 
 def _extract_metadata_value(metadata: dict, key: str, metadata_type: str) -> any:
@@ -156,7 +156,7 @@ async def _create_locations_from_csv(
 
 
 async def save_generation_to_data_platform(
-    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
+    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gbr_gb"
 ) -> None:
     """
     Saves model data via the data platform.
@@ -164,17 +164,17 @@ async def save_generation_to_data_platform(
     Incoming data is enriched with location information from the data platform. Anything with zero
     capacity, or without a corresponding entry in the data platform, is ignored.
 
-    For GB: Data is joined via the gsp_id, which is a column in the incoming data, and has to be
+    For GBR_GB: Data is joined via the gsp_id, which is a column in the incoming data, and has to be
     extracted from the metadata field in the data platform location data.
 
-    For NL: Data is joined via the region_id.
+    For NLD: Data is joined via the region_id.
 
-    For BE: Data is joined via the region (string-based matching).
+    For BEL: Data is joined via the region (string-based matching).
 
     Args:
         data_df: DataFrame containing the generation data
         client: Data platform client stub
-        country: Country identifier ('gb', 'nl', or 'be')
+        country: Country identifier ('gbr_gb', 'nld', or 'bel')
     """
     tasks: list[asyncio.Task] = []
     config = _get_country_config(country)
@@ -212,7 +212,7 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country in ["nl", "be"]:
+    if country in ["nld", "bel"]:
         # NL and BE support CSV-based location creation
         locations_data = await _list_locations(client, config["location_type"])
         
@@ -231,7 +231,7 @@ async def save_generation_to_data_platform(
     data_df = data_df.copy()
     
     # Extract metadata and create join key based on country
-    if country == "be":
+    if country == "bel":
         # BE uses string matching with normalization
         data_df["join_key"] = data_df[id_key]
         
@@ -339,7 +339,7 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nl"))
+        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nld"))
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)

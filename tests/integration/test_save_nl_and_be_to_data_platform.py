@@ -11,7 +11,7 @@ from dp_sdk.ocf import dp
 
 # Country-specific configuration for parametrized tests
 NL_CONFIG = {
-    "country": "nl",
+    "country": "nld",
     "observer_name": "nednl",
     "locations": [
         {
@@ -50,7 +50,7 @@ NL_CONFIG = {
 }
 
 BE_CONFIG = {
-    "country": "be",
+    "country": "bel",
     "observer_name": "elia_be",
     "locations": [
         {
@@ -169,8 +169,8 @@ async def test_save_generation_to_data_platform(client, config):
 
 @pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("country,observer_name,id_column,test_value", [
-    ("nl", "nednl", "region_id", 0),
-    ("be", "elia_be", "region", "belgium"),
+    ("nld", "nednl", "region_id", 0),
+    ("bel", "elia_be", "region", "belgium"),
 ], ids=["nl", "be"])
 async def test_save_generation_no_matching_locations(client, country, observer_name, id_column, test_value):
     """
@@ -185,7 +185,7 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
         await client.create_observer(create_observer_request)
 
     # Create fake generation data
-    if country == "nl":
+    if country == "nld":
         fake_data = pd.DataFrame({
             "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
             "solar_generation_kw": [5000.0],
@@ -248,13 +248,13 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
 
 
 @pytest.mark.asyncio(loop_scope="module")
-@pytest.mark.parametrize("country", ["nl", "be"], ids=["nl", "be"])
+@pytest.mark.parametrize("country", ["nld", "bel"], ids=["nl", "be"])
 async def test_save_generation_empty_dataframe(client, country):
     """
     Test saving empty generation data.
     Should handle gracefully without errors.
     """
-    if country == "nl":
+    if country == "nld":
         empty_data = pd.DataFrame(
             columns=["target_datetime_utc", "solar_generation_kw", "region_id", "capacity_kw"]
         )
@@ -269,8 +269,8 @@ async def test_save_generation_empty_dataframe(client, country):
 
 @pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("country,observer_name,id_column,metadata_key,metadata_value", [
-    ("nl", "nednl", "region_id", "region_id", 99),
-    ("be", "elia_be", "region", "region", "TestRegion"),
+    ("nld", "nednl", "region_id", "region_id", 99),
+    ("bel", "elia_be", "region", "region", "TestRegion"),
 ], ids=["nl", "be"])
 async def test_save_generation_zero_capacity(client, country, observer_name, id_column, metadata_key, metadata_value):
     """
@@ -319,7 +319,7 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
         await client.create_observer(create_observer_request)
 
     # Create data with zero capacity
-    if country == "nl":
+    if country == "nld":
         fake_data = pd.DataFrame({
             "target_datetime_utc": [pd.to_datetime("2025-01-02T00:00:00Z")],
             "solar_generation_kw": [5000.0],
@@ -358,8 +358,8 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
 
 @pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize("country,observer_name,id_column,id_value", [
-    ("nl", "nednl", "region_id", 999),
-    ("be", "elia_be", "region", "NonExistentRegion"),
+    ("nld", "nednl", "region_id", 999),
+    ("bel", "elia_be", "region", "NonExistentRegion"),
 ], ids=["nl", "be"])
 async def test_save_generation_missing_location_raises_error(client, country, observer_name, id_column, id_value):
     """
@@ -374,7 +374,7 @@ async def test_save_generation_missing_location_raises_error(client, country, ob
         await client.create_observer(create_observer_request)
 
     # Create fake generation data for a non-existent location
-    if country == "nl":
+    if country == "nld":
         fake_data = pd.DataFrame({
             "target_datetime_utc": [pd.to_datetime("2025-01-03T00:00:00Z")],
             "solar_generation_kw": [5000.0],
