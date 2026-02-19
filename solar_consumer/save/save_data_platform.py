@@ -72,7 +72,6 @@ async def _execute_async_tasks(
 async def _list_locations(
     client: dp.DataPlatformDataServiceStub,
     location_type: dp.LocationType | list[dp.LocationType],
-    country: str = "gb",
 ) -> list[dict]:
     """List locations from data platform and convert to dict format."""
     if isinstance(location_type, list):
@@ -89,7 +88,7 @@ async def _list_locations(
             for loc_type in location_type
         ]
         list_results = await _execute_async_tasks(tasks)        
-        all_locations = list(
+        return list(
             itertools.chain(
                 *[
                     r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
@@ -106,33 +105,10 @@ async def _list_locations(
             energy_source_filter=dp.EnergySource.SOLAR,
         )
         list_locations_response = await client.list_locations(list_locations_request)
-        all_locations = list_locations_response.to_dict(
+        return list_locations_response.to_dict(
             casing=betterproto.Casing.SNAKE,
             include_default_values=True,
         ).get("locations", [])
-
-    # Filter based on country metadata
-    filtered_locations = []
-    for loc in all_locations:
-        metadata = loc.get("metadata", {})
-        # Extract metadata value, struct usually converts to dictionary
-        # metadata structure: {'key': 'value'} or {'key': {'string_value': 'value'}}    
-        
-        val_dict = metadata.get("country", {})
-        loc_country = val_dict.get("string_value")
-
-        if country == "gb":
-            # For GB, assume it matches if country is "gb" OR if country metadata is missing.
-            # This ensures backward compatibility for existing GB locations.
-            if loc_country == "gb" or not loc_country:
-                filtered_locations.append(loc)
-        else:
-            # For NL/BE, strict matching
-            if loc_country == country:
-                filtered_locations.append(loc)
-
-
-    return filtered_locations
 
 
 async def _create_locations_from_csv(
@@ -158,15 +134,10 @@ async def _create_locations_from_csv(
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
-        metadata_fields = {
-            "country": Value(string_value=country),
-        }
         if metadata_type == "number":
-            metadata_fields[id_key] = Value(number_value=id_value)
+            metadata = Struct(fields={id_key: Value(number_value=id_value)})
         else:  # string
-            metadata_fields[id_key] = Value(string_value=id_value)
-
-        metadata = Struct(fields=metadata_fields)
+            metadata = Struct(fields={id_key: Value(string_value=id_value)})
         
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
@@ -243,15 +214,15 @@ async def save_generation_to_data_platform(
     # 1. Get locations and join to the incoming data.
     if country in ["nl", "be"]:
         # NL and BE support CSV-based location creation
-        locations_data = await _list_locations(client, config["location_type"], country=country)
+        locations_data = await _list_locations(client, config["location_type"])
         
         if not locations_data:
             await _create_locations_from_csv(client, country, id_key, metadata_type)
             # Re-fetch locations after creating them
-            locations_data = await _list_locations(client, config["location_type"], country=country)
+            locations_data = await _list_locations(client, config["location_type"])
     else:
         # GB - no CSV creation support
-        locations_data = await _list_locations(client, config["location_type"], country=country)
+        locations_data = await _list_locations(client, config["location_type"])
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)

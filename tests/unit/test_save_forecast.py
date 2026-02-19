@@ -298,7 +298,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=100_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(52.13, 5.29),
-                            metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
+                            metadata=Struct(fields={"region_id": Value(number_value=0)}),
                         ),
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_groningen",
@@ -307,7 +307,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=50_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(53.22, 6.74),
-                            metadata=Struct(fields={"region_id": Value(number_value=1), "country": Value(string_value="nl")}),
+                            metadata=Struct(fields={"region_id": Value(number_value=1)}),
                         ),
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_friesland",
@@ -316,7 +316,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=25_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(53.11, 5.85),
-                            metadata=Struct(fields={"region_id": Value(number_value=2), "country": Value(string_value="nl")}),
+                            metadata=Struct(fields={"region_id": Value(number_value=2)}),
                         ),
                     ]
                 )
@@ -415,7 +415,6 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             client_mock.create_observations = AsyncMock()
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
-            client_mock.create_location = AsyncMock()
 
             with self.subTest(case.name):
                 if not case.should_error:
@@ -475,7 +474,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=100_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(52.13, 5.29),
-                            metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
+                            metadata=Struct(fields={"region_id": Value(number_value=0)}),
                         ),
                     ]
                 )

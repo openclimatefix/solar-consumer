@@ -107,15 +107,14 @@ async def test_save_generation_to_data_platform(client, config):
     # Create locations
     location_uuids = {}
     for loc_config in config["locations"]:
-        metadata_fields = {
-            "country": Value(string_value=country)
-        }
         if loc_config["metadata_type"] == "number":
-            metadata_fields[loc_config["metadata_key"]] = Value(number_value=loc_config["metadata_value"])
+            metadata = Struct(fields={
+                loc_config["metadata_key"]: Value(number_value=loc_config["metadata_value"])
+            })
         else:
-            metadata_fields[loc_config["metadata_key"]] = Value(string_value=loc_config["metadata_value"])
-
-        metadata = Struct(fields=metadata_fields)
+            metadata = Struct(fields={
+                loc_config["metadata_key"]: Value(string_value=loc_config["metadata_value"])
+            })
         
         create_location_request = dp.CreateLocationRequest(
             location_name=loc_config["name"],
@@ -229,11 +228,6 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
             break
 
     assert target_location is not None, f"{expected_location_name} location not found"
-    
-    # Verify country metadata is present
-    metadata = target_location.get("metadata", {})
-    country_meta = metadata.get("country", {}).get("string_value")
-    assert country_meta == country, f"Country metadata missing or incorrect for {expected_location_name}"
 
     # Verify observations exist
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
