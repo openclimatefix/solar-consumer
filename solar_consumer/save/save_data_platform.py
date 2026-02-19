@@ -389,6 +389,23 @@ async def save_generation_to_data_platform(
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
+    for lid, t, new_cap in zip(
+        updates_df["location_uuid"],
+        updates_df["target_datetime_utc"],
+        updates_df["new_effective_capacity_watts"],
+    ):
+        pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc)
+        get_location_request = dp.GetLocationRequest(
+            location_uuid=lid,
+            energy_source=dp.EnergySource.SOLAR,
+            pivot_timestamp_utc=pivot_time
+        )
+        get_location_request = await client.get_location(get_location_request)
+        logging.info(f"DEBUG: get_location_request for {lid} returned {get_location_request}")
+        logging.info(f"DEBUG: get_location_request effective_capacity_watts for {lid} is {get_location_request.effective_capacity_watts}")
+        logging.info(f"DEBUG: expected new_cap for {lid} is {new_cap}")
+        assert get_location_request.effective_capacity_watts == new_cap
+
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     for lid, t, val in zip(
