@@ -140,7 +140,7 @@ async def test_save_generation_to_data_platform(client, config):
         
         location_type = dp.LocationType.NATION
         if loc_config.get("metadata_key") in ["region_id", "region"] and loc_config["name"] not in ["nl_national", "be_belgium"]:
-            location_type = dp.LocationType.COUNTY
+            location_type = dp.LocationType.STATE
 
         create_location_request = dp.CreateLocationRequest(
             location_name=loc_config["name"],
@@ -178,15 +178,11 @@ async def test_save_generation_to_data_platform(client, config):
                 end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
             ),
         )
-        import asyncio
-        for _ in range(15):
-            get_observations_response = await client.get_observations_as_timeseries(
-                get_observations_request
-            )
-            if len(get_observations_response.values) > 0:
-                break
-            await asyncio.sleep(1)
-        
+       
+        get_observations_response = await client.get_observations_as_timeseries(
+            get_observations_request
+        )
+            
         # Check that observations exist
         assert len(get_observations_response.values) > 0, f"No observations found for {location_name}"
 
@@ -200,12 +196,7 @@ async def test_save_generation_to_data_platform(client, config):
             energy_source=dp.EnergySource.SOLAR,
             pivot_timestamp_utc=pivot_time
         )
-        import asyncio
-        for _ in range(15):
-            get_location_response = await client.get_location(get_location_request)    
-            if get_location_response.effective_capacity_watts == expected_capacity:
-                break
-            await asyncio.sleep(1)
+        get_location_response = await client.get_location(get_location_request)     
         assert get_location_response.effective_capacity_watts == expected_capacity, \
             f"Capacity not updated correctly for {location_name}"
 

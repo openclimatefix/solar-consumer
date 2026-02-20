@@ -26,13 +26,13 @@ def _get_country_config(country: str) -> dict:
     configs = {
         "nl": {
             "id_key": "region_id",
-            "location_type": [dp.LocationType.NATION, dp.LocationType.COUNTY],
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
         "be": {
             "id_key": "region",
-            "location_type": [dp.LocationType.NATION, dp.LocationType.COUNTY],
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",  
             "observer_name": "elia_be",
         },
@@ -171,8 +171,8 @@ async def _create_locations_from_csv(
         
         if location_type_str == "NATION":
              location_type = dp.LocationType.NATION
-        elif location_type_str == "COUNTY":
-             location_type = dp.LocationType.COUNTY
+        elif location_type_str == "STATE":
+             location_type = dp.LocationType.STATE
         else:
              location_type = dp.LocationType.NATION
 
@@ -382,9 +382,6 @@ async def save_generation_to_data_platform(
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
         )
-        # TODO if we run the next line, the tests seem to pass
-        # _ = await client.update_location(req)
-        ######## code that doesnt work (maybe)
         tasks.append(asyncio.create_task(client.update_location(req)))
 
     if len(tasks) > 0:
