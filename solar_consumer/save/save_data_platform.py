@@ -353,10 +353,6 @@ async def save_generation_to_data_platform(
         / (joined_df["new_effective_capacity_watts"].astype(float))
     ).abs()
 
-    logging.info(f"DEBUG: variables joined_df size: {len(joined_df)}")
-    if not joined_df.empty:
-        logging.info(f"DEBUG: joined_df sample:\n{joined_df[['location_name', 'effective_capacity_watts', 'new_effective_capacity_watts', 'capacity_change']].head()}")
-
     updates_df = (
         joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
         .sort_values(by="target_datetime_utc", ascending=False)
@@ -365,17 +361,12 @@ async def save_generation_to_data_platform(
         .sort_index()
     )
 
-    logging.info(f"DEBUG: updates_df size: {len(updates_df)}")
-    if not updates_df.empty:
-        logging.info(f"DEBUG: updates_df sample:\n{updates_df[['location_name', 'effective_capacity_watts', 'new_effective_capacity_watts']].head()}")
-
     tasks = []
     for lid, t, new_cap in zip(
         updates_df["location_uuid"],
         updates_df["target_datetime_utc"],
         updates_df["new_effective_capacity_watts"],
     ):
-        logging.info(f"DEBUG: Creating update task for {lid} with new_cap={new_cap}, valid_from={t}")
         req = dp.UpdateLocationRequest(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
