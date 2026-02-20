@@ -461,7 +461,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
         def mock_list_locations(req: dp.ListLocationsRequest) -> dp.ListLocationsResponse:
             nonlocal call_count
             call_count += 1
-            if call_count <= 2:
+            if call_count == 1:
                 # First call returns empty (no locations exist)
                 return dp.ListLocationsResponse(locations=[])
             else:
