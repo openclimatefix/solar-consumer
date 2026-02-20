@@ -9,7 +9,7 @@ from dp_sdk.ocf import dp
 
 
 # Country-specific configuration for parametrized tests
-NL_CONFIG = {
+NL_NATIONAL_CONFIG = {
     "country": "nl",
     "observer_name": "nednl",
     "locations": [
@@ -21,6 +21,26 @@ NL_CONFIG = {
             "geometry": "POINT(5.29 52.13)",
             "capacity": 100_000_000_000,
         },
+    ],
+    "test_data": {
+        "target_datetime_utc": [
+            pd.to_datetime("2025-01-01T00:00:00Z"),
+            pd.to_datetime("2025-01-01T01:00:00Z"),
+        ],
+        "solar_generation_kw": [5000.0, 6000.0],
+        "region_id": [0, 0],
+        "capacity_kw": [80_000_000, 80_000_000],
+    },
+    "capacity_updates": {
+        "nl_national": 80_000_000_000,
+    },
+    "id_column": "region_id",
+}
+
+NL_GRONINGEN_CONFIG = {
+    "country": "nl",
+    "observer_name": "nednl",
+    "locations": [
         {
             "name": "nl_groningen",
             "metadata_key": "region_id",
@@ -32,21 +52,19 @@ NL_CONFIG = {
     ],
     "test_data": {
         "target_datetime_utc": [
-            pd.to_datetime("2025-01-01T00:00:00Z"),
-            pd.to_datetime("2025-01-01T01:00:00Z"),
             pd.to_datetime("2025-01-01T02:00:00Z"),
             pd.to_datetime("2025-01-01T03:00:00Z"),
         ],
-        "solar_generation_kw": [5000.0, 6000.0, 2500.0, 3000.0],
-        "region_id": [0, 0, 1, 1],
-        "capacity_kw": [80_000_000, 80_000_000, 60_000_000, 60_000_000],
+        "solar_generation_kw": [2500.0, 3000.0],
+        "region_id": [1, 1],
+        "capacity_kw": [60_000_000, 60_000_000],
     },
     "capacity_updates": {
-        "nl_national": 80_000_000_000,
         "nl_groningen": 60_000_000_000,
     },
     "id_column": "region_id",
 }
+
 
 BE_CONFIG = {
     "country": "be",
@@ -94,7 +112,11 @@ BE_CONFIG = {
 
 
 @pytest.mark.asyncio(loop_scope="module")
-@pytest.mark.parametrize("config", [NL_CONFIG, BE_CONFIG], ids=["nl", "be"])
+@pytest.mark.parametrize(
+    "config",
+    [NL_NATIONAL_CONFIG, NL_GRONINGEN_CONFIG, BE_CONFIG],
+    ids=["nl_national", "nl_groningen", "be"],
+)
 async def test_save_generation_to_data_platform(client, config):
     """
     Test saving generation data to the Data Platform.
@@ -132,9 +154,12 @@ async def test_save_generation_to_data_platform(client, config):
         create_location_response = await client.create_location(create_location_request)
         location_uuids[loc_config["name"]] = create_location_response.location_uuid
 
-    # Create observer
-    create_observer_request = dp.CreateObserverRequest(name=observer_name)
-    await client.create_observer(create_observer_request)
+    # Create observer (only if it doesn't already exist - tests share the same DB in module scope)
+    list_observer_response = await client.list_observers(
+        dp.ListObserversRequest(observer_names_filter=[observer_name])
+    )
+    if not any(obs.observer_name == observer_name for obs in list_observer_response.observers):
+        await client.create_observer(dp.CreateObserverRequest(name=observer_name))
 
     # Create fake generation data
     fake_data = pd.DataFrame(config["test_data"])
