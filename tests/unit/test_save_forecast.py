@@ -298,7 +298,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=100_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(52.13, 5.29),
-                            metadata=Struct(fields={"region_id": Value(number_value=0)}),
+                            metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
                         ),
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_groningen",
@@ -307,7 +307,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=50_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(53.22, 6.74),
-                            metadata=Struct(fields={"region_id": Value(number_value=1)}),
+                            metadata=Struct(fields={"region_id": Value(number_value=1), "country": Value(string_value="nl")}),
                         ),
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_friesland",
@@ -316,7 +316,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=25_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(53.11, 5.85),
-                            metadata=Struct(fields={"region_id": Value(number_value=2)}),
+                            metadata=Struct(fields={"region_id": Value(number_value=2), "country": Value(string_value="nl")}),
                         ),
                     ]
                 )
@@ -415,6 +415,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             client_mock.create_observations = AsyncMock()
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
+            client_mock.create_location = AsyncMock()
 
             with self.subTest(case.name):
                 if not case.should_error:
@@ -465,8 +466,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 return dp.ListLocationsResponse(locations=[])
             else:
                 # Second call (after creation) returns the created locations
-                return dp.ListLocationsResponse(
-                    locations=[
+                all_locations = [
                         dp.ListLocationsResponseLocationSummary(
                             location_name="nl_national",
                             location_uuid=str(uuid.uuid4()),
@@ -474,10 +474,12 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                             effective_capacity_watts=100_000_000_000,
                             location_type=dp.LocationType.NATION,
                             latlng=dp.LatLng(52.13, 5.29),
-                            metadata=Struct(fields={"region_id": Value(number_value=0)}),
+                            metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
                         ),
                     ]
-                )
+                
+                filtered = [loc for loc in all_locations if loc.location_type == req.location_type_filter]
+                return dp.ListLocationsResponse(locations=filtered)
 
         def mock_list_observers(req: dp.ListObserversRequest) -> dp.ListObserversResponse:
             return dp.ListObserversResponse(
@@ -509,7 +511,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client_mock.create_location.call_count, 13)
 
         # Verify list_locations was called twice (once before, once after creation)
-        self.assertEqual(client_mock.list_locations.call_count, 2)
+        self.assertEqual(client_mock.list_locations.call_count, 4)
 
 def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
     generation_data = {

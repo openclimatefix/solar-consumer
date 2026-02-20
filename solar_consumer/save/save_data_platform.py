@@ -26,13 +26,13 @@ def _get_country_config(country: str) -> dict:
     configs = {
         "nl": {
             "id_key": "region_id",
-            "location_type": dp.LocationType.NATION,
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl",
         },
         "be": {
             "id_key": "region",
-            "location_type": dp.LocationType.NATION,
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",  
             "observer_name": "elia_be",
         },
@@ -72,6 +72,7 @@ async def _execute_async_tasks(
 async def _list_locations(
     client: dp.DataPlatformDataServiceStub,
     location_type: dp.LocationType | list[dp.LocationType],
+    country: str = "gb",
 ) -> list[dict]:
     """List locations from data platform and convert to dict format."""
     if isinstance(location_type, list):
@@ -88,7 +89,7 @@ async def _list_locations(
             for loc_type in location_type
         ]
         list_results = await _execute_async_tasks(tasks)        
-        return list(
+        all_locations = list(
             itertools.chain(
                 *[
                     r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
@@ -105,10 +106,33 @@ async def _list_locations(
             energy_source_filter=dp.EnergySource.SOLAR,
         )
         list_locations_response = await client.list_locations(list_locations_request)
-        return list_locations_response.to_dict(
+        all_locations = list_locations_response.to_dict(
             casing=betterproto.Casing.SNAKE,
             include_default_values=True,
         ).get("locations", [])
+
+    # Filter based on country metadata
+    filtered_locations = []
+    for loc in all_locations:
+        metadata = loc.get("metadata", {})
+        # Extract metadata value, struct usually converts to dictionary
+        # metadata structure: {'key': 'value'} or {'key': {'string_value': 'value'}}    
+        
+        val_dict = metadata.get("country", {})
+        loc_country = val_dict.get("string_value")
+
+        if country == "gb":
+            # For GB, assume it matches if country is "gb" OR if country metadata is missing.
+            # This ensures backward compatibility for existing GB locations.
+            if loc_country == "gb" or not loc_country:
+                filtered_locations.append(loc)
+        else:
+            # For NL/BE, strict matching
+            if loc_country == country:
+                filtered_locations.append(loc)
+
+
+    return filtered_locations
 
 
 async def _create_locations_from_csv(
@@ -129,20 +153,33 @@ async def _create_locations_from_csv(
     
     for location in locations:
         location_name = location["name"]
+        location_type_str = location.get("location_type", "NATION")
 
         effective_capacity_watts = 100_000_000_000
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
+        metadata_fields = {
+            "country": Value(string_value=country),
+        }
         if metadata_type == "number":
-            metadata = Struct(fields={id_key: Value(number_value=id_value)})
+            metadata_fields[id_key] = Value(number_value=id_value)
         else:  # string
-            metadata = Struct(fields={id_key: Value(string_value=id_value)})
+            metadata_fields[id_key] = Value(string_value=id_value)
+
+        metadata = Struct(fields=metadata_fields)
         
+        if location_type_str == "NATION":
+             location_type = dp.LocationType.NATION
+        elif location_type_str == "STATE":
+             location_type = dp.LocationType.STATE
+        else:
+             location_type = dp.LocationType.NATION
+
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
             energy_source=dp.EnergySource.SOLAR,
-            location_type=dp.LocationType.NATION,
+            location_type=location_type,
             geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
             effective_capacity_watts=effective_capacity_watts,
             metadata=metadata,
@@ -214,15 +251,15 @@ async def save_generation_to_data_platform(
     # 1. Get locations and join to the incoming data.
     if country in ["nl", "be"]:
         # NL and BE support CSV-based location creation
-        locations_data = await _list_locations(client, config["location_type"])
+        locations_data = await _list_locations(client, config["location_type"], country=country)
         
         if not locations_data:
             await _create_locations_from_csv(client, country, id_key, metadata_type)
             # Re-fetch locations after creating them
-            locations_data = await _list_locations(client, config["location_type"])
+            locations_data = await _list_locations(client, config["location_type"], country=country)
     else:
         # GB - no CSV creation support
-        locations_data = await _list_locations(client, config["location_type"])
+        locations_data = await _list_locations(client, config["location_type"], country=country)
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
@@ -315,6 +352,7 @@ async def save_generation_to_data_platform(
         (joined_df["effective_capacity_watts"].astype(float))
         / (joined_df["new_effective_capacity_watts"].astype(float))
     ).abs()
+
     updates_df = (
         joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
         .sort_values(by="target_datetime_utc", ascending=False)
@@ -322,6 +360,7 @@ async def save_generation_to_data_platform(
         .head(1)
         .sort_index()
     )
+
     tasks = []
     for lid, t, new_cap in zip(
         updates_df["location_uuid"],
@@ -339,7 +378,7 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logging.info("updating %d %s location capacities", len(tasks), country.upper())
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=(country == "nl"))
+        await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)

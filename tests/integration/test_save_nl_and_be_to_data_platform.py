@@ -3,14 +3,13 @@ import pytest
 import datetime
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
-
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
 
 
 # Country-specific configuration for parametrized tests
-NL_CONFIG = {
+NL_NATIONAL_CONFIG = {
     "country": "nl",
     "observer_name": "nednl",
     "locations": [
@@ -22,6 +21,26 @@ NL_CONFIG = {
             "geometry": "POINT(5.29 52.13)",
             "capacity": 100_000_000_000,
         },
+    ],
+    "test_data": {
+        "target_datetime_utc": [
+            pd.to_datetime("2025-01-01T00:00:00Z"),
+            pd.to_datetime("2025-01-01T01:00:00Z"),
+        ],
+        "solar_generation_kw": [5000.0, 6000.0],
+        "region_id": [0, 0],
+        "capacity_kw": [80_000_000, 80_000_000],
+    },
+    "capacity_updates": {
+        "nl_national": 80_000_000_000,
+    },
+    "id_column": "region_id",
+}
+
+NL_GRONINGEN_CONFIG = {
+    "country": "nl",
+    "observer_name": "nednl",
+    "locations": [
         {
             "name": "nl_groningen",
             "metadata_key": "region_id",
@@ -33,21 +52,19 @@ NL_CONFIG = {
     ],
     "test_data": {
         "target_datetime_utc": [
-            pd.to_datetime("2025-01-01T00:00:00Z"),
-            pd.to_datetime("2025-01-01T01:00:00Z"),
-            pd.to_datetime("2025-01-01T00:00:00Z"),
-            pd.to_datetime("2025-01-01T01:00:00Z"),
+            pd.to_datetime("2025-01-01T02:00:00Z"),
+            pd.to_datetime("2025-01-01T03:00:00Z"),
         ],
-        "solar_generation_kw": [5000.0, 6000.0, 2500.0, 3000.0],
-        "region_id": [0, 0, 1, 1],
-        "capacity_kw": [80_000_000, 80_000_000, 60_000_000, 60_000_000],
+        "solar_generation_kw": [2500.0, 3000.0],
+        "region_id": [1, 1],
+        "capacity_kw": [60_000_000, 60_000_000],
     },
     "capacity_updates": {
-        "nl_national": 80_000_000_000,
         "nl_groningen": 60_000_000_000,
     },
     "id_column": "region_id",
 }
+
 
 BE_CONFIG = {
     "country": "be",
@@ -95,7 +112,11 @@ BE_CONFIG = {
 
 
 @pytest.mark.asyncio(loop_scope="module")
-@pytest.mark.parametrize("config", [NL_CONFIG, BE_CONFIG], ids=["nl", "be"])
+@pytest.mark.parametrize(
+    "config",
+    [NL_NATIONAL_CONFIG, NL_GRONINGEN_CONFIG, BE_CONFIG],
+    ids=["nl_national", "nl_groningen", "be"],
+)
 async def test_save_generation_to_data_platform(client, config):
     """
     Test saving generation data to the Data Platform.
@@ -107,20 +128,25 @@ async def test_save_generation_to_data_platform(client, config):
     # Create locations
     location_uuids = {}
     for loc_config in config["locations"]:
+        metadata_fields = {
+            "country": Value(string_value=country)
+        }
         if loc_config["metadata_type"] == "number":
-            metadata = Struct(fields={
-                loc_config["metadata_key"]: Value(number_value=loc_config["metadata_value"])
-            })
+            metadata_fields[loc_config["metadata_key"]] = Value(number_value=loc_config["metadata_value"])
         else:
-            metadata = Struct(fields={
-                loc_config["metadata_key"]: Value(string_value=loc_config["metadata_value"])
-            })
+            metadata_fields[loc_config["metadata_key"]] = Value(string_value=loc_config["metadata_value"])
+
+        metadata = Struct(fields=metadata_fields)
         
+        location_type = dp.LocationType.NATION
+        if loc_config.get("metadata_key") in ["region_id", "region"] and loc_config["name"] not in ["nl_national", "be_belgium"]:
+            location_type = dp.LocationType.STATE
+
         create_location_request = dp.CreateLocationRequest(
             location_name=loc_config["name"],
             energy_source=dp.EnergySource.SOLAR,
             geometry_wkt=loc_config["geometry"],
-            location_type=dp.LocationType.NATION,
+            location_type=location_type,
             effective_capacity_watts=loc_config["capacity"],
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
@@ -128,9 +154,12 @@ async def test_save_generation_to_data_platform(client, config):
         create_location_response = await client.create_location(create_location_request)
         location_uuids[loc_config["name"]] = create_location_response.location_uuid
 
-    # Create observer
-    create_observer_request = dp.CreateObserverRequest(name=observer_name)
-    await client.create_observer(create_observer_request)
+    # Create observer (only if it doesn't already exist - tests share the same DB in module scope)
+    list_observer_response = await client.list_observers(
+        dp.ListObserversRequest(observer_names_filter=[observer_name])
+    )
+    if not any(obs.observer_name == observer_name for obs in list_observer_response.observers):
+        await client.create_observer(dp.CreateObserverRequest(name=observer_name))
 
     # Create fake generation data
     fake_data = pd.DataFrame(config["test_data"])
@@ -149,20 +178,25 @@ async def test_save_generation_to_data_platform(client, config):
                 end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
             ),
         )
+       
         get_observations_response = await client.get_observations_as_timeseries(
             get_observations_request
         )
-        
+            
         # Check that observations exist
         assert len(get_observations_response.values) > 0, f"No observations found for {location_name}"
 
     # Verify location capacities were updated where expected
     for location_name, expected_capacity in config.get("capacity_updates", {}).items():
         location_uuid = location_uuids[location_name]
+        # Use a pivot time after the update to ensure we see the new capacity
+        pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc)
         get_location_request = dp.GetLocationRequest(
-            location_uuid=location_uuid, energy_source=dp.EnergySource.SOLAR
+            location_uuid=location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            pivot_timestamp_utc=pivot_time
         )
-        get_location_response = await client.get_location(get_location_request)
+        get_location_response = await client.get_location(get_location_request)     
         assert get_location_response.effective_capacity_watts == expected_capacity, \
             f"Capacity not updated correctly for {location_name}"
 
@@ -228,6 +262,11 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
             break
 
     assert target_location is not None, f"{expected_location_name} location not found"
+    
+    # Verify country metadata is present
+    metadata = target_location.get("metadata", {})
+    country_meta = metadata.get("country", {}).get("string_value")
+    assert country_meta == country, f"Country metadata missing or incorrect for {expected_location_name}"
 
     # Verify observations exist
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
