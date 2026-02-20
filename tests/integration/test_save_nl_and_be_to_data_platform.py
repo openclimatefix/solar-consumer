@@ -3,7 +3,7 @@ import pytest
 import datetime
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
-
+import time
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
@@ -154,6 +154,7 @@ async def test_save_generation_to_data_platform(client, config):
                 end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
             ),
         )
+        time.sleep(10) # wait for the data to be available for the duration of 10 seconds
         get_observations_response = await client.get_observations_as_timeseries(
             get_observations_request
         )
