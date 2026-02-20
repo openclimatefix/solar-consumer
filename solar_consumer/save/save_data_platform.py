@@ -389,8 +389,6 @@ async def save_generation_to_data_platform(
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
-    ######## code that doesnt work (maybe)
-
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     for lid, t, val in zip(
