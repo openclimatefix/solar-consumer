@@ -3,7 +3,6 @@ import pytest
 import datetime
 from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
-import time
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 from dp_sdk.ocf import dp
@@ -154,10 +153,14 @@ async def test_save_generation_to_data_platform(client, config):
                 end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
             ),
         )
-        time.sleep(10) # wait for the data to be available for the duration of 10 seconds
-        get_observations_response = await client.get_observations_as_timeseries(
-            get_observations_request
-        )
+        import asyncio
+        for _ in range(15):
+            get_observations_response = await client.get_observations_as_timeseries(
+                get_observations_request
+            )
+            if len(get_observations_response.values) > 0:
+                break
+            await asyncio.sleep(1)
         
         # Check that observations exist
         assert len(get_observations_response.values) > 0, f"No observations found for {location_name}"
@@ -172,7 +175,12 @@ async def test_save_generation_to_data_platform(client, config):
             energy_source=dp.EnergySource.SOLAR,
             pivot_timestamp_utc=pivot_time
         )
-        get_location_response = await client.get_location(get_location_request)    
+        import asyncio
+        for _ in range(15):
+            get_location_response = await client.get_location(get_location_request)    
+            if get_location_response.effective_capacity_watts == expected_capacity:
+                break
+            await asyncio.sleep(1)
         assert get_location_response.effective_capacity_watts == expected_capacity, \
             f"Capacity not updated correctly for {location_name}"
 
