@@ -19,6 +19,7 @@ dependencies = [
     "tqdm",
     "loguru==0.7.3",
     "pvlive-api>=1.5.1",
+    "pvlib",
     "dp-sdk",
     "betterproto==2.0.0b7",
     "grpclib==0.4.8",
