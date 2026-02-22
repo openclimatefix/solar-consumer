@@ -1,92 +1,122 @@
 import os
 import pandas as pd
-import dotenv
 from datetime import datetime, timedelta, timezone
-import requests
-import xml.etree.ElementTree as ET
+from entsoe import EntsoePandasClient
 from loguru import logger
 
-# Load environment variables
-dotenv.load_dotenv()
+# German bidding zone
+DE_TSO_ZONE = "10Y1001A1001A82H"
 
-def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
+def fetch_de_data_range(start: datetime, end: datetime, chunk_hours: int = 168):
+    """    
+    Fetch German solar generation over a date range by chunking into windows (smaller payloads for API
+    and more robust behaviour for large ranges).
+    - start/end: inclusive start/exclusive end datetime (UTC)
+    - chunk_hours: window size, default 168h (or 7 days)
+
+    Returns DataFrame with columns:
+      - target_datetime_utc (UTC)
+      - solar_generation_kw (kW)
+      - tso_zone
+    """
+
+    # API access handled by entsoe-py, not XML
+    api_key = os.getenv("ENTSOE_API_KEY")
+    if not api_key:
+        raise RuntimeError("WARNING: ENTSOE_API_KEY not set in environment")
+
+    assert start < end, "Start date must be before end"
+
+    # Normalise to UTC and hour boundaries
+    def norm(t):
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        else:
+            t = t.astimezone(timezone.utc)
+        return t.replace(minute=0, second=0, microsecond=0)
+    
+    start = norm(start)
+    end = norm(end)
+
+    client = EntsoePandasClient(api_key=api_key)
+
+    frames = []
+    window = start
+    step = timedelta(hours=chunk_hours)
+
+    # Fetch one window from the ENTSOE API and collect non-empty solar gen results
+    while window < end:
+        nxt = min(window + step, end)
+
+        # entsoe-py request (generation in MW)
+        gen_mw = client.query_generation(
+            country_code="DE",
+            start=pd.Timestamp(window),
+            end=pd.Timestamp(nxt),
+            psr_type="Solar",
+        )
+
+        # Convert to standard schema (UTC + kW)
+        if gen_mw is not None and not gen_mw.empty:
+            idx = pd.to_datetime(gen_mw.index)
+
+            # Ensure tz-aware UTC stamps
+            if getattr(idx, "tz", None) is None:
+                idx = idx.tz_localize("UTC")
+            else:
+                idx = idx.tz_convert("UTC")
+
+            df_chunk = pd.DataFrame(
+                {
+                    "target_datetime_utc": idx,
+                    "solar_generation_kw": (gen_mw.astype(float) * 1000.0).to_numpy(),
+                    "tso_zone": DE_TSO_ZONE,
+                }
+            )
+            df_chunk = df_chunk.sort_values("target_datetime_utc").reset_index(drop=True)
+            frames.append(df_chunk)
+
+        window = nxt
+
+    # If all windows are completely empty, return an empty one with the right shape
+    if not frames:
+        return pd.DataFrame(
+            columns=["target_datetime_utc", "solar_generation_kw", "tso_zone"]
+        )
+
+    # Concatenate to a single table
+    df = pd.concat(frames, ignore_index=True)
+    df = (
+        df.drop_duplicates(subset=["target_datetime_utc", "tso_zone"])
+        .sort_values("target_datetime_utc")
+        .reset_index(drop=True)
+    )
+    logger.info("Assembled {} rows of German solar data over range.", len(df))
+    return df
+
+
+def fetch_de_data(historic_or_forecast: str = "generation"):
     """
     Fetch solar generation data from German bidding zones via the
-    ENTSOE API
+    ENTSOE API (24 HOUR FETCH)
 
     Only 'generation' mode is supported for now
-    
+
     Returns DataFrame with 3 columns:
       - target_datetime_utc (UTC date and time)
       - solar_generation_kw (generation in kilowatts)
       - tso_zone (bidding zone code)
     """
     
-    assert historic_or_forecast == "generation", "Only 'generation' supported for the time being"
+    assert (
+        historic_or_forecast == "generation"
+    ), "Only 'generation' supported for the time being"
 
     # Fetches data from last 24 hours from current time
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     start = now - timedelta(hours=24)
-    period_start = start.strftime("%Y%m%d%H%M")
-    period_end = now.strftime("%Y%m%d%H%M")
 
-    # Prepare request
-    url = "https://web-api.tp.entsoe.eu/api" # base url for api
-    API_KEY = os.getenv("ENTSOE_API_KEY", "") # api key from env vars, empty string if missing
-    params = {
-        "documentType": "A75",    # actual generation
-        "processType": "A16",     # realised output
-        "in_Domain": "10Y1001A1001A83F",
-        "psrType": "B16",
-        "periodStart": period_start,
-        "periodEnd": period_end,
-        "securityToken": API_KEY,
-    }
-
-    # Initialise session for request
-    session = requests.Session()
-    logger.debug("Requesting German data from API with params: {}", params)
-    response = session.get(url, params=params)
-    try:
-        response.raise_for_status()
-    except Exception as e:
-        logger.error("API request failed, {}: {}", response.status_code, e)
-        raise    
-    logger.error(f"Bytes: {len(response.content)}")
-
-    # Parse XML
-    root = ET.fromstring(response.content)
-    records = []
-
-    # Each <TimeSeries> represents one tso zone and one energy type
-    for ts in root.findall(".//TimeSeries"):
-        zone = ts.findtext(".//inBiddingZone_Domain/Mrid")
-        psr = ts.findtext(".//MktPSRType/psrType")
-        if psr != "A-10Y1001A1001A83H": # Skips all non-solar data
-            continue
-
-        for pt in ts.findall(".//Period/Point"):
-            start_str = pt.findtext("timeInterval/start")
-            qty_str = pt.findtext("quantity") # Quantity is in MW, converted to kW later
-            try:
-                qty = float(qty_str)
-            except (TypeError, ValueError):
-                logger.warning("Skipping malfromed quantity (%s) in zone %s", qty_str, zone)
-                continue
-
-            # Convert and record in list
-            dt = pd.to_datetime(start_str, utc=True)
-            records.append({
-                "target_datetime_utc": dt,
-                "solar_generation_kw": qty * 1000,
-                "tso_zone": zone,
-            })
-
-    # Build and tidy DataFrame
-    df = pd.DataFrame(records)
-    if not df.empty:
-        df = df.sort_values("target_datetime_utc").reset_index(drop=True)
-    
+    # Keep behaviour stable: use the same range fetch and schema conversion path
+    df = fetch_de_data_range(start, now, chunk_hours=24)
     logger.info("Assembled {} rows of German solar data", len(df))
-
     return df
