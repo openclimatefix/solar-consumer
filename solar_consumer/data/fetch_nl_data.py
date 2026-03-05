@@ -136,6 +136,15 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                         for util in utilizations
                     ]
                 )
+                # log the update time
+                logger.info(f"Data fetched up to {df['validfrom (UTC)'].max()} "
+                    f"with last update at {df['lastupdate (UTC)'].max()}")
+                
+                # remove any data less than update time.
+                # In the past we have had some spiky generation data
+                # https://github.com/openclimatefix/solar-consumer/issues/168
+                df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
+                df = df[df['validto (UTC)'] < df['lastupdate (UTC)'].max()]
 
                 # Append to main DataFrame
                 all_data = pd.concat([all_data, df], ignore_index=True)
