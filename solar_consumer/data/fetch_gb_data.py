@@ -9,6 +9,9 @@ from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
 
+from nowcasting_datamodel.connection import DatabaseConnection
+from nowcasting_datamodel.models.gsp import LocationSQL
+
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
@@ -109,6 +112,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         )   - timedelta(minutes=30)  # so we don't include 00:00
 
     all_gsps_yields = []
+    national_df = None
+    missing_gsps = []
     n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 342))
     for gsp_id in range(0, n_gsps + 1):
         if gsp_id in ignore_gsp_ids:
@@ -165,10 +170,70 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         gsp_yield_df["regime"] = regime
         gsp_yield_df["gsp_id"] = gsp_id
 
-        all_gsps_yields.append(gsp_yield_df)
+        if gsp_yield_df.empty:
+            missing_gsps.append(gsp_id)
+        else:
+            all_gsps_yields.append(gsp_yield_df)
+            if gsp_id == 0:
+                national_df = gsp_yield_df.copy()
 
         # TODO back up
         # if there is national but no gsps, make gsp from national
         # https://github.com/openclimatefix/solar-consumer/issues/105
+
+    if missing_gsps and national_df is not None:
+        logger.info(f"Creating backup data for {len(missing_gsps)} missing GSPs using national data")
+        db_url = os.getenv("DB_URL")
+        use_db_backup = os.getenv("ENABLE_DB_BACKUP_GSP", "false").lower() in ("1", "true", "yes")
+        if not db_url or not use_db_backup:
+            if not db_url:
+                logger.warning("DB_URL not set, cannot create backup GSP data")
+            else:
+                logger.info("ENABLE_DB_BACKUP_GSP is not enabled; skipping DB-backed backup GSP data")
+        else:
+            try:
+                connection = DatabaseConnection(url=db_url)
+                with connection.get_session() as session:
+                    locations = (
+                        session.query(LocationSQL)
+                        .filter(LocationSQL.gsp_id.in_(missing_gsps))
+                        .all()
+                    )
+                    backup_rows = []
+                    for _, national_row in national_df.iterrows():
+                        national_capacity = national_row['installedcapacity_mwp']
+                        if national_capacity == 0 or pd.isna(national_capacity):
+                            continue
+                        for location in locations:
+                            if (
+                                location.installed_capacity_mw is not None
+                                and location.installed_capacity_mw > 0
+                            ):
+                                factor = location.installed_capacity_mw / national_capacity
+                                new_row = national_row.copy()
+                                new_row['solar_generation_kw'] *= factor
+                                new_row['gsp_id'] = location.gsp_id
+                                new_row['installedcapacity_mwp'] = location.installed_capacity_mw
+                                new_row['capacity_mwp'] = location.installed_capacity_mw
+                                backup_rows.append(new_row)
+                    if backup_rows:
+                        backup_df = pd.DataFrame(backup_rows)
+                        all_gsps_yields.append(backup_df)
+                        logger.info(f"Created backup data for {len(backup_rows)} entries")
+            except Exception as e:
+                logger.error(f"Error creating backup GSP data: {e}")
+
+    if not all_gsps_yields:
+        return pd.DataFrame(
+            columns=[
+                "target_datetime_utc",
+                "solar_generation_kw",
+                "gsp_id",
+                "installedcapacity_mwp",
+                "capacity_mwp",
+                "regime",
+                "pvlive_updated_utc",
+            ]
+        )
 
     return pd.concat(all_gsps_yields, ignore_index=True)
