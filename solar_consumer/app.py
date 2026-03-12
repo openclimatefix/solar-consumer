@@ -18,7 +18,10 @@ from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
 )
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.save_data_platform import (
+    save_generation_to_data_platform,
+    save_forecasts_to_data_platform,
+)
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
@@ -128,8 +131,12 @@ async def app(
             async with Channel(host=data_platform_host, port=data_platform_port) as channel:
                 client = dp.DataPlatformDataServiceStub(channel)
 
-                logger.info("Saving forecasts to the Data Platform.")
-                await save_generation_to_data_platform(data_df=data, client=client, country=country)
+                if historic_or_forecast == "forecast":
+                    logger.info("Saving forecasts to the Data Platform.")
+                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__)
+                else:
+                    logger.info("Saving generation data to the Data Platform.")
+                    await save_generation_to_data_platform(data_df=data, client=client, country=country)
 
             logger.info("Saving to data platform: done")
 
