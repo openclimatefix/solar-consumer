@@ -371,7 +371,7 @@ async def save_generation_to_data_platform(
         # this is specific to GB consumer at the moment
         if "capacity_no_degradation_kw" in updates_df.columns:
             metadata = format_metadata_from_dict(metadata=row.metadata)
-            metadata["capacity_no_degradation_watts"] = Value(number_value=int(row.capacity_no_degradation_kw*1_000))
+            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
             metadata = Struct(fields=metadata)
         else:
             metadata = None

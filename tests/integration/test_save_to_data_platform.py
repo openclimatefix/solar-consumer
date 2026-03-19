@@ -88,4 +88,4 @@ async def test_save_to_data_platform(client):
     get_location_response = await client.get_location(get_location_request)
     assert get_location_response.effective_capacity_watts == 2_000_000
     metadata_dict = get_location_response.metadata.to_dict()
-    assert metadata_dict["capacity_no_degradation_watts"]['numberValue'] == 2_200_000
+    assert metadata_dict["capacity_no_degradation_kw"]['numberValue'] == 2_200
