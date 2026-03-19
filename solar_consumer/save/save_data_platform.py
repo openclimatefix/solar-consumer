@@ -431,11 +431,8 @@ def format_metadata_from_dict(metadata):
     for k,v in metadata.items():
         if isinstance(v, Value):
             continue
-        if isinstance(v, dict) and "number_value" in v:
-            metadata[k] = Value(number_value=v["number_value"])
-        elif isinstance(v, dict) and "string_value" in v:
+        elif isinstance(v, dict) and v["string_value"] != '':
             metadata[k] = Value(string_value=v["string_value"])
         else:
-            logging.warning(f"Metadata key {k} has unrecognized format, skipping: {v}")
-            continue
+            metadata[k] = Value(number_value=v["number_value"])
     return metadata
