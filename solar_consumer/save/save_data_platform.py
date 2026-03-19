@@ -361,17 +361,27 @@ async def save_generation_to_data_platform(
         .sort_index()
     )
 
-    tasks = []
-    for lid, t, new_cap in zip(
-        updates_df["location_uuid"],
-        updates_df["target_datetime_utc"],
-        updates_df["new_effective_capacity_watts"],
-    ):
+    tasks = []        
+    for row in updates_df.itertuples(): 
+        lid = row.location_uuid
+        t = row.target_datetime_utc
+        new_cap = row.new_effective_capacity_watts
+        metadata = row.metadata
+
+        # this is specific to GB consumer at the moment
+        if "capacity_no_degradation_kw" in updates_df.columns:
+            metadata = format_metadata_from_dict(metadata=row.metadata)
+            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
+            metadata = Struct(fields=metadata)
+        else:
+            metadata = None
+
         req = dp.UpdateLocationRequest(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
+            new_metadata=metadata,
         )
         tasks.append(asyncio.create_task(client.update_location(req)))
 
@@ -414,3 +424,18 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logging.info("creating observations for %d %s locations", len(tasks), country.upper())
         await _execute_async_tasks(tasks)
+
+
+def format_metadata_from_dict(metadata):
+    """ Format the dict keys and values to the expected format """
+    for k,v in metadata.items():
+        if isinstance(v, Value):
+            continue
+        if isinstance(v, dict) and "number_value" in v:
+            metadata[k] = Value(number_value=v["number_value"])
+        elif isinstance(v, dict) and "string_value" in v:
+            metadata[k] = Value(string_value=v["string_value"])
+        else:
+            logging.warning(f"Metadata key {k} has unrecognized format, skipping: {v}")
+            continue
+    return metadata

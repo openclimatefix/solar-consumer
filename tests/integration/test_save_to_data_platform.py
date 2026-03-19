@@ -58,6 +58,7 @@ async def test_save_to_data_platform(client):
             "gsp_id": [1],
             "regime": ["in-day"],
             "capacity_kw": [2000],
+            "capacity_no_degradation_kw": [2200]
         }
     )
     _ = await save_generation_to_data_platform(fake_data, client=client)
@@ -86,3 +87,5 @@ async def test_save_to_data_platform(client):
     )
     get_location_response = await client.get_location(get_location_request)
     assert get_location_response.effective_capacity_watts == 2_000_000
+    metadata_dict = get_location_response.metadata.to_dict()
+    assert metadata_dict["capacity_no_degradation_kw"]['numberValue'] == 2_200
