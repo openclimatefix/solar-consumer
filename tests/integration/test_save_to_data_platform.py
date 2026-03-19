@@ -31,7 +31,8 @@ async def test_save_to_data_platform(client):
     create_location_response = await client.create_location(create_location_request)
 
     # add location gsp 1
-    metadata = Struct(fields={"gsp_id": Value(number_value=1)})
+    metadata = Struct(fields={"gsp_id": Value(number_value=1), 
+                              "full_name": Value(string_value="test_1")})
     create_location_request = dp.CreateLocationRequest(
         location_name="gsp1",
         energy_source=dp.EnergySource.SOLAR,
@@ -89,3 +90,5 @@ async def test_save_to_data_platform(client):
     assert get_location_response.effective_capacity_watts == 2_000_000
     metadata_dict = get_location_response.metadata.to_dict()
     assert metadata_dict["capacity_no_degradation_kw"]['numberValue'] == 2_200
+    print(metadata_dict["full_name"])
+    assert metadata_dict["full_name"]['stringValue'] == "test_1"
