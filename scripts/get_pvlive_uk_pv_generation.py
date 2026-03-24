@@ -29,22 +29,25 @@ logger = logging.getLogger(__name__)
 # ------------ USER CONFIGURABLE PARAMETERS ------------
 
 # Set the date range to download
-START_DT = pd.Timestamp("2019-01-01 00:00")
-END_DT = pd.Timestamp("2025-12-31 23:30")
+START_DT: pd.Timestamp = pd.Timestamp("2019-01-01 00:00")
+END_DT: pd.Timestamp = pd.Timestamp("2025-12-31 23:30")
+
+# Set the number of chunks to split the data into when downloading from the API
+NUM_TIME_CHUNKS: int = 10
 
 # Set the path to save the downloaded data to
-SAVE_PATH = "pvlive_uk_pv_generation.zarr"
+SAVE_PATH: str = "pvlive_uk_pv_generation.zarr"
 
 # Set the URL from which the GSP region boundaries zip can be downloaded. These change from time to 
 # time so care is required
-GSP_REGIONS_URL = (
+GSP_REGIONS_URL: str = (
     "https://api.neso.energy/dataset/2810092e-d4b2-472f-b955-d8bea01f9ec0/"
     "resource/c5647312-afab-4a58-8158-2f1efed1d7fc/download/gsp_regions_20251204.zip"
 )
 
 # File pattern within the downloaded region zip file which matches the GSP region boundaries 
 # geojson file
-GSP_REGIONS_GEOJSON_PATTERN_IN_ZIP = "Proj_27700/GSP_regions_27700_*.geojson"
+GSP_REGIONS_GEOJSON_PATTERN_IN_ZIP: str = "Proj_27700/GSP_regions_27700_*.geojson"
 
 # ------------ END OF USER CONFIGURABLE PARAMETERS ------------
 
@@ -135,13 +138,7 @@ def get_gsp_boundaries() -> pd.DataFrame:
 
 def combine_gsps(gdf: gpd.GeoDataFrame) -> gpd.GeoSeries:
     """Combine GSPs which have been split into mutliple rows."""
-    # If only one row for the GSP name then just return the row
-    if len(gdf)==1:
-        return gdf.iloc[0]
-
-    # If multiple rows for the GSP then get union of the GSP shapes
-    else:
-        return gpd.GeoSeries(gdf.union_all(), index=["geometry"], crs=gdf.crs)
+    return gpd.GeoSeries(gdf.union_all(), index=["geometry"], crs=gdf.crs)
     
 
 # Use tenacity to retry the API call if it fails, with exponential backoff and logging
@@ -153,22 +150,54 @@ def combine_gsps(gdf: gpd.GeoDataFrame) -> gpd.GeoSeries:
     wait=wait_exponential(multiplier=1, min=1, max=60),
     before_sleep=before_sleep_log(logger, logging.INFO)
 )
-def get_pvlive_gsp(gsp_id: int, start_dt: pd.Timestamp, end_dt: pd.Timestamp) -> pd.DataFrame:
+def get_pvlive_gsp(
+    gsp_id: int, 
+    start_dt: pd.Timestamp, 
+    end_dt: pd.Timestamp,
+    num_chunks: int,
+) -> pd.DataFrame:
     """Get the PVLive generation data for a given GSP ID.
     
     Args:
         gsp_id: The GSP ID to download data for.
         start_dt: The start datetime for the data to download.
         end_dt: The end datetime for the data to download.
+        num_chunks: The number of chunks to split the data into when downloading from the API. This
+            can help to avoid timeouts and memory issues when downloading large date ranges.
     """
-    return PVL_CONN.between(
-        start=start_dt.tz_localize("UTC"),
-        end=end_dt.tz_localize("UTC"),
-        entity_type="gsp",
-        entity_id=gsp_id,
-        extra_fields="capacity_mwp",
-        dataframe=True,
-    )
+
+    # Download the requested data in chunks
+    time_chunk_bounds = pd.date_range(
+        start_dt, end_dt + pd.Timedelta("30min"), 
+        periods=num_chunks + 1
+    ).ceil("30min")
+
+    df_chunks = []
+    for i in range(num_chunks):
+
+        chunk_start = time_chunk_bounds[i]
+        chunk_end = time_chunk_bounds[i + 1] - pd.Timedelta("30min")
+
+        df_part = PVL_CONN.between(
+            start=chunk_start.tz_localize("UTC"),
+            end=chunk_end.tz_localize("UTC"),
+            entity_type="gsp",
+            entity_id=gsp_id,
+            extra_fields="capacity_mwp",
+            dataframe=True,
+        )
+        df_chunks.append(df_part)
+
+    df = pd.concat(df_chunks).sort_values("datetime_gmt")
+
+    # Remove the timezone
+    df["datetime_gmt"] = df["datetime_gmt"].dt.tz_localize(None)
+
+    if not df["datetime_gmt"].is_unique:
+        raise ValueError(f"Duplicate datetimes found for GSP ID {gsp_id}")
+
+    return df.set_index("datetime_gmt")
+
 
 
 def get_all_pvlive_generation(
@@ -177,6 +206,7 @@ def get_all_pvlive_generation(
     gsp_ids: np.ndarray,
     longitudes: np.ndarray,
     latitudes: np.ndarray,
+    num_chunks: int,
 ) -> xr.Dataset:
     """Get the PVLive generation data for all GSPs and return as an xarray Dataset.
     
@@ -186,6 +216,8 @@ def get_all_pvlive_generation(
         gsp_ids: The GSP IDs to download data for.
         longitudes: The longitudes of the GSP centroids.
         latitudes: The latitudes of the GSP centroids.
+        num_chunks: The number of chunks to split the data into when downloading from the API. This
+            can help to avoid timeouts and memory issues when downloading large date ranges.
     """
 
     # Create empty array to store generation data
@@ -206,11 +238,7 @@ def get_all_pvlive_generation(
             }
     )
     for gsp_id in tqdm(ds_generation.location_id.values):
-        df = get_pvlive_gsp(gsp_id, start_dt, end_dt)
-        
-        # Remove the timezone
-        df["datetime_gmt"] = df["datetime_gmt"].dt.tz_localize(None)
-        df = df.sort_values("datetime_gmt").set_index("datetime_gmt")
+        df = get_pvlive_gsp(gsp_id, start_dt, end_dt, num_chunks=num_chunks)
         
         # Check the expected times are present
         if not (df.index == ds_generation.time_utc).all():
@@ -239,6 +267,7 @@ def main() -> None:
         gsp_ids=df_bound["gsp_id"].values,
         longitudes=df_bound["longitude"].values,
         latitudes=df_bound["latitude"].values,
+        num_chunks=NUM_TIME_CHUNKS,
     )
 
     ds_generation.to_zarr(SAVE_PATH)
