@@ -4,27 +4,22 @@ the PVLive API for all GSPs in Great Britain.
 The downloaded data is saved as a Zarr dataset.
 """
 
+import fnmatch
 import io
+import logging
 import os
 import tempfile
 import zipfile
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
-import xarray as xr
-
-from tqdm import tqdm
-
 import requests
-import fnmatch
-import logging
-from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log
-
-from pvlive_api import PVLive
-
+import xarray as xr
 from ocf_data_sampler.select.geospatial import osgb_to_lon_lat
-
+from pvlive_api import PVLive
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
+from tqdm import tqdm
 
 # Set up a basic logger (if you don't already have one configured in your project)
 logging.basicConfig(level=logging.INFO)
