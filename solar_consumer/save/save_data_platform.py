@@ -392,9 +392,10 @@ async def save_generation_to_data_platform(
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
-    # lets check none of the values are above 110% of the capacity
+    # lets check none of the values are above 109% of the capacity
+    # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
-    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.1)
+    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
     if len(idx) > 0:
         location_uuids = joined_df.loc[idx, "location_uuid"].unique()
         logging.warning(f"Found {idx.sum()} values above 110% of capacity \
