@@ -52,14 +52,15 @@ async def test_save_to_data_platform(client):
     _ = await client.create_observer(create_observer_request)
 
     # make fake data
+    # note that the second date point is above 110% of capacity, so wont be added 
     fake_data = pd.DataFrame(
         {
-            "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
-            "solar_generation_kw": [100.0],
-            "gsp_id": [1],
-            "regime": ["in-day"],
-            "capacity_kw": [2000],
-            "capacity_no_degradation_kw": [2200]
+            "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z"), pd.to_datetime("2025-01-01T00:00:00Z")],
+            "solar_generation_kw": [100.0, 3000.0],
+            "gsp_id": [1, 1],
+            "regime": ["in-day", "in-day"],
+            "capacity_kw": [2000, 2000],
+            "capacity_no_degradation_kw": [2200, 2200]
         }
     )
     _ = await save_generation_to_data_platform(fake_data, client=client)
