@@ -391,6 +391,18 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
+
+    # lets check none of the values are above 110% of the capacity
+    # if they are lets remove them
+    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.1)
+    if len(idx) > 0:
+        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+        logging.warning(f"Found {idx.sum()} values above 110% of capacity \
+                        for location_uuid {location_uuids}. \
+                        These values will be dropped.")
+        joined_df = joined_df[~idx]
+
+
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     for lid, t, val in zip(
         joined_df["location_uuid"],
