@@ -398,7 +398,7 @@ async def save_generation_to_data_platform(
     idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
     if len(idx) > 0:
         location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-        logging.warning(f"Found {idx.sum()} values above 110% of capacity \
+        logging.warning(f"Found {idx.sum()} values above 109% of capacity \
                         for location_uuid {location_uuids}. \
                         These values will be dropped.")
         joined_df = joined_df[~idx]
