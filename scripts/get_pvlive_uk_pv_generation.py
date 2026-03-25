@@ -2,6 +2,8 @@
 the PVLive API for all GSPs in Great Britain. 
 
 The downloaded data is saved as a Zarr dataset.
+
+This take around 40 mins to run
 """
 
 import fnmatch
