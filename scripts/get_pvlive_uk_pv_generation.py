@@ -58,6 +58,12 @@ GSP_NAME_MAP_URL = "https://api.pvlive.uk/pvlive/api/v4/gsp_list"
 # Set up connection to PVLive
 PVL_CONN = PVLive(domain_url="api.pvlive.uk")
 
+if os.path.exists(SAVE_PATH):
+    raise FileExistsError(
+        f"The specified save path '{SAVE_PATH}' already exists. Please change "
+        "the SAVE_PATH variable to avoid overwriting existing data."
+    )
+
 
 def get_gsp_boundaries() -> pd.DataFrame:
     """Get the GSP region boundaries"""
@@ -270,7 +276,7 @@ def main() -> None:
         num_chunks=NUM_TIME_CHUNKS,
     )
 
-    ds_generation.to_zarr(SAVE_PATH)
+    ds_generation.to_zarr(SAVE_PATH, mode="w-", consolidated=False)
 
 
 if __name__ == "__main__":
