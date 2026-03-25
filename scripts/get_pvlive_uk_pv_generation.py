@@ -3,7 +3,7 @@ the PVLive API for all GSPs in Great Britain.
 
 The downloaded data is saved as a Zarr dataset.
 
-This script takes around 40 mins to download 6 years of data for all GSPs.
+This script takes around 40 mins to download 7 years of data for all GSPs.
 """
 
 import fnmatch
