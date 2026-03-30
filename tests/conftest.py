@@ -130,7 +130,7 @@ def nl_mock_data():
             "volume": 500,
             "percentage": 50,
             "validfrom": (now - timedelta(hours=1)).isoformat(),
-            "validto": (now + timedelta(hours=1)).isoformat(),
+            "validto": (now - timedelta(minutes=45)).isoformat(),
             "lastupdate": (now.isoformat())
         }
     ]

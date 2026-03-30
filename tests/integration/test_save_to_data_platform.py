@@ -21,7 +21,8 @@ async def test_save_to_data_platform(client):
     """
 
     # add location gsp 1
-    metadata = Struct(fields={"gsp_id": Value(number_value=1)})
+    metadata = Struct(fields={"gsp_id": Value(number_value=1), 
+                              "full_name": Value(string_value="test_1")})
     create_location_request = dp.CreateLocationRequest(
         location_name="gsp1",
         energy_source=dp.EnergySource.SOLAR,
@@ -41,13 +42,15 @@ async def test_save_to_data_platform(client):
     _ = await client.create_observer(create_observer_request)
 
     # make fake data
+    # note that the second date point is above 110% of capacity, so wont be added 
     fake_data = pd.DataFrame(
         {
-            "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
-            "solar_generation_kw": [100.0],
-            "gsp_id": [1],
-            "regime": ["in-day"],
-            "capacity_kw": [2000],
+            "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z"), pd.to_datetime("2025-01-01T00:00:00Z")],
+            "solar_generation_kw": [100.0, 3000.0],
+            "gsp_id": [1, 1],
+            "regime": ["in-day", "in-day"],
+            "capacity_kw": [2000, 2000],
+            "capacity_no_degradation_kw": [2200, 2200]
         }
     )
     _ = await save_generation_to_data_platform(fake_data, client=client)
@@ -76,6 +79,10 @@ async def test_save_to_data_platform(client):
     )
     get_location_response = await client.get_location(get_location_request)
     assert get_location_response.effective_capacity_watts == 2_000_000
+    metadata_dict = get_location_response.metadata.to_dict()
+    assert metadata_dict["capacity_no_degradation_kw"]['numberValue'] == 2_200
+    print(metadata_dict["full_name"])
+    assert metadata_dict["full_name"]['stringValue'] == "test_1"
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -166,8 +173,8 @@ async def test_save_forecasts_to_data_platform(client):
     assert len(values) == 2
 
     # Check values. a p50_fraction = solar_generation_kw * 1000 / effective_capacity_watts
-    # value 1: 1000 kw * 1000 W/kw / 50_000_000_000 W = 2e-5
-    # value 2: 500 kw * 1000 W/kw / 50_000_000_000 W = 1e-5
+    # value 1: 100 kw * 1000 W/kw / 1_000_000 W = 0.1
+    # value 2: 500 kw * 1000 W/kw / 1_000_000 W = 0.5
     assert np.isclose(values[0].p50_fraction, 0.1)
     assert np.isclose(values[1].p50_fraction, 0.5)
 

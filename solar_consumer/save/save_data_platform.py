@@ -362,17 +362,27 @@ async def save_generation_to_data_platform(
         .sort_index()
     )
 
-    tasks = []
-    for lid, t, new_cap in zip(
-        updates_df["location_uuid"],
-        updates_df["target_datetime_utc"],
-        updates_df["new_effective_capacity_watts"],
-    ):
+    tasks = []        
+    for row in updates_df.itertuples(): 
+        lid = row.location_uuid
+        t = row.target_datetime_utc
+        new_cap = row.new_effective_capacity_watts
+        metadata = row.metadata
+
+        # this is specific to GB consumer at the moment
+        if "capacity_no_degradation_kw" in updates_df.columns:
+            metadata = format_metadata_from_dict(metadata=row.metadata)
+            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
+            metadata = Struct(fields=metadata)
+        else:
+            metadata = None
+
         req = dp.UpdateLocationRequest(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
             new_effective_capacity_watts=new_cap,
             valid_from_utc=t,
+            new_metadata=metadata,
         )
         tasks.append(asyncio.create_task(client.update_location(req)))
 
@@ -382,6 +392,19 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
+
+    # lets check none of the values are above 109% of the capacity
+    # the limit is 110% but sometimes there are some rounding errors
+    # if they are lets remove them
+    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
+    if len(idx) > 0:
+        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+        logging.warning(f"Found {idx.sum()} values above 109% of capacity \
+                        for location_uuid {location_uuids}. \
+                        These values will be dropped.")
+        joined_df = joined_df[~idx]
+
+
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     for lid, t, val in zip(
         joined_df["location_uuid"],
@@ -576,3 +599,14 @@ async def create_forecaster_if_not_exists(
         )
         create_forecaster_response = await client.create_forecaster(create_forecaster_request)
         return create_forecaster_response.forecaster
+
+def format_metadata_from_dict(metadata):
+    """ Format the dict keys and values to the expected format """
+    for k,v in metadata.items():
+        if isinstance(v, Value):
+            continue
+        elif isinstance(v, dict) and v["string_value"] != '':
+            metadata[k] = Value(string_value=v["string_value"])
+        else:
+            metadata[k] = Value(number_value=v["number_value"])
+    return metadata
