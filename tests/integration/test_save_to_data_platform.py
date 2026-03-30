@@ -4,7 +4,10 @@ import pytest
 import datetime
 from betterproto.lib.google.protobuf import Struct, Value
 
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.save_data_platform import (
+    save_generation_to_data_platform,
+    save_forecasts_to_data_platform,
+)
 
 from dp_sdk.ocf import dp
 
@@ -86,3 +89,110 @@ async def test_save_to_data_platform(client):
     )
     get_location_response = await client.get_location(get_location_request)
     assert get_location_response.effective_capacity_watts == 2_000_000
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_save_forecasts_to_data_platform(client):
+    """
+    Test saving forecast data to the Data Platform.
+    """
+    # 1. Create a national location for GB
+    metadata = Struct(
+        fields={"gsp_id": Value(number_value=0), "full_name": Value(string_value="National")}
+    )
+    effective_capacity_watts = 1_000_000
+    create_location_request = dp.CreateLocationRequest(
+        location_name="gb_national",
+        energy_source=dp.EnergySource.SOLAR,
+        location_type=dp.LocationType.NATION,
+        effective_capacity_watts=effective_capacity_watts,
+        geometry_wkt="POINT(0 0)",
+        metadata=metadata,
+        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+    create_location_response = await client.create_location(create_location_request)
+    location_uuid = create_location_response.location_uuid
+
+    # 2. Prepare test data
+    model_tag = "test_model"
+    model_version = "1.0.0"
+
+    start_time = pd.to_datetime("2026-03-26T12:00:00Z")
+    data_df = pd.DataFrame(
+        {
+            "target_datetime_utc": [
+                start_time + datetime.timedelta(minutes=x) for x in range(0, 60, 30)
+            ],
+            "solar_generation_kw": [100.0, 500.0],
+        }
+    )
+
+    # 3. Call the function
+    await save_forecasts_to_data_platform(
+        data_df=data_df,
+        client=client,
+        model_tag=model_tag,
+        model_version=model_version,
+        init_time_utc=start_time,
+        country="gb",
+    )
+
+    # 4. Verify the forecast
+    # Get the forecaster
+    list_forecasters_response = await client.list_forecasters(
+        dp.ListForecastersRequest(forecaster_names_filter=[model_tag.replace("-", "_")])
+    )
+
+    assert len(list_forecasters_response.forecasters) == 1
+    forecaster = list_forecasters_response.forecasters[0]
+    assert forecaster.forecaster_version == model_version
+
+    # Get the forecast back from the data platform
+    get_latest_forecasts_request = dp.GetLatestForecastsRequest(
+        energy_source=dp.EnergySource.SOLAR,
+        pivot_timestamp_utc=start_time + datetime.timedelta(days=1),
+        location_uuid=location_uuid,
+    )
+    get_latest_forecasts_response = await client.get_latest_forecasts(
+        get_latest_forecasts_request,
+    )
+    assert len(get_latest_forecasts_response.forecasts) == 1
+    forecast = get_latest_forecasts_response.forecasts[0]
+
+    stream_forecast_data_request = dp.StreamForecastDataRequest(
+        energy_source=dp.EnergySource.SOLAR,
+        location_uuid=location_uuid,
+        forecasters=forecast.forecaster,
+        time_window=dp.TimeWindow(
+            start_timestamp_utc=start_time,
+            end_timestamp_utc=start_time + datetime.timedelta(hours=2),
+        ),
+    )
+    stream_forecast_data_response = client.stream_forecast_data(
+        stream_forecast_data_request,
+    )
+
+    values = []
+    async for d in stream_forecast_data_response:
+        values.append(d)
+
+    assert len(values) == 2
+
+    # Check values. a p50_fraction = solar_generation_kw * 1000 / effective_capacity_watts
+    # value 1: 1000 kw * 1000 W/kw / 50_000_000_000 W = 2e-5
+    # value 2: 500 kw * 1000 W/kw / 50_000_000_000 W = 1e-5
+    assert np.isclose(values[0].p50_fraction, 0.1)
+    assert np.isclose(values[1].p50_fraction, 0.5)
+   
+    forecasts = await client.get_forecast_as_timeseries(
+        dp.GetForecastAsTimeseriesRequest(
+            location_uuid=location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            forecaster=forecast.forecaster,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=start_time,
+                end_timestamp_utc=start_time + datetime.timedelta(hours=2),
+            ),
+        )
+    )
+    assert len(forecasts.values) == 2

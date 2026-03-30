@@ -9,6 +9,7 @@ This script orchestrates the following steps:
 
 import os
 import asyncio
+import pandas as pd
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.format_forecast import format_to_forecast_sql
@@ -61,6 +62,8 @@ async def app(
         model_tag = "entsoe-de"
     elif country == "be":
         model_tag = "elia-be-forecast"
+
+    t0 = pd.Timestamp.utcnow().floor("30min")
 
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
@@ -133,7 +136,7 @@ async def app(
 
                 if historic_or_forecast == "forecast":
                     logger.info("Saving forecasts to the Data Platform.")
-                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__)
+                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__, init_time_utc=t0.to_pydatetime(), country=country)
                 else:
                     logger.info("Saving generation data to the Data Platform.")
                     await save_generation_to_data_platform(data_df=data, client=client, country=country)

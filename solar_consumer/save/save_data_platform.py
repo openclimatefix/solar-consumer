@@ -421,7 +421,8 @@ async def save_forecasts_to_data_platform(
     client: dp.DataPlatformDataServiceStub,
     model_tag: str, 
     model_version: str, 
-    init_time_utc: datetime.datetime | None = None,
+    init_time_utc: datetime,
+    country: str = "gb",
 ) -> None:
     """
     Save NESO solar forecast data to the data platform.
@@ -434,8 +435,7 @@ async def save_forecasts_to_data_platform(
         client: Data platform client stub
         model_tag: Model tag identifier for the forecast
         model_version: Model version string
-        init_time_utc: The initialization time of the forecast. If None, uses current UTC time.
-        
+        country: Country code for the forecast data.
     """
     # 1. Ensure the forecaster exists
     forecaster = await create_forecaster_if_not_exists(client, model_tag, model_version)
@@ -445,21 +445,27 @@ async def save_forecasts_to_data_platform(
     locations_data = await _list_locations(
         client,
         location_type=[dp.LocationType.NATION],
-        country="gb",
+        country=country,
     )
     
     # Find the national location
     national_location = None
+    
     for loc in locations_data:
         metadata = loc.get("metadata", {})
-        gsp_id_val = metadata.get("gsp_id", {}).get("number_value")
-        if gsp_id_val == 0:
+        if country == "gb":
+            # GB specific: look for gsp_id=0
+            gsp_id = metadata.get("gsp_id", {}).get("number_value")
+            if gsp_id == 0:
+                national_location = loc
+                break
+        else:
             national_location = loc
             break
     
     if national_location is None:
         raise ValueError(
-            "No national location (gsp_id=0) found in data platform for GB. "
+            f"No national location found in data platform for {country.upper()}. "
             "Please ensure it exists before saving forecasts."
         )
     
@@ -472,45 +478,23 @@ async def save_forecasts_to_data_platform(
             "Cannot calculate forecast fractions."
         )
 
-    # 3. Determine init_time_utc
-    if init_time_utc is None:
-        init_time_utc = datetime.datetime.now(datetime.timezone.utc)
-    
-    # Strip timezone for consistent datetime operations
+    # 3. Determine init_time_utc and horizon mins
     init_time_utc = init_time_utc.replace(tzinfo=None)
-    
-    # 4. Create forecast values from the DataFrame
-    # Sort by target_datetime and deduplicate to ensure monotonically spaced horizons
-    data_df = data_df.copy()
-    data_df = data_df.dropna(subset=["target_datetime_utc", "solar_generation_kw"])
-    data_df = data_df.sort_values("target_datetime_utc").drop_duplicates(
-        subset=["target_datetime_utc"], keep="last"
-    )
-    
-    # Calculate horizons using vectorized operations
-    target_datetime_utc = pd.to_datetime(data_df["target_datetime_utc"].values)
-    # Make naive for consistent subtraction
-    if target_datetime_utc.tz is not None:
-        target_datetime_utc = target_datetime_utc.tz_localize(None)
-    horizons_mins = ((target_datetime_utc - init_time_utc).total_seconds() / 60).astype(int)
-    
+    # create horizon mins
+    target_datetime_utc = pd.to_datetime(data_df['target_datetime_utc'].values)
+    horizons_mins = (target_datetime_utc - init_time_utc).total_seconds() / 60
+    horizons_mins = horizons_mins.astype(int)
+
     # Get p50 fractions
     p50s = data_df["solar_generation_kw"].values.astype(float)
     p50s = p50s * 1000 / float(effective_capacity_watts)  # kW -> W, then fraction
     
     forecast_values = []
-    seen_horizons = set()
     
     for h, p50 in zip(horizons_mins, p50s, strict=True):
-        # Skip negative horizons
         if h < 0:
+            # Skip targets in the past relative to init time
             continue
-        
-        # Skip duplicate horizons
-        if h in seen_horizons:
-            continue
-        seen_horizons.add(h)
-        
         forecast_values.append(
             dp.CreateForecastRequestForecastValue(
                 horizon_mins=h,
@@ -518,15 +502,14 @@ async def save_forecasts_to_data_platform(
                 metadata=Struct().from_pydict({}),
                 other_statistics_fractions={},
             )
-        )
-    
+        )    
     
     if not forecast_values:
         logging.warning("No valid forecast values to save.")
         return
     
-    # 5. Save forecast using the forecaster
-    create_forecast_response = await client.create_forecast(
+    # 4. Save forecast using the forecaster
+    await client.create_forecast(
         dp.CreateForecastRequest(
             forecaster=forecaster,
             location_uuid=location_uuid,
