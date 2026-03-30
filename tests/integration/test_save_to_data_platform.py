@@ -20,19 +20,6 @@ async def test_save_to_data_platform(client):
     is running and can accept data.
     """
 
-    # add location gsp 0
-    metadata = Struct(fields={"gsp_id": Value(number_value=0)})
-    create_location_request = dp.CreateLocationRequest(
-        location_name="uk",
-        energy_source=dp.EnergySource.SOLAR,
-        geometry_wkt="POINT(0 0)",
-        location_type=dp.LocationType.NATION,
-        effective_capacity_watts=10_000_000,
-        metadata=metadata,
-        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
-    )
-    create_location_response = await client.create_location(create_location_request)
-
     # add location gsp 1
     metadata = Struct(fields={"gsp_id": Value(number_value=1)})
     create_location_request = dp.CreateLocationRequest(
@@ -102,7 +89,7 @@ async def test_save_forecasts_to_data_platform(client):
     )
     effective_capacity_watts = 1_000_000
     create_location_request = dp.CreateLocationRequest(
-        location_name="gb_national",
+        location_name="uk",
         energy_source=dp.EnergySource.SOLAR,
         location_type=dp.LocationType.NATION,
         effective_capacity_watts=effective_capacity_watts,
@@ -183,7 +170,7 @@ async def test_save_forecasts_to_data_platform(client):
     # value 2: 500 kw * 1000 W/kw / 50_000_000_000 W = 1e-5
     assert np.isclose(values[0].p50_fraction, 0.1)
     assert np.isclose(values[1].p50_fraction, 0.5)
-   
+
     forecasts = await client.get_forecast_as_timeseries(
         dp.GetForecastAsTimeseriesRequest(
             location_uuid=location_uuid,
