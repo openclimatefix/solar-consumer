@@ -347,17 +347,6 @@ async def save_generation_to_data_platform(
     # * data platform. The most recent value for a given location is the one that is used.
     updates_df = get_update_capacity_df(joined_df)
 
-    # print(0.999 < joined_df["capacity_change"] < 1.001)
-    dont_update_idx = joined_df["capacity_change"].between(0.999,1.001) & \
-        joined_df["capacity_change_diff"] < 1_000_0000
-    updates_df = (
-        joined_df.loc[dont_update_idx]
-        .sort_values(by="target_datetime_utc", ascending=False)
-        .groupby(level=0)
-        .head(1)
-        .sort_index()
-    )
-
     tasks = []        
     for row in updates_df.itertuples(): 
         lid = row.location_uuid

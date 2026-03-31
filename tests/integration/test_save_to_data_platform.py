@@ -214,7 +214,6 @@ def test_get_update_capacity_df():
     
     df = pd.DataFrame([test_1, test_2, test_3, test_4])
     updates_df = get_update_capacity_df(df)
-    print(updates_df)
     assert not updates_df.empty
     assert updates_df.index.tolist() == [1, 2]
 
