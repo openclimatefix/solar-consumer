@@ -6,6 +6,7 @@ https://github.com/openclimatefix/data-platform
 
 import datetime
 from dp_sdk.ocf import dp
+import numpy as np
 import pandas as pd
 
 import asyncio
@@ -604,19 +605,16 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     # This is references in https://github.com/openclimatefix/data-platform/issues/71
     # This is now updated to 0.1% change and 1 MW
 
-    df["capacity_change_diff"] = (
-        (df["effective_capacity_watts"].astype(float))
-        - (df["new_effective_capacity_watts"].astype(float))
-    ).abs()
-    df["capacity_change"] = (
-        (df["effective_capacity_watts"].astype(float))
-        / (df["new_effective_capacity_watts"].astype(float))
-    ).abs()
+    current_cap = df["effective_capacity_watts"].astype(float)
+    new_cap = df["new_effective_capacity_watts"].astype(float)
 
-    update_idx = ~(df["capacity_change"].between(0.999,1.001)) | \
-        ~(df["capacity_change_diff"] < 1_000_0000)
-    print(update_idx)
-    print(df)
+    update_idx = np.logical_or(   
+    # Change by more than 0.1%
+    ~np.isclose(current_cap, new_cap, atol=0, rtol=0.001),
+    # Change by more than 1 MW
+    ~np.isclose(current_cap, new_cap, atol=1_000_000, rtol=0)
+)
+
     updates_df = (
         df.loc[update_idx]
         .sort_values(by="target_datetime_utc", ascending=False)
