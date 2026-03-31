@@ -31,7 +31,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Source | Country | CSV | Data Platform | DB (Legacy) | Site DB (Legacy) |
 | --- | ---  | --- | --- | --- |  ---|
 | PVLive | 🇬🇧 | ✅ | ✅ | | |
-| NESO forecast | 🇬🇧 | ✅ | | ✅| 
+| NESO forecast | 🇬🇧 | ✅ | ✅ | ✅| 
 | Ned-nl | 🇳🇱 | ✅ | ✅ | | ✅ |
 | Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
