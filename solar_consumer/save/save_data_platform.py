@@ -16,7 +16,6 @@ import itertools
 
 import betterproto
 
-import numpy as np
 from betterproto.lib.google.protobuf import Struct, Value
 from pathlib import Path
 from importlib.metadata import version
@@ -346,16 +345,13 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    #
-    # TODO, we've put in a limit of relative tolerance of 2% here to avoid tiny changes triggering updates,
-    # This is references in https://github.com/openclimatefix/data-platform/issues/71
-    joined_df["capacity_change"] = (
-        (joined_df["effective_capacity_watts"].astype(float))
-        / (joined_df["new_effective_capacity_watts"].astype(float))
-    ).abs()
+    updates_df = get_update_capacity_df(joined_df)
 
+    # print(0.999 < joined_df["capacity_change"] < 1.001)
+    dont_update_idx = joined_df["capacity_change"].between(0.999,1.001) & \
+        joined_df["capacity_change_diff"] < 1_000_0000
     updates_df = (
-        joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
+        joined_df.loc[dont_update_idx]
         .sort_values(by="target_datetime_utc", ascending=False)
         .groupby(level=0)
         .head(1)
@@ -610,3 +606,33 @@ def format_metadata_from_dict(metadata):
         else:
             metadata[k] = Value(number_value=v["number_value"])
     return metadata
+
+
+def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Get the rows that need to be updated based on capacity change."""
+
+    # TODO, we've put in a limit of relative tolerance of here, to avoid tiny changes triggering updates,
+    # This is references in https://github.com/openclimatefix/data-platform/issues/71
+    # This is now updated to 0.1% change and 1 MW
+
+    df["capacity_change_diff"] = (
+        (df["effective_capacity_watts"].astype(float))
+        - (df["new_effective_capacity_watts"].astype(float))
+    ).abs()
+    df["capacity_change"] = (
+        (df["effective_capacity_watts"].astype(float))
+        / (df["new_effective_capacity_watts"].astype(float))
+    ).abs()
+
+    update_idx = ~(df["capacity_change"].between(0.999,1.001)) | \
+        ~(df["capacity_change_diff"] < 1_000_0000)
+    print(update_idx)
+    print(df)
+    updates_df = (
+        df.loc[update_idx]
+        .sort_values(by="target_datetime_utc", ascending=False)
+        .groupby(level=0)
+        .head(1)
+        .sort_index()
+    )
+    return updates_df
