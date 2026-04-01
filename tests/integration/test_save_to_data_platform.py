@@ -5,6 +5,7 @@ import datetime
 from betterproto.lib.google.protobuf import Struct, Value
 
 from solar_consumer.save.save_data_platform import (
+    get_update_capacity_df,
     save_generation_to_data_platform,
     save_forecasts_to_data_platform,
 )
@@ -190,3 +191,30 @@ async def test_save_forecasts_to_data_platform(client):
         )
     )
     assert len(forecasts.values) == 2
+
+def test_get_update_capacity_df():
+
+    # test_cases
+    # 1 is the same
+    test_1 = {'effective_capacity_watts': 1, 
+                    'new_effective_capacity_watts': 1, 
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:00:00Z")}
+    # 2 is over 0.1% but under 1 MW
+    test_2 = {'effective_capacity_watts': 2, 
+                    'new_effective_capacity_watts': 4, 
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z")}
+    # 3 is under 0.1% but over 1 MW
+    test_3 = {'effective_capacity_watts': 1e12, 
+                    'new_effective_capacity_watts': 1.0001e12, 
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z")}
+    # 4 is under 0.1%, and under 1 MW
+    test_4 = {'effective_capacity_watts': 10_000, 
+                    'new_effective_capacity_watts': 10_001, 
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T13:30:00Z")}
+    
+    df = pd.DataFrame([test_1, test_2, test_3, test_4])
+    updates_df = get_update_capacity_df(df)
+    assert not updates_df.empty
+    assert updates_df.index.tolist() == [1, 2]
+
+

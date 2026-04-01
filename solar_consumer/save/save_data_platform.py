@@ -6,6 +6,7 @@ https://github.com/openclimatefix/data-platform
 
 import datetime
 from dp_sdk.ocf import dp
+import numpy as np
 import pandas as pd
 
 import asyncio
@@ -16,7 +17,6 @@ import itertools
 
 import betterproto
 
-import numpy as np
 from betterproto.lib.google.protobuf import Struct, Value
 from pathlib import Path
 from importlib.metadata import version
@@ -346,21 +346,7 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    #
-    # TODO, we've put in a limit of relative tolerance of 2% here to avoid tiny changes triggering updates,
-    # This is references in https://github.com/openclimatefix/data-platform/issues/71
-    joined_df["capacity_change"] = (
-        (joined_df["effective_capacity_watts"].astype(float))
-        / (joined_df["new_effective_capacity_watts"].astype(float))
-    ).abs()
-
-    updates_df = (
-        joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
-        .sort_values(by="target_datetime_utc", ascending=False)
-        .groupby(level=0)
-        .head(1)
-        .sort_index()
-    )
+    updates_df = get_update_capacity_df(joined_df)
 
     tasks = []        
     for row in updates_df.itertuples(): 
@@ -610,3 +596,30 @@ def format_metadata_from_dict(metadata):
         else:
             metadata[k] = Value(number_value=v["number_value"])
     return metadata
+
+
+def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Get the rows that need to be updated based on capacity change."""
+
+    # TODO, we've put in a limit of relative tolerance of here, to avoid tiny changes triggering updates,
+    # This is references in https://github.com/openclimatefix/data-platform/issues/71
+    # This is now updated to 0.1% change and 1 MW
+
+    current_cap = df["effective_capacity_watts"].astype(float)
+    new_cap = df["new_effective_capacity_watts"].astype(float)
+
+    update_idx = np.logical_or(   
+        # Change by more than 0.1%
+        ~np.isclose(current_cap, new_cap, atol=0, rtol=0.001),
+        # Change by more than 1 MW
+        ~np.isclose(current_cap, new_cap, atol=1_000_000, rtol=0)
+    )
+
+    updates_df = (
+        df.loc[update_idx]
+        .sort_values(by="target_datetime_utc", ascending=False)
+        .groupby(level=0)
+        .head(1)
+        .sort_index()
+    )
+    return updates_df
