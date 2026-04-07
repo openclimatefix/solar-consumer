@@ -2,6 +2,7 @@
 import os
 import requests
 from datetime import datetime, timedelta, timezone
+import numpy as np
 import pandas as pd
 import time
 import dotenv
@@ -156,8 +157,11 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Sort final DataFrame by timestamp
     all_data = all_data.sort_values("validfrom (UTC)")
 
-    # get the total site capacity
+    # get the total site capacity and
+    # set very small percentages to NaN to avoid huge capacity values
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
+    small_percentage = all_data["percentage"] < 0.01
+    all_data.loc[small_percentage, "capacity_kw"] = np.nan
 
     # change region_id to integer, just to be safe
     all_data["region_id"] = all_data["region_id"].astype(int)
