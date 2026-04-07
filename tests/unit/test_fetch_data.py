@@ -187,6 +187,23 @@ def test_fetch_nl_data(mock_api, nl_mock_data):
     assert "capacity (kW)" in df.columns
     assert "volume (kWh)" in df.columns
 
+@patch("solar_consumer.data.fetch_nl_data.requests.Session.get")
+def test_fetch_nl_data_small_percentage(mock_api, nl_mock_data_small_percentage):
+
+    # Configure the mock to return a response with the mock data
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = nl_mock_data_small_percentage
+    mock_api.return_value = mock_response
+
+    df = fetch_nl_data(historic_or_forecast='historic')
+
+    assert isinstance(df, pd.DataFrame)
+    assert not df.empty
+    assert "capacity (kW)" in df.columns
+    assert "volume (kWh)" in df.columns
+    assert df["capacity_kw"].isna().all()
+
 def test_gb_historic_inday():
 
     # set enviormental variable REGIME to inday

@@ -135,3 +135,26 @@ def nl_mock_data():
         }
     ]
 }
+
+# Mocking the NL response data
+@pytest.fixture(scope="function")
+def nl_mock_data_small_percentage():
+    now = datetime.now(timezone.utc)
+    return {
+    "hydra:member": [
+        {
+            "id": 1,
+            "point": "v1/points/0",
+            "type": 2,
+            "granularity": 4,
+            "activity": 1,
+            "classification": 2,
+            "capacity": 1000,
+            "volume": 500,
+            "percentage": 0.001,
+            "validfrom": (now - timedelta(hours=1)).isoformat(),
+            "validto": (now - timedelta(minutes=45)).isoformat(),
+            "lastupdate": (now.isoformat())
+        }
+    ]
+}
