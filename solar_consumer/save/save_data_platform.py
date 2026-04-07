@@ -383,7 +383,7 @@ async def save_generation_to_data_platform(
     # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
     idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
-    if len(idx) > 0:
+    if idx.any():
         location_uuids = joined_df.loc[idx, "location_uuid"].unique()
         logging.warning(f"Found {idx.sum()} values above 109% of capacity \
                         for location_uuid {location_uuids}. \
