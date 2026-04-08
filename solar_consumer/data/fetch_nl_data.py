@@ -197,7 +197,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
-    # lets check that the regional capacities are are close to national one
+    # lets check that the regional capacities are close to the national one
     all_data = all_data.sort_values(["target_datetime_utc", "region_id"])
     all_data = check_national_capacity_close_regional_sum(all_data)
 
