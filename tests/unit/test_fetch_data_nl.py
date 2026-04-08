@@ -61,7 +61,7 @@ def test_check_national_capacity_close_regional_sum_not_all_regions():
 
 def test_check_national_capacity_close_regional_sum():
 
-    # set up teh data, so 
+    # set up the data, so 
     # 1. first data point the capacities do add up
     # 2. second data point the capacities do not add up
     data = []
