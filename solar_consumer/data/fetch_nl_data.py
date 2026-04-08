@@ -241,7 +241,7 @@ def check_national_capacity_close_regional_sum(data):
     regional_capacities = df[df["region_id"] != 0].groupby("target_datetime_utc").sum()["capacity_kw"]
 
     # lets find the datetimes that are close enough
-    update_idx = np.isclose(national_capacities, regional_capacities, atol=0, rtol=0.001)
+    update_idx = np.isclose(regional_capacities, national_capacities, atol=0, rtol=0.001)
     dont_update_capacity_datetimes = national_capacities.index[~update_idx]
     dont_update_capacity_idx = data['target_datetime_utc'].isin(dont_update_capacity_datetimes)
 
