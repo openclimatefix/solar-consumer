@@ -215,18 +215,17 @@ def check_national_capacity_close_regional_sum(data):
     if not, set all to nans and add warning
 
     Note we ingnore any timestamps if
-    1. they dont have all regional data from 0 to 12
-    2. there are any nans already in the capacity
+    1. there are any nans already in the capacity
+    2. they dont have all regional data from 0 to 12
     """
 
     df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
     df.set_index("target_datetime_utc", drop=True, inplace=True)
 
-    # drop any capacites that are nan already
+    # 1. drop any capacites that are nan already
     df = df[df["capacity_kw"].notna()]
 
-    # lets only consider datetimes that have region_ids all the region ids of 0 to 12
-    # order by datetime and region_id
+    # 2. lets only consider datetimes that have region_ids all the region ids of 0 to 12
     df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
     df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
     if sum(df_datetime_grouped_idx) == 0:
