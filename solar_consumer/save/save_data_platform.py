@@ -275,7 +275,7 @@ async def save_generation_to_data_platform(
     data_df = data_df.copy()
 
     if country == "ind_rajasthan":
-        data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str) + "_site"
+        data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str)
     
     # Extract metadata and create join key based on country
     if country == "be":
