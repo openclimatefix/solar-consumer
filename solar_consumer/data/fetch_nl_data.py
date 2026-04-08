@@ -201,7 +201,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data.sort_values(["target_datetime_utc", "region_id"])
     all_data = check_national_capacity_close_regional_sum(all_data)
 
-
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
