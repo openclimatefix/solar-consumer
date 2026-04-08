@@ -1,20 +1,5 @@
 """
-Test Suite for `fetch_data` and `fetch_data_using_sql` Functions
-
-This script validates the functionality and consistency of two data-fetching functions:
-- `fetch_data`: Fetches data via API (mocked).
-- `fetch_data_using_sql`: Fetches data via SQL query (mocked).
-
-### How to Run the Tests:
-
-Run the entire test suite:
-    pytest tests/unit/test_fetch_data.py
-
-Run with verbose output:
-    pytest tests/unit/test_fetch_data.py -v
-
-Run tests matching a specific pattern:
-    pytest tests/unit/test_fetch_data.py -k "fetch_data"
+Test Suite for `fetch_data` for the NL
 """
 
 from unittest.mock import patch, Mock
