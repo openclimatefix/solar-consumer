@@ -224,7 +224,7 @@ def check_national_capacity_close_regional_sum(data):
     # 1. drop any capacites that are nan already
     df = df[df["capacity_kw"].notna()]
 
-    # 2. lets only consider datetimes that have region_ids all the region ids of 0 to 12
+    # 2. lets only consider datetimes that have all the region ids from 0 to 12
     df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
     df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
     if sum(df_datetime_grouped_idx) == 0:
