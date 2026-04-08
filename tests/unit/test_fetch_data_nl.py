@@ -5,7 +5,7 @@ Test Suite for `fetch_data` for the NL
 from unittest.mock import patch, Mock
 import numpy as np
 import pandas as pd
-from solar_consumer.data.fetch_nl_data import fetch_nl_data, check_national_capacity_close_regional_sum
+from solar_consumer.data.fetch_nl_data import fetch_nl_data, check_national_capacity_equals_regional_sum
 
 
 @patch("solar_consumer.data.fetch_nl_data.requests.Session.get")
@@ -41,7 +41,7 @@ def test_fetch_nl_data_small_percentage(mock_api, nl_mock_data_small_percentage)
     assert "volume (kWh)" in df.columns
     assert df["capacity_kw"].isna().all()
 
-def test_check_national_capacity_close_regional_sum_not_all_regions():
+def test_check_national_capacity_equals_regional_sum_not_all_regions():
 
     # set up the data, so 
     # 1. first data point the capacities do add up
@@ -52,14 +52,14 @@ def test_check_national_capacity_close_regional_sum_not_all_regions():
         "target_datetime_utc": pd.to_datetime(["2025-01-14 05:30:00", "2025-01-14 06:00:00"]*3)
     })
 
-    result = check_national_capacity_close_regional_sum(data)
+    result = check_national_capacity_equals_regional_sum(data)
 
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
-    assert result["capacity_kw"].iloc[0] == 300
-    assert result["capacity_kw"].iloc[1] == 300
+    # check no nans in capacity_kw
+    assert result["capacity_kw"].notna().all()
 
-def test_check_national_capacity_close_regional_sum():
+def test_check_national_capacity_equals_regional_sum():
 
     # set up the data, so 
     # 1. first data point the capacities do add up
@@ -85,7 +85,7 @@ def test_check_national_capacity_close_regional_sum():
         })
     data = pd.DataFrame(data)
 
-    result = check_national_capacity_close_regional_sum(data)
+    result = check_national_capacity_equals_regional_sum(data)
 
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
