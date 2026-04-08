@@ -16,3 +16,5 @@ be_belgium,50.85,4.35,,Belgium,be,NATION
 be_flanders,51.00,4.46,,Flanders,be,STATE
 be_wallonia,50.50,4.70,,Wallonia,be,STATE
 be_brussels,50.85,4.35,,Brussels,be,STATE
+ruvnl_solar_site,26.4499,74.65,1,,ind_rajasthan,STATE
+ruvnl_wind_site,26.4499,72.65,2,,ind_rajasthan,STATE

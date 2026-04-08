@@ -44,6 +44,12 @@ def _get_country_config(country: str) -> dict:
             "metadata_type": "number", 
             "observer_name": None, 
         },
+        "ind_rajasthan": {
+            "id_key": "name",
+            "location_type": [dp.LocationType.STATE],
+            "metadata_type": "string",
+            "observer_name": "ruvnl",
+        },
     }
     return configs.get(country, configs["gb"])
 
@@ -174,6 +180,8 @@ async def _create_locations_from_csv(
              location_type = dp.LocationType.NATION
         elif location_type_str == "STATE":
              location_type = dp.LocationType.STATE
+        elif location_type_str == "SITE":
+             location_type = dp.LocationType.SITE
         else:
              location_type = dp.LocationType.NATION
 
@@ -250,7 +258,7 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country in ["nl", "be"]:
+    if country in ["nl", "be", "ind_rajasthan"]:
         # NL and BE support CSV-based location creation
         locations_data = await _list_locations(client, config["location_type"], country=country)
         
@@ -267,6 +275,9 @@ async def save_generation_to_data_platform(
     
     # Prepare incoming data copy
     data_df = data_df.copy()
+
+    if country == "ind_rajasthan":
+        data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str) + "_site"
     
     # Extract metadata and create join key based on country
     if country == "be":
