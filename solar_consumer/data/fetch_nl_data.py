@@ -197,8 +197,66 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
+    # lets check that the regional capacities are are close to national one
+    all_data = all_data.sort_values(["target_datetime_utc", "region_id"])
+    all_data = check_national_capacity_close_regional_sum(all_data)
+
+
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
 
     return all_data
+
+def check_national_capacity_close_regional_sum(data):
+    """Check if regional solar capacities are close to national capacity.
+    
+    We want to make sure that the regional capacites are within 1% of the national, 
+    if not, set all to nans and add warning
+
+    Note we ingnore any timestamps if
+    1. they dont have all regional data from 0 to 12
+    2. there are any nans already in the capacity
+    """
+
+    df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
+    df.set_index("target_datetime_utc", drop=True, inplace=True)
+
+    # drop any capacites that are nan already
+    df = df[df["capacity_kw"].notna()]
+
+    # lets only consider datetimes that have region_ids all the region ids of 0 to 12
+    # order by datetime and region_id
+    df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
+    df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
+    if sum(df_datetime_grouped_idx) == 0:
+       logger.warning(
+                "No datetimes have all region ids from 0 to 12. " \
+                "Cant do regional comparison to national for capacity"
+          )
+       return data
+    else:
+        df = df[df.index.isin(df_datetime_grouped[df_datetime_grouped_idx].index)]
+
+    # lets split the national and regional and sum up the regional
+    national_capacities = df[df["region_id"] == 0]["capacity_kw"]
+    regional_capacities = df[df["region_id"] != 0].groupby("target_datetime_utc").sum()["capacity_kw"]
+
+    print(national_capacities)
+    print(regional_capacities)
+
+    # lets find the datetimes that are close enough
+    update_idx = np.isclose(national_capacities, regional_capacities, atol=0, rtol=0.001)
+    dont_update_capacity_datetimes = national_capacities.index[~update_idx]
+    dont_update_capacity_idx = data['target_datetime_utc'].isin(dont_update_capacity_datetimes)
+
+    if any(dont_update_capacity_idx):
+        logger.warning(
+            f"National capacity is not close to sum of regional capacities for {len(dont_update_capacity_datetimes)} datetimes. "
+            "Setting capacity to NaN for these datetimes."
+            f" These date times are {dont_update_capacity_datetimes.tolist()}"
+        )
+
+    data.loc[dont_update_capacity_idx, "capacity_kw"] = np.nan
+
+    return data
