@@ -180,8 +180,6 @@ async def _create_locations_from_csv(
              location_type = dp.LocationType.NATION
         elif location_type_str == "STATE":
              location_type = dp.LocationType.STATE
-        elif location_type_str == "SITE":
-             location_type = dp.LocationType.SITE
         else:
              location_type = dp.LocationType.NATION
 
