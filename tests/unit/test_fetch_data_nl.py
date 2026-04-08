@@ -71,7 +71,7 @@ def test_check_national_capacity_close_regional_sum():
             "capacity_kw": i*10 if i>0 else 10*sum(range(13)), # 780
             "target_datetime_utc": pd.to_datetime("2025-01-14 05:30:00")
         })
-        # regionals wont add up to the national
+        # regionals won't add up to the national
         data.append({
             "region_id": i,
             "capacity_kw": 10*i,
