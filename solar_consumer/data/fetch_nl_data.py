@@ -213,15 +213,13 @@ def check_national_capacity_equals_regional_sum(data):
     We want to make sure that the regional capacites are equal to the national,
     if not, set all to nans and add warning
 
-    Note we ingnore any timestamps if
-    1. there are any nans already in the capacity
-    2. they dont have all regional data from 0 to 12
+    Note we ingnore any timestamps if there are any nans already in the capacity
     """
 
     df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
     df.set_index("target_datetime_utc", drop=True, inplace=True)
 
-    # 1. drop any capacites that are nan already
+    # Drop any capacites that are nan already
     df = df.dropna()
 
     # 2. lets only consider datetimes that have all the region ids from 0 to 12
@@ -231,11 +229,13 @@ def check_national_capacity_equals_regional_sum(data):
     if sum(df_datetime_grouped_idx) == 0:
        logger.warning(
                 "No datetimes have all region ids from 0 to 12. " \
-                "Cant do regional comparison to national for capacity"
+                "Can not validate capacity"
           )
+       data["capacity_kw"] = np.nan
        return data
     else:
-        df = df[df.index.isin(df_datetime_grouped[df_datetime_grouped_idx].index)]
+        idx = df.index.isin(df_datetime_grouped[df_datetime_grouped_idx].index)
+        df.loc[~idx, "capacity_kw"] = np.nan
 
     # lets split the national and regional and sum up the regional
     national_capacities = df[df["region_id"] == 0]["capacity_kw"]

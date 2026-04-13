@@ -43,9 +43,7 @@ def test_fetch_nl_data_small_percentage(mock_api, nl_mock_data_small_percentage)
 
 def test_check_national_capacity_equals_regional_sum_not_all_regions():
 
-    # set up the data, so 
-    # 1. first data point the capacities do add up
-    # 2. second data point the capacities do not add up
+    # set up the data, so that not all regions are there, therefore capacity_kw should be nan
     data = pd.DataFrame({
         "region_id": [0, 0, 1, 1, 2, 2],
         "capacity_kw": [300, 300, 100, 150, 200, 250],
@@ -57,13 +55,14 @@ def test_check_national_capacity_equals_regional_sum_not_all_regions():
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
     # check no nans in capacity_kw
-    assert result["capacity_kw"].notna().all()
+    assert result["capacity_kw"].isna().all()
 
 def test_check_national_capacity_equals_regional_sum():
 
     # set up the data, so 
     # 1. first data point the capacities do add up
     # 2. second data point the capacities do not add up
+    # 3. has a NaN in it, so all capacity_kw should be NaN
     data = []
     for i in range(13):
         data.append({
@@ -92,7 +91,7 @@ def test_check_national_capacity_equals_regional_sum():
     assert len(result) == 39 # 3 timestamps * 13 regions
     assert result["capacity_kw"].iloc[0] == 780
     assert np.isnan(result["capacity_kw"].iloc[1])
-    assert result["capacity_kw"].iloc[2] == 20
+    assert np.isnan(result["capacity_kw"].iloc[2])
     assert result["capacity_kw"].iloc[3] == 10
     assert np.isnan(result["capacity_kw"].iloc[4])
     assert result["capacity_kw"].iloc[6] == 20
