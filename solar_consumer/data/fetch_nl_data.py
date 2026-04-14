@@ -158,10 +158,10 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data.sort_values("validfrom (UTC)")
 
     # get the total site capacity and
-    # set very small percentages to NaN to avoid huge capacity values
+    # set very small percentages update_capacity=False
+    all_data['update_capacity'] = True
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
     small_percentage = all_data["percentage"] < 0.01
-    all_data['update_capacity'] = True
     # flag that we should not update capacity and 
     # set capacity_kw to a default value (we need it to be something, not nan, 
     # otherwise generation values dont get saved)
