@@ -2,7 +2,6 @@
 import os
 import requests
 from datetime import datetime, timedelta, timezone
-import numpy as np
 import pandas as pd
 import time
 import dotenv
@@ -159,10 +158,15 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data.sort_values("validfrom (UTC)")
 
     # get the total site capacity and
-    # set very small percentages to NaN to avoid huge capacity values
+    # set very small percentages update_capacity=False
+    all_data['update_capacity'] = True
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
     small_percentage = all_data["percentage"] < 0.01
-    all_data.loc[small_percentage, "capacity_kw"] = np.nan
+    # flag that we should not update capacity and 
+    # set capacity_kw to a default value (we need it to be something, not nan, 
+    # otherwise generation values dont get saved)
+    all_data.loc[small_percentage, "update_capacity"] = False
+    all_data.loc[small_percentage, "capacity_kw"] = 1.0 
 
     # change region_id to integer, just to be safe
     all_data["region_id"] = all_data["region_id"].astype(int)
