@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from solar_consumer.constants import BE_FORECAST_URL, BE_GENERATION_URL
+
 def _build_session() -> requests.Session:
     session = requests.Session()
 
@@ -21,15 +23,8 @@ def _build_session() -> requests.Session:
 
     return session
 
-BASE_URL_FORECAST = (
-    "https://opendata.elia.be/api/explore/v2.1/"
-    "catalog/datasets/ods032/records"
-)
-
-BASE_URL_GENERATION = (
-    "https://opendata.elia.be/api/explore/v2.1/"
-    "catalog/datasets/ods087/records"
-)
+BASE_URL_FORECAST = BE_FORECAST_URL
+BASE_URL_GENERATION = BE_GENERATION_URL
 
 REQUEST_LIMIT = 50
 

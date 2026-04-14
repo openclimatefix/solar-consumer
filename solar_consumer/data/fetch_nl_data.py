@@ -8,11 +8,13 @@ import dotenv
 from loguru import logger
 from tqdm import tqdm
 
+from solar_consumer.constants import NL_BASE_URL
+
 # load .env variables
 dotenv.load_dotenv()
 
 # API base URL
-BASE_URL = "https://api.ned.nl/v1"
+BASE_URL = NL_BASE_URL
 
 # Get API credentials from environment variables
 API_KEY = os.getenv("APIKEY_NEDNL")
