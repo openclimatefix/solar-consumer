@@ -202,7 +202,7 @@ def test_fetch_nl_data_small_percentage(mock_api, nl_mock_data_small_percentage)
     assert not df.empty
     assert "capacity (kW)" in df.columns
     assert "volume (kWh)" in df.columns
-    assert df["capacity_kw"].isna().all()
+    assert df["update_capacity"].all() == False
 
 def test_gb_historic_inday():
 

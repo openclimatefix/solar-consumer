@@ -615,6 +615,11 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
         ~np.isclose(current_cap, new_cap, atol=1_000_000, rtol=0)
     )
 
+    if "update_capacity" in df.columns:
+        # only update capacity if this is set to True
+        # we use this in NL for non-validated capacities
+        update_idx = np.logical_or(update_idx, df["update_capacity"])
+
     updates_df = (
         df.loc[update_idx]
         .sort_values(by="target_datetime_utc", ascending=False)
