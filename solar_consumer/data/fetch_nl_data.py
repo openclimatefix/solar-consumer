@@ -258,6 +258,6 @@ def check_national_capacity_equals_regional_sum(data):
             f" These date times are {dont_update_capacity_datetimes.tolist()}"
         )
 
-    data.loc[dont_update_capacity_idx, "capacity_kw"] = np.nan
+    data.loc[dont_update_capacity_idx, "update_capacity"] = False
 
     return data

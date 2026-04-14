@@ -90,9 +90,9 @@ def test_check_national_capacity_equals_regional_sum():
     assert not result.empty
     assert len(result) == 39 # 3 timestamps * 13 regions
     assert result["capacity_kw"].iloc[0] == 780
-    assert np.isnan(result["capacity_kw"].iloc[1])
-    assert np.isnan(result["capacity_kw"].iloc[2])
+    assert result["update_capacity"].iloc[1] == False
+    assert result["update_capacity"].iloc[2] == False
     assert result["capacity_kw"].iloc[3] == 10
-    assert np.isnan(result["capacity_kw"].iloc[4])
+    assert result["update_capacity"].iloc[4] == False
     assert result["capacity_kw"].iloc[6] == 20
-    assert np.isnan(result["capacity_kw"].iloc[7])
+    assert result["update_capacity"].iloc[7] == False
