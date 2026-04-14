@@ -162,7 +162,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
     small_percentage = all_data["percentage"] < 0.01
     all_data['update_capacity'] = True
-    all_data.loc[small_percentage, "update_capacity"] = False
     # flag that we should not update capacity and 
     # set capacity_kw to a default value (we need it to be something, not nan, 
     # otherwise generation values dont get saved)
