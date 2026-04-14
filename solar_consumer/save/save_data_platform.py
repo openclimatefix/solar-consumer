@@ -608,12 +608,7 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     current_cap = df["effective_capacity_watts"].astype(float)
     new_cap = df["new_effective_capacity_watts"].astype(float)
 
-    update_idx = np.logical_or(   
-        # Change by more than 0.1%
-        ~np.isclose(current_cap, new_cap, atol=0, rtol=0.001),
-        # Change by more than 1 MW
-        ~np.isclose(current_cap, new_cap, atol=1_000_000, rtol=0)
-    )
+    update_idx = current_cap != new_cap
 
     if "update_capacity" in df.columns:
         # only update capacity if this is set to True
