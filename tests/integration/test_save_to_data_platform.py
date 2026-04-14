@@ -195,15 +195,15 @@ async def test_save_forecasts_to_data_platform(client):
 def test_get_update_capacity_df():
 
     # test_cases
-    # 1 is the same
+    # 0. is the same
     test_1 = {'effective_capacity_watts': 1, 
                     'new_effective_capacity_watts': 1, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T12:00:00Z")}
-    # 2 is an increase
+    # 1. is an increase
     test_2 = {'effective_capacity_watts': 2, 
                     'new_effective_capacity_watts': 4, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z")}
-    # 3 is an decreasue
+    # 2. is an decreasue
     test_3 = {'effective_capacity_watts': 3, 
                     'new_effective_capacity_watts': 2, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z")}
@@ -211,6 +211,6 @@ def test_get_update_capacity_df():
     df = pd.DataFrame([test_1, test_2, test_3])
     updates_df = get_update_capacity_df(df)
     assert not updates_df.empty
-    assert updates_df.index.tolist() == [1, 2, 3]
+    assert updates_df.index.tolist() == [1, 2]
 
 
