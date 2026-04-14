@@ -1,6 +1,6 @@
 name,latitude,longitude,region_id,region,country_code,location_type
 nl_national,52.13,5.29,0,,nl,NATION
-nl_groningen,53.22,6.74,1,,nl,STATE
+nl_region_1_groningen,53.22,6.74,1,,nl,STATE
 nl_region_2_friesland,53.11,5.85,2,,nl,STATE
 nl_region_3_drenthe,52.86,6.62,3,,nl,STATE
 nl_region_4_overijssel,52.45,6.45,4,,nl,STATE
