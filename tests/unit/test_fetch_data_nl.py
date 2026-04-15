@@ -39,7 +39,7 @@ def test_fetch_nl_data_small_percentage(mock_api, nl_mock_data_small_percentage)
     assert not df.empty
     assert "capacity (kW)" in df.columns
     assert "volume (kWh)" in df.columns
-    assert df["capacity_kw"].isna().all()
+    assert not df["update_capacity"].all()
 
 def test_check_national_capacity_equals_regional_sum_not_all_regions():
 
@@ -54,8 +54,8 @@ def test_check_national_capacity_equals_regional_sum_not_all_regions():
 
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
-    # check no nans in capacity_kw
-    assert result["capacity_kw"].isna().all()
+    # as there are not all the regions, update_capacity should be False
+    assert not result["update_capacity"].all()
 
 def test_check_national_capacity_equals_regional_sum():
 
@@ -68,19 +68,22 @@ def test_check_national_capacity_equals_regional_sum():
         data.append({
             "region_id": i,
             "capacity_kw": i*10 if i>0 else 10*sum(range(13)), # 780
-            "target_datetime_utc": pd.to_datetime("2025-01-14 05:30:00")
+            "target_datetime_utc": pd.to_datetime("2025-01-14 05:30:00"),
+            "update_capacity": True
         })
         # regionals won't add up to the national
         data.append({
             "region_id": i,
             "capacity_kw": 10*i,
-            "target_datetime_utc": pd.to_datetime("2025-01-14 06:00:00")
+            "target_datetime_utc": pd.to_datetime("2025-01-14 06:00:00"),
+            "update_capacity": True
         })
         # this time stamp has a NaN in it, so don't check this one
         data.append({
             "region_id": i,
             "capacity_kw": 20*(i+1) if i != 5 else np.nan,
-            "target_datetime_utc": pd.to_datetime("2025-01-14 06:30:00")
+            "target_datetime_utc": pd.to_datetime("2025-01-14 06:30:00"),
+            "update_capacity": True
         })
     data = pd.DataFrame(data)
 
@@ -89,10 +92,6 @@ def test_check_national_capacity_equals_regional_sum():
     assert isinstance(result, pd.DataFrame)
     assert not result.empty
     assert len(result) == 39 # 3 timestamps * 13 regions
-    assert result["capacity_kw"].iloc[0] == 780
-    assert not result["update_capacity"].iloc[1]
-    assert not result["update_capacity"].iloc[2]
-    assert result["capacity_kw"].iloc[3] == 10
-    assert not result["update_capacity"].iloc[4]
-    assert result["capacity_kw"].iloc[6] == 20
-    assert not result["update_capacity"].iloc[7]
+    assert result["update_capacity"].loc[::3].all() # all capacities can be updated
+    assert not result["update_capacity"].loc[1::3].any() # no capacities can be updated
+    assert not result["update_capacity"].loc[2::3].any() # no capacities can be update

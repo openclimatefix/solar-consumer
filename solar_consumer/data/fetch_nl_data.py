@@ -235,11 +235,11 @@ def check_national_capacity_equals_regional_sum(data):
                 "No datetimes have all region ids from 0 to 12. " \
                 "Cannot validate capacity"
           )
-       data["capacity_kw"] = np.nan
+       data["update_capacity"] = False
        return data
     else:
         idx = df.index.isin(df_datetime_grouped[df_datetime_grouped_idx].index)
-        df.loc[~idx, "capacity_kw"] = np.nan
+        df.loc[~idx, "update_capacity"] = False
 
     # lets split the national and regional and sum up the regional
     national_capacities = df[df["region_id"] == 0]["capacity_kw"]
