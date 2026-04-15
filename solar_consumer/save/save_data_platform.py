@@ -122,6 +122,9 @@ async def _list_locations(
         val_dict = metadata.get("country", {})
         loc_country = val_dict.get("string_value")
 
+        # make sure effective_capacity_watts is a float
+        loc["effective_capacity_watts"] = float(loc["effective_capacity_watts"])
+
         if country == "gb":
             # For GB, assume it matches if country is "gb" OR if country metadata is missing.
             # This ensures backward compatibility for existing GB locations.
@@ -131,7 +134,6 @@ async def _list_locations(
             # For NL/BE, strict matching
             if loc_country == country:
                 filtered_locations.append(loc)
-
 
     return filtered_locations
 
@@ -264,7 +266,6 @@ async def save_generation_to_data_platform(
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
-    locations_df['effective_capacity_watts'] = locations_df['effective_capacity_watts'].astype(float)
 
     # Prepare incoming data copy
     data_df = data_df.copy()
