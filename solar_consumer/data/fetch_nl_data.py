@@ -224,17 +224,17 @@ def check_national_capacity_equals_regional_sum(data):
     df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
     df.set_index("target_datetime_utc", drop=True, inplace=True)
 
-    # Drop any capacites that are nan already
+    # Drop any rows with nans as we won't be able to check them
     df = df.dropna()
 
-    # 2. lets only consider datetimes that have all the region ids from 0 to 12
+    # lets only consider datetimes that have all the region ids from 0 to 12
     df = df.sort_values(["target_datetime_utc", "region_id"])
     df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
     df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
     if sum(df_datetime_grouped_idx) == 0:
        logger.warning(
                 "No datetimes have all region ids from 0 to 12. " \
-                "Can not validate capacity"
+                "Cannot validate capacity"
           )
        data["capacity_kw"] = np.nan
        return data
