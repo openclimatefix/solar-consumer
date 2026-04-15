@@ -601,19 +601,15 @@ def format_metadata_from_dict(metadata):
 def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     """Get the rows that need to be updated based on capacity change."""
 
-    # TODO, we've put in a limit of relative tolerance of here, to avoid tiny changes triggering updates,
-    # This is references in https://github.com/openclimatefix/data-platform/issues/71
-    # This is now updated to 0.1% change and 1 MW
-
-    current_cap = df["effective_capacity_watts"].astype(float)
-    new_cap = df["new_effective_capacity_watts"].astype(float)
+    current_cap = df["effective_capacity_watts"]
+    new_cap = df["new_effective_capacity_watts"]
 
     update_idx = current_cap != new_cap
 
     if "update_capacity" in df.columns:
         # only update capacity if this is set to True
         # we use this in NL for non-validated capacities
-        update_idx = np.logical_or(update_idx, df["update_capacity"])
+        update_idx = np.logical_and(update_idx, df["update_capacity"])
 
     updates_df = (
         df.loc[update_idx]
