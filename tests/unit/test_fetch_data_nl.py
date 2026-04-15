@@ -79,9 +79,11 @@ def test_check_national_capacity_equals_regional_sum():
             "update_capacity": True
         })
         # this time stamp has a NaN in it, so don't check this one
+        # note capacity_kw is NaN for region 5
+        # note the regional capacities do add up to the national
         data.append({
             "region_id": i,
-            "capacity_kw": 20*(i+1) if i != 5 else np.nan,
+            "capacity_kw": [73,1,2,3,4,np.nan,6,7,8,9,10,11,12][i],
             "target_datetime_utc": pd.to_datetime("2025-01-14 06:30:00"),
             "update_capacity": True
         })
