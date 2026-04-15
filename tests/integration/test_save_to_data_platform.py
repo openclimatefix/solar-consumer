@@ -203,7 +203,7 @@ def test_get_update_capacity_df():
     test_2 = {'effective_capacity_watts': 2, 
                     'new_effective_capacity_watts': 4, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z")}
-    # 2. is an decreasue
+    # 2. is a decreasue
     test_3 = {'effective_capacity_watts': 3, 
                     'new_effective_capacity_watts': 2, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z")}
