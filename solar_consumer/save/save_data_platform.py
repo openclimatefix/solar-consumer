@@ -264,7 +264,8 @@ async def save_generation_to_data_platform(
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
-    
+    locations_df['effective_capacity_watts'] = locations_df['effective_capacity_watts'].astype(float)
+
     # Prepare incoming data copy
     data_df = data_df.copy()
     
