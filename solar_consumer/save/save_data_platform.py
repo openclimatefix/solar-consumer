@@ -305,7 +305,7 @@ async def save_generation_to_data_platform(
             locations_df
             .set_index("join_key")
             .join(
-                data_df.query("capacity_kw>0").set_index("join_key"),
+                data_df.query("capacity_kw!=0").set_index("join_key"),
                 on="join_key",
                 how="inner",
                 lsuffix="_loc",
@@ -313,7 +313,7 @@ async def save_generation_to_data_platform(
             .assign(
                 new_effective_capacity_watts=lambda df: (
                     df["capacity_kw"] * 1000
-                ).astype(int)
+                )
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
@@ -322,7 +322,7 @@ async def save_generation_to_data_platform(
 
     if joined_df.empty:
         # Check if the input data was empty or had no valid capacity data
-        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] > 0).any()
+        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] != 0).any()
         
         if data_df.empty or not has_valid_capacity_data:
             # Empty input or all zero-capacity data - this is expected, return silently
@@ -366,7 +366,7 @@ async def save_generation_to_data_platform(
         req = dp.UpdateLocationRequest(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
-            new_effective_capacity_watts=new_cap,
+            new_effective_capacity_watts=int(new_cap),
             valid_from_utc=t,
             new_metadata=metadata,
         )
