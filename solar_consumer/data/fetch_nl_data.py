@@ -166,7 +166,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # set capacity_kw to a default value (we need it to be something, not nan, 
     # otherwise generation values dont get saved)
     all_data.loc[small_percentage, "update_capacity"] = False
-    all_data.loc[small_percentage, "capacity_kw"] = 1.0 
 
     # change region_id to integer, just to be safe
     all_data["region_id"] = all_data["region_id"].astype(int)
