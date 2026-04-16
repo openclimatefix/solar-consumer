@@ -13,6 +13,7 @@ from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_nl_data import fetch_nl_data
 from solar_consumer.data.fetch_de_data import fetch_de_data
 from solar_consumer.data.fetch_be_data import fetch_be_data
+from solar_consumer.constants import GB_NESO_DATASTORE_URL
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
@@ -65,7 +66,7 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
                       - `target_datetime_utc`: Combined date and time in UTC.
                       - `solar_generation_kw`: Estimated solar forecast in kW.
     """
-    base_url = "https://api.neso.energy/api/3/action/datastore_search_sql"
+    base_url = GB_NESO_DATASTORE_URL
     encoded_query = urllib.parse.quote(sql_query)
     url = f"{base_url}?sql={encoded_query}"
 

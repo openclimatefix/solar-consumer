@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 
 from pvlive_api import PVLive
 
+from solar_consumer.constants import GB_NESO_FORECAST_URL, GB_PVLIVE_DOMAIN_URL
+
 
 def fetch_gb_data(historic_or_forecast: str = "forecast") -> pd.DataFrame:
     """
@@ -36,7 +38,7 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
                       - `Datetime_GMT`: Combined date and time in UTC.
                       - `solar_forecast_kw`: Estimated solar forecast in kW.
     """
-    meta_url = "https://api.neso.energy/api/3/action/datapackage_show?id=embedded-wind-and-solar-forecasts"
+    meta_url = GB_NESO_FORECAST_URL
     response = urllib.request.urlopen(meta_url)
     data = json.loads(response.read().decode("utf-8"))
 
@@ -89,8 +91,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
 
-    pvlive_domain_url = "api.pvlive.uk"
-    pvlive = PVLive(domain_url=pvlive_domain_url)
+    pvlive = PVLive(domain_url=GB_PVLIVE_DOMAIN_URL)
     # ignore these gsp ids from PVLive as they are no longer used
     ignore_gsp_ids = [5, 17, 41, 53, 75, 139, 140, 143, 157, 158, 163, 225, 257, 310]
 

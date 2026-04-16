@@ -6,6 +6,8 @@ import requests
 import xml.etree.ElementTree as ET
 from loguru import logger
 
+from solar_consumer.constants import DE_ENTSOE_URL
+
 # Load environment variables
 dotenv.load_dotenv()
 
@@ -31,7 +33,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     period_end = now.strftime("%Y%m%d%H%M")
 
     # Prepare request
-    url = "https://web-api.tp.entsoe.eu/api" # base url for api
+    url = DE_ENTSOE_URL
     API_KEY = os.getenv("ENTSOE_API_KEY", "") # api key from env vars, empty string if missing
     params = {
         "documentType": "A75",    # actual generation
