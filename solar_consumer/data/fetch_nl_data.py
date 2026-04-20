@@ -255,7 +255,7 @@ def check_national_capacity_equals_regional_sum(data):
     if any(dont_update_capacity_idx):
         logger.warning(
             f"National capacity is not close to sum of regional capacities for {len(dont_update_capacity_datetimes)} datetimes. "
-            "Setting capacity to NaN for these datetimes."
+            "Setting 'update_capacity' to False for these datetimes."
             f" These date times are {dont_update_capacity_datetimes.tolist()}"
         )
 

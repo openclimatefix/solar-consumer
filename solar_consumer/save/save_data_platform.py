@@ -613,6 +613,9 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
         # we use this in NL for non-validated capacities
         update_idx = np.logical_and(update_idx, df["update_capacity"])
 
+    # just to double check, lets make sure we dont update to any nan values
+    update_idx = np.logical_and(update_idx, ~new_cap.isna())
+
     updates_df = (
         df.loc[update_idx]
         .sort_values(by="target_datetime_utc", ascending=False)
