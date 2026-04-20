@@ -616,8 +616,9 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     current_cap = df["effective_capacity_watts"]
     new_cap = df["new_effective_capacity_watts"]
 
-    update_idx = current_cap != new_cap
-    
+    # only update if the difference is more than one
+    update_idx = (current_cap - new_cap).abs() >= 1
+
     updates_df = (
         df.loc[update_idx]
         .sort_values(by="target_datetime_utc", ascending=False)
