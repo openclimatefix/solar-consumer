@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 import dataclasses
 import uuid
-from dp_sdk.ocf import dp
+from ocf import dp
 from betterproto.lib.google.protobuf import Struct, Value
 import numpy as np
 
@@ -113,7 +113,7 @@ def test_save_forecasts_to_site_db(db_site_session):
 
 class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_generation_to_data_platform(self, client_mock):
 
         # Mock the list_locations call to return one national and three GSP locations
@@ -282,7 +282,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_nl_generation_to_data_platform(self, client_mock):
         """Test the NL branch of save_generation_to_data_platform."""
 
@@ -452,7 +452,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock, country="nl")
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_nl_generation_creates_locations_when_none_exist(self, client_mock):
         """Test that NL locations are created from CSV when none exist in data platform."""
 

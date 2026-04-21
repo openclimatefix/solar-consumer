@@ -4,7 +4,7 @@ from testcontainers.postgres import PostgresContainer
 from testcontainers.core.container import DockerContainer
 from importlib.metadata import version
 
-from dp_sdk.ocf import dp
+from ocf import dp
 from grpclib.client import Channel
 
 

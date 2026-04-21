@@ -26,7 +26,7 @@ from solar_consumer.save.save_data_platform import (
 from nowcasting_datamodel.connection import DatabaseConnection
 from nowcasting_datamodel.models import Base_Forecast
 from solar_consumer import __version__  # Import version from __init__.py
-from dp_sdk.ocf import dp
+from ocf import dp
 from grpclib.client import Channel
 
 

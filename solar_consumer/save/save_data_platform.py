@@ -5,7 +5,7 @@ https://github.com/openclimatefix/data-platform
 """
 
 import datetime
-from dp_sdk.ocf import dp
+from ocf import dp
 import pandas as pd
 
 import asyncio
@@ -43,6 +43,12 @@ def _get_country_config(country: str) -> dict:
             "metadata_type": "number", 
             "observer_name": None, 
         },
+        "ind_rajasthan": {
+            "id_key": "name",
+            "location_type": [dp.LocationType.STATE],
+            "metadata_type": "string",
+            "observer_name": "ruvnl",
+        },
     }
     return configs.get(country, configs["gb"])
 
@@ -75,6 +81,11 @@ async def _list_locations(
     country: str = "gb",
 ) -> list[dict]:
     """List locations from data platform and convert to dict format."""
+    if country == "ind_rajasthan":
+        es_filter = dp.EnergySource.UNSPECIFIED
+    else:
+        es_filter = dp.EnergySource.SOLAR
+
     if isinstance(location_type, list):
         # Handle multiple location types (e.g., GB with GSP and NATION)
         tasks = [
@@ -82,7 +93,7 @@ async def _list_locations(
                 client.list_locations(
                     dp.ListLocationsRequest(
                         location_type_filter=loc_type,
-                        energy_source_filter=dp.EnergySource.SOLAR,
+                        energy_source_filter=es_filter,
                     )
                 )
             )
@@ -103,7 +114,7 @@ async def _list_locations(
         # Single location type
         list_locations_request = dp.ListLocationsRequest(
             location_type_filter=location_type,
-            energy_source_filter=dp.EnergySource.SOLAR,
+            energy_source_filter=es_filter,
         )
         list_locations_response = await client.list_locations(list_locations_request)
         all_locations = list_locations_response.to_dict(
@@ -178,9 +189,14 @@ async def _create_locations_from_csv(
         else:
              location_type = dp.LocationType.NATION
 
+        energy_source_str = location.get("energy_source", "solar").lower()
+        if energy_source_str == "wind":
+            energy_source = dp.EnergySource.WIND
+        else:
+            energy_source = dp.EnergySource.SOLAR
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             location_type=location_type,
             geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
             effective_capacity_watts=effective_capacity_watts,
@@ -251,7 +267,7 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country in ["nl", "be"]:
+    if country in ["nl", "be", "ind_rajasthan"]:
         # NL and BE support CSV-based location creation
         locations_data = await _list_locations(client, config["location_type"], country=country)
         
@@ -268,6 +284,14 @@ async def save_generation_to_data_platform(
 
     # Prepare incoming data copy
     data_df = data_df.copy()
+
+    has_capacity_data = "capacity_kw" in data_df.columns
+    if not has_capacity_data:
+        data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
+        logging.info("No capacity info found, so using max generation")
+
+    if country == "ind_rajasthan":
+        data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str)
     
     # Extract metadata and create join key based on country
     if country == "be":
@@ -347,60 +371,64 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    updates_df = get_update_capacity_df(joined_df)
+    if has_capacity_data:
+        updates_df = get_update_capacity_df(joined_df)
 
-    tasks = []        
-    for row in updates_df.itertuples(): 
-        lid = row.location_uuid
-        t = row.target_datetime_utc
-        new_cap = row.new_effective_capacity_watts
-        metadata = row.metadata
+        tasks = []
+        for row in updates_df.itertuples():
+            lid = row.location_uuid
+            t = row.target_datetime_utc
+            new_cap = row.new_effective_capacity_watts
+            metadata = row.metadata
 
-        # this is specific to GB consumer at the moment
-        if "capacity_no_degradation_kw" in updates_df.columns:
-            metadata = format_metadata_from_dict(metadata=row.metadata)
-            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
-            metadata = Struct(fields=metadata)
-        else:
-            metadata = None
+            # this is specific to GB consumer at the moment
+            if "capacity_no_degradation_kw" in updates_df.columns:
+                metadata = format_metadata_from_dict(metadata=row.metadata)
+                metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
+                metadata = Struct(fields=metadata)
+            else:
+                metadata = None
 
-        req = dp.UpdateLocationRequest(
-            location_uuid=lid,
-            energy_source=dp.EnergySource.SOLAR,
-            new_effective_capacity_watts=int(new_cap),
-            valid_from_utc=t,
-            new_metadata=metadata,
-        )
-        tasks.append(asyncio.create_task(client.update_location(req)))
+            req = dp.UpdateLocationRequest(
+                location_uuid=lid,
+                energy_source=dp.EnergySource.SOLAR,
+                new_effective_capacity_watts=int(new_cap),
+                valid_from_utc=t,
+                new_metadata=metadata,
+            )
+            tasks.append(asyncio.create_task(client.update_location(req)))
 
-    if len(tasks) > 0:
-        logging.info("updating %d %s location capacities", len(tasks), country.upper())
-        # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=False)
+        if len(tasks) > 0:
+            logging.info("updating %d %s location capacities", len(tasks), country.upper())
+            await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
     # lets check none of the values are above 109% of the capacity
     # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
-    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
-    if idx.any():
-        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-        logging.warning(f"Found {idx.sum()} values above 109% of capacity \
-                        for location_uuid {location_uuids}. \
-                        These values will be dropped.")
-        joined_df = joined_df[~idx]
+    if has_capacity_data:
+      idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
+      if idx.any():
+          location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+          logging.warning(f"Found {idx.sum()} values above 109% of capacity \
+                          for location_uuid {location_uuids}. \
+                          These values will be dropped.")
+          joined_df = joined_df[~idx]
 
 
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
-    for lid, t, val in zip(
+    energy_source_by_loc: dict[str, dp.EnergySource] = {}
+    for lid, t, val, es in zip(
         joined_df["location_uuid"],
         joined_df["target_datetime_utc"],
         (joined_df["solar_generation_kw"] * 1000).astype(int),
+        joined_df["energy_source"],
     ):
         observations_by_loc[lid].append(
             dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=val)
         )
+        energy_source_by_loc[lid] = dp.EnergySource[es]
 
     # Determine observer name based on country
     observer_name = config["observer_name"]
@@ -413,7 +441,7 @@ async def save_generation_to_data_platform(
             client.create_observations(
                 dp.CreateObservationsRequest(
                     location_uuid=lid,
-                    energy_source=dp.EnergySource.SOLAR,
+                    energy_source=energy_source_by_loc[lid],
                     observer_name=observer_name,
                     values=vals,
                 ),
