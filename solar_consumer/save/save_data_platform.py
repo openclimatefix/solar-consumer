@@ -6,7 +6,6 @@ https://github.com/openclimatefix/data-platform
 
 import datetime
 from dp_sdk.ocf import dp
-import numpy as np
 import pandas as pd
 
 import asyncio
@@ -603,18 +602,22 @@ def format_metadata_from_dict(metadata):
 def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     """Get the rows that need to be updated based on capacity change."""
 
-    current_cap = df["effective_capacity_watts"]
-    new_cap = df["new_effective_capacity_watts"]
-
-    update_idx = current_cap != new_cap
+    # lets only consider non nans values
+    df = df[~df["new_effective_capacity_watts"].isna()]
 
     if "update_capacity" in df.columns:
         # only update capacity if this is set to True
         # we use this in NL for non-validated capacities
-        update_idx = np.logical_and(update_idx, df["update_capacity"])
+        df = df[df['update_capacity']]
 
-    # just to double check, lets make sure we dont update to any nan values
-    update_idx = np.logical_and(update_idx, ~new_cap.isna())
+    # lets make sure we use the latest timestamp for each location_uuid
+    df = df.sort_values(by="target_datetime_utc", ascending=False).groupby("location_uuid").head(1)
+
+    current_cap = df["effective_capacity_watts"]
+    new_cap = df["new_effective_capacity_watts"]
+
+    # only update if the difference is more than one
+    update_idx = (current_cap - new_cap).abs() >= 1
 
     updates_df = (
         df.loc[update_idx]

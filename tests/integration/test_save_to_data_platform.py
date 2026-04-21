@@ -198,16 +198,22 @@ def test_get_update_capacity_df():
     # 0. is the same
     test_1 = {'effective_capacity_watts': 1, 
                     'new_effective_capacity_watts': 1, 
-                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:00:00Z")}
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:00:00Z"),
+                    'location_uuid': 'location_1'
+                   }
     # 1. is an increase
     test_2 = {'effective_capacity_watts': 2, 
                     'new_effective_capacity_watts': 4, 
-                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z")}
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z"),
+                    'location_uuid': 'location_2'
+                   }
     # 2. is a decreasue
     test_3 = {'effective_capacity_watts': 3, 
                     'new_effective_capacity_watts': 2, 
-                    'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z")}
-    
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z"),
+                    'location_uuid': 'location_3'
+                   }
+
     df = pd.DataFrame([test_1, test_2, test_3])
     updates_df = get_update_capacity_df(df)
     assert not updates_df.empty
