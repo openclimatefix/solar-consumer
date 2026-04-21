@@ -16,7 +16,6 @@ import itertools
 
 import betterproto
 
-import numpy as np
 from betterproto.lib.google.protobuf import Struct, Value
 from pathlib import Path
 from importlib.metadata import version
@@ -133,6 +132,9 @@ async def _list_locations(
         val_dict = metadata.get("country", {})
         loc_country = val_dict.get("string_value")
 
+        # make sure effective_capacity_watts is a float
+        loc["effective_capacity_watts"] = float(loc["effective_capacity_watts"])
+
         if country == "gb":
             # For GB, assume it matches if country is "gb" OR if country metadata is missing.
             # This ensures backward compatibility for existing GB locations.
@@ -142,7 +144,6 @@ async def _list_locations(
             # For NL/BE, strict matching
             if loc_country == country:
                 filtered_locations.append(loc)
-
 
     return filtered_locations
 
@@ -280,7 +281,7 @@ async def save_generation_to_data_platform(
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
-    
+
     # Prepare incoming data copy
     data_df = data_df.copy()
 
@@ -329,7 +330,7 @@ async def save_generation_to_data_platform(
             locations_df
             .set_index("join_key")
             .join(
-                data_df.query("capacity_kw>0").set_index("join_key"),
+                data_df.query("capacity_kw!=0").set_index("join_key"),
                 on="join_key",
                 how="inner",
                 lsuffix="_loc",
@@ -337,7 +338,7 @@ async def save_generation_to_data_platform(
             .assign(
                 new_effective_capacity_watts=lambda df: (
                     df["capacity_kw"] * 1000
-                ).astype(int)
+                )
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
@@ -346,7 +347,7 @@ async def save_generation_to_data_platform(
 
     if joined_df.empty:
         # Check if the input data was empty or had no valid capacity data
-        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] > 0).any()
+        has_valid_capacity_data = not data_df.empty and (data_df["capacity_kw"] != 0).any()
         
         if data_df.empty or not has_valid_capacity_data:
             # Empty input or all zero-capacity data - this is expected, return silently
@@ -370,21 +371,30 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    #
-    # TODO, we've put in a limit of relative tolerance of 2% here to avoid tiny changes triggering updates,
-    # This is references in https://github.com/openclimatefix/data-platform/issues/71
     if has_capacity_data:
-        joined_df["capacity_change"] = (
-            (joined_df["effective_capacity_watts"].astype(float))
-            / (joined_df["new_effective_capacity_watts"].astype(float))
-        ).abs()
+      updates_df = get_update_capacity_df(joined_df)
 
-        updates_df = (
-            joined_df.loc[lambda df: ~np.isclose(df["capacity_change"], 1.0, rtol=0.02)]
-            .sort_values(by="target_datetime_utc", ascending=False)
-            .groupby(level=0)
-            .head(1)
-            .sort_index()
+    tasks = []        
+    for row in updates_df.itertuples(): 
+        lid = row.location_uuid
+        t = row.target_datetime_utc
+        new_cap = row.new_effective_capacity_watts
+        metadata = row.metadata
+
+        # this is specific to GB consumer at the moment
+        if "capacity_no_degradation_kw" in updates_df.columns:
+            metadata = format_metadata_from_dict(metadata=row.metadata)
+            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
+            metadata = Struct(fields=metadata)
+        else:
+            metadata = None
+
+        req = dp.UpdateLocationRequest(
+            location_uuid=lid,
+            energy_source=dp.EnergySource.SOLAR,
+            new_effective_capacity_watts=int(new_cap),
+            valid_from_utc=t,
+            new_metadata=metadata,
         )
 
         tasks = []        
@@ -422,13 +432,13 @@ async def save_generation_to_data_platform(
     # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
     if has_capacity_data:
-        idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
-        if len(idx) > 0:
-            location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-            logging.warning(f"Found {idx.sum()} values above 109% of capacity \
-                            for location_uuid {location_uuids}. \
-                            These values will be dropped.")
-            joined_df = joined_df[~idx]
+      idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
+      if idx.any():
+          location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+          logging.warning(f"Found {idx.sum()} values above 109% of capacity \
+                          for location_uuid {location_uuids}. \
+                          These values will be dropped.")
+          joined_df = joined_df[~idx]
 
 
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
@@ -639,3 +649,33 @@ def format_metadata_from_dict(metadata):
         else:
             metadata[k] = Value(number_value=v["number_value"])
     return metadata
+
+
+def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Get the rows that need to be updated based on capacity change."""
+
+    # lets only consider non nans values
+    df = df[~df["new_effective_capacity_watts"].isna()]
+
+    if "update_capacity" in df.columns:
+        # only update capacity if this is set to True
+        # we use this in NL for non-validated capacities
+        df = df[df['update_capacity']]
+
+    # lets make sure we use the latest timestamp for each location_uuid
+    df = df.sort_values(by="target_datetime_utc", ascending=False).groupby("location_uuid").head(1)
+
+    current_cap = df["effective_capacity_watts"]
+    new_cap = df["new_effective_capacity_watts"]
+
+    # only update if the difference is more than one
+    update_idx = (current_cap - new_cap).abs() >= 1
+
+    updates_df = (
+        df.loc[update_idx]
+        .sort_values(by="target_datetime_utc", ascending=False)
+        .groupby(level=0)
+        .head(1)
+        .sort_index()
+    )
+    return updates_df

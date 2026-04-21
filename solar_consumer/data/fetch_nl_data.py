@@ -2,17 +2,20 @@
 import os
 import requests
 from datetime import datetime, timedelta, timezone
+import numpy as np
 import pandas as pd
 import time
 import dotenv
 from loguru import logger
 from tqdm import tqdm
 
+from solar_consumer.constants import NL_BASE_URL
+
 # load .env variables
 dotenv.load_dotenv()
 
 # API base URL
-BASE_URL = "https://api.ned.nl/v1"
+BASE_URL = NL_BASE_URL
 
 # Get API credentials from environment variables
 API_KEY = os.getenv("APIKEY_NEDNL")
@@ -140,11 +143,12 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                 logger.info(f"Data fetched up to {df['validfrom (UTC)'].max()} "
                     f"with last update at {df['lastupdate (UTC)'].max()}")
                 
-                # remove any data less than update time.
-                # In the past we have had some spiky generation data
-                # https://github.com/openclimatefix/solar-consumer/issues/168
-                df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
-                df = df[df['validto (UTC)'] < df['lastupdate (UTC)'].max()]
+                if historic_or_forecast == "generation":
+                    # remove any data less than update time.
+                    # In the past we have had some spiky generation data
+                    # https://github.com/openclimatefix/solar-consumer/issues/168
+                    df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
+                    df = df[df['validto (UTC)'] < df['lastupdate (UTC)'].max()]
 
                 # Append to main DataFrame
                 all_data = pd.concat([all_data, df], ignore_index=True)
@@ -156,8 +160,15 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Sort final DataFrame by timestamp
     all_data = all_data.sort_values("validfrom (UTC)")
 
-    # get the total site capacity
+    # get the total site capacity and
+    # set very small percentages update_capacity=False
+    all_data['update_capacity'] = True
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
+    small_percentage = all_data["percentage"] < 0.01
+    # flag that we should not update capacity and 
+    # set capacity_kw to a default value (we need it to be something, not nan, 
+    # otherwise generation values dont get saved)
+    all_data.loc[small_percentage, "update_capacity"] = False
 
     # change region_id to integer, just to be safe
     all_data["region_id"] = all_data["region_id"].astype(int)
@@ -193,8 +204,61 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data[all_data["target_datetime_utc"] <= end_date]
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
+    # lets check that the regional capacities are close to the national one
+    all_data = check_national_capacity_equals_regional_sum(all_data)
+
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
                  f"to {all_data['target_datetime_utc'].max()}")
 
     return all_data
+
+def check_national_capacity_equals_regional_sum(data):
+    """Check if regional solar capacities are equal to national capacity.
+
+    We want to make sure that the regional capacites are equal to the national,
+    if not, set all to nans and add warning
+
+    Note we ingnore any timestamps if there are any nans already in the capacity
+    """
+
+    df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
+    df.set_index("target_datetime_utc", drop=True, inplace=True)
+
+    # Drop any rows with nans as we won't be able to check them
+    df = df.dropna()
+
+    # lets only consider datetimes that have all the region ids from 0 to 12
+    df = df.sort_values(["target_datetime_utc", "region_id"])
+    df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
+    df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
+    if sum(df_datetime_grouped_idx) == 0:
+       logger.warning(
+                "No datetimes have all region ids from 0 to 12. " \
+                "Cannot validate capacity"
+          )
+       data["update_capacity"] = False
+       return data
+    else:
+        idx = data['target_datetime_utc'].isin(df_datetime_grouped[df_datetime_grouped_idx].index)
+        data.loc[~idx, "update_capacity"] = False
+
+    # lets split the national and regional and sum up the regional
+    national_capacities = df[df["region_id"] == 0]["capacity_kw"]
+    regional_capacities = df[df["region_id"] != 0].groupby("target_datetime_utc").sum()["capacity_kw"]
+
+    # lets find the datetimes that are close enough
+    update_idx = np.isclose(regional_capacities, national_capacities, atol=0, rtol=0.001)
+    dont_update_capacity_datetimes = national_capacities.index[~update_idx]
+    dont_update_capacity_idx = data['target_datetime_utc'].isin(dont_update_capacity_datetimes)
+
+    if any(dont_update_capacity_idx):
+        logger.warning(
+            f"National capacity is not close to sum of regional capacities for {len(dont_update_capacity_datetimes)} datetimes. "
+            "Setting 'update_capacity' to False for these datetimes."
+            f" These date times are {dont_update_capacity_datetimes.tolist()}"
+        )
+
+    data.loc[dont_update_capacity_idx, "update_capacity"] = False
+
+    return data

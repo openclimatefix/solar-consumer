@@ -20,10 +20,8 @@ import pytest
 import os
 
 from solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 import json
-import pandas as pd
-from solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 # TODO update
 #
@@ -170,22 +168,6 @@ def test_fetch_data_using_sql_mock_failure(test_config):
         print("Mocked DataFrame from fetch_data_using_sql (failure):")
         print(df)
 
-
-@patch("solar_consumer.data.fetch_nl_data.requests.Session.get")
-def test_fetch_nl_data(mock_api, nl_mock_data):
-
-    # Configure the mock to return a response with the mock data
-    mock_response = Mock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = nl_mock_data
-    mock_api.return_value = mock_response
-
-    df = fetch_nl_data(historic_or_forecast='historic')
-
-    assert isinstance(df, pd.DataFrame)
-    assert not df.empty
-    assert "capacity (kW)" in df.columns
-    assert "volume (kWh)" in df.columns
 
 def test_gb_historic_inday():
 

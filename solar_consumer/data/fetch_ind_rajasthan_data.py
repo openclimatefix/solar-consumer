@@ -6,9 +6,11 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import requests
 
+from solar_consumer.constants import IND_RAJASTHAN_URL
+
 log = logging.getLogger(__name__)
 
-DEFAULT_DATA_URL = "http://sldc.rajasthan.gov.in/rrvpnl/read-sftp?type=overview"
+DEFAULT_DATA_URL = IND_RAJASTHAN_URL
 
 
 def fetch_ind_rajasthan_data(
