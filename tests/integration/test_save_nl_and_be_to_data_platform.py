@@ -5,7 +5,7 @@ from betterproto.lib.google.protobuf import Struct, Value
 import betterproto
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
-from dp_sdk.ocf import dp
+from ocf import dp
 
 
 # Country-specific configuration for parametrized tests

@@ -4,7 +4,7 @@ import betterproto
 import pandas as pd
 import pytest
 
-from dp_sdk.ocf import dp
+from ocf import dp
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 
