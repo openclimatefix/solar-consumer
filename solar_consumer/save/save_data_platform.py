@@ -372,33 +372,10 @@ async def save_generation_to_data_platform(
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
     if has_capacity_data:
-      updates_df = get_update_capacity_df(joined_df)
+        updates_df = get_update_capacity_df(joined_df)
 
-    tasks = []        
-    for row in updates_df.itertuples(): 
-        lid = row.location_uuid
-        t = row.target_datetime_utc
-        new_cap = row.new_effective_capacity_watts
-        metadata = row.metadata
-
-        # this is specific to GB consumer at the moment
-        if "capacity_no_degradation_kw" in updates_df.columns:
-            metadata = format_metadata_from_dict(metadata=row.metadata)
-            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
-            metadata = Struct(fields=metadata)
-        else:
-            metadata = None
-
-        req = dp.UpdateLocationRequest(
-            location_uuid=lid,
-            energy_source=dp.EnergySource.SOLAR,
-            new_effective_capacity_watts=int(new_cap),
-            valid_from_utc=t,
-            new_metadata=metadata,
-        )
-
-        tasks = []        
-        for row in updates_df.itertuples(): 
+        tasks = []
+        for row in updates_df.itertuples():
             lid = row.location_uuid
             t = row.target_datetime_utc
             new_cap = row.new_effective_capacity_watts
@@ -415,7 +392,7 @@ async def save_generation_to_data_platform(
             req = dp.UpdateLocationRequest(
                 location_uuid=lid,
                 energy_source=dp.EnergySource.SOLAR,
-                new_effective_capacity_watts=new_cap,
+                new_effective_capacity_watts=int(new_cap),
                 valid_from_utc=t,
                 new_metadata=metadata,
             )
@@ -423,7 +400,6 @@ async def save_generation_to_data_platform(
 
         if len(tasks) > 0:
             logging.info("updating %d %s location capacities", len(tasks), country.upper())
-            # NL was previously ignoring these exceptions
             await _execute_async_tasks(tasks, ignore_exceptions=False)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
