@@ -63,9 +63,11 @@ async def _execute_async_tasks(
     if not tasks:
         return []
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    if not ignore_exceptions:
-        for exc in filter(lambda x: isinstance(x, Exception), results):
+    for exc in filter(lambda x: isinstance(x, Exception), results):
+        if not ignore_exceptions:
             raise exc
+        else:
+            logger.warning(f"Task failed: {exc}")
     return results
 
 
@@ -378,7 +380,7 @@ async def save_generation_to_data_platform(
     if len(tasks) > 0:
         logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=False)
+        await _execute_async_tasks(tasks, ignore_exceptions=True)
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
