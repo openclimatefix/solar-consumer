@@ -354,7 +354,10 @@ async def save_generation_to_data_platform(
         lid = row.location_uuid
         t = row.target_datetime_utc
         new_cap = row.new_effective_capacity_watts
+        old_cap = row.effective_capacity_watts
         metadata = row.metadata
+
+        logging.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
 
         # this is specific to GB consumer at the moment
         if "capacity_no_degradation_kw" in updates_df.columns:
