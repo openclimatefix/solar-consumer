@@ -247,7 +247,7 @@ async def save_generation_to_data_platform(
             )
         )
     if len(tasks) > 0:
-        logger.info("creating %d observers", len(tasks))
+        logger.info(f"creating {len(tasks)} observers")
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
@@ -339,9 +339,8 @@ async def save_generation_to_data_platform(
         )
 
     logger.info(
-        "handling %s data for %d matched locations",
-        country.upper(),
-        joined_df["location_uuid"].nunique(),
+        f"handling {country.upper()} data "
+        f"for {joined_df['location_uuid'].nunique()} matched locations",
     )
 
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
@@ -377,7 +376,7 @@ async def save_generation_to_data_platform(
         tasks.append(asyncio.create_task(client.update_location(req)))
 
     if len(tasks) > 0:
-        logger.info("updating %d %s location capacities", len(tasks), country.upper())
+        logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
@@ -426,7 +425,7 @@ async def save_generation_to_data_platform(
     ]
 
     if len(tasks) > 0:
-        logger.info("creating observations for %d %s locations", len(tasks), country.upper())
+        logger.info(f"creating observations for {len(tasks)} {country.upper()} locations")
         await _execute_async_tasks(tasks)
 
 async def save_forecasts_to_data_platform(
@@ -452,8 +451,8 @@ async def save_forecasts_to_data_platform(
     """
     # 1. Ensure the forecaster exists
     forecaster = await create_forecaster_if_not_exists(client, model_tag, model_version)
-    logger.info("Using forecaster: %s (version: %s)", forecaster.forecaster_name, forecaster.forecaster_version)
-    
+    logger.info(f"Using forecaster: {forecaster.forecaster_name} (version: {forecaster.forecaster_version})")
+
     # 2. Get the national location (gsp_id=0)
     locations_data = await _list_locations(
         client,
@@ -533,10 +532,8 @@ async def save_forecasts_to_data_platform(
     )
     
     logger.info(
-        "Saved %d forecast values to data platform for location %s (init_time: %s)",
-        len(forecast_values),
-        location_uuid,
-        init_time_utc.isoformat(),
+        f"Saved {len(forecast_values)} forecast values to data platform for "
+        f"location {location_uuid} (init_time: {init_time_utc})",
     )
 
 async def create_forecaster_if_not_exists(
