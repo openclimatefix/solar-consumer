@@ -9,7 +9,7 @@ from dp_sdk.ocf import dp
 import pandas as pd
 
 import asyncio
-import logging
+from loguru import logger
 from collections import defaultdict
 
 import itertools
@@ -189,7 +189,7 @@ async def _create_locations_from_csv(
         )
         await client.create_location(create_location_request)
     
-    logging.warning(
+    logger.warning(
         f"No {country.upper()} locations found in data platform. Created new locations."
     )
 
@@ -247,7 +247,7 @@ async def save_generation_to_data_platform(
             )
         )
     if len(tasks) > 0:
-        logging.info("creating %d observers", len(tasks))
+        logger.info(f"creating {len(tasks)} observers")
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
@@ -338,10 +338,9 @@ async def save_generation_to_data_platform(
             f"This is unexpected - locations should have been created or already exist."
         )
 
-    logging.info(
-        "handling %s data for %d matched locations",
-        country.upper(),
-        joined_df["location_uuid"].nunique(),
+    logger.info(
+        f"handling {country.upper()} data "
+        f"for {joined_df['location_uuid'].nunique()} matched locations",
     )
 
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
@@ -357,7 +356,7 @@ async def save_generation_to_data_platform(
         old_cap = row.effective_capacity_watts
         metadata = row.metadata
 
-        logging.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
+        logger.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
 
         # this is specific to GB consumer at the moment
         if "capacity_no_degradation_kw" in updates_df.columns:
@@ -377,7 +376,7 @@ async def save_generation_to_data_platform(
         tasks.append(asyncio.create_task(client.update_location(req)))
 
     if len(tasks) > 0:
-        logging.info("updating %d %s location capacities", len(tasks), country.upper())
+        logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=False)
 
@@ -389,7 +388,7 @@ async def save_generation_to_data_platform(
     idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
     if idx.any():
         location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-        logging.warning(f"Found {idx.sum()} values above 109% of capacity \
+        logger.warning(f"Found {idx.sum()} values above 109% of capacity \
                         for location_uuid {location_uuids}. \
                         These values will be dropped.")
         joined_df = joined_df[~idx]
@@ -426,7 +425,7 @@ async def save_generation_to_data_platform(
     ]
 
     if len(tasks) > 0:
-        logging.info("creating observations for %d %s locations", len(tasks), country.upper())
+        logger.info(f"creating observations for {len(tasks)} {country.upper()} locations")
         await _execute_async_tasks(tasks)
 
 async def save_forecasts_to_data_platform(
@@ -452,8 +451,8 @@ async def save_forecasts_to_data_platform(
     """
     # 1. Ensure the forecaster exists
     forecaster = await create_forecaster_if_not_exists(client, model_tag, model_version)
-    logging.info("Using forecaster: %s (version: %s)", forecaster.forecaster_name, forecaster.forecaster_version)
-    
+    logger.info(f"Using forecaster: {forecaster.forecaster_name} (version: {forecaster.forecaster_version})")
+
     # 2. Get the national location (gsp_id=0)
     locations_data = await _list_locations(
         client,
@@ -518,7 +517,7 @@ async def save_forecasts_to_data_platform(
         )    
     
     if not forecast_values:
-        logging.warning("No valid forecast values to save.")
+        logger.warning("No valid forecast values to save.")
         return
     
     # 4. Save forecast using the forecaster
@@ -532,11 +531,9 @@ async def save_forecasts_to_data_platform(
         )
     )
     
-    logging.info(
-        "Saved %d NESO forecast values to data platform for location %s (init_time: %s)",
-        len(forecast_values),
-        location_uuid,
-        init_time_utc.isoformat(),
+    logger.info(
+        f"Saved {len(forecast_values)} forecast values to data platform for "
+        f"location {location_uuid} (init_time: {init_time_utc})",
     )
 
 async def create_forecaster_if_not_exists(
