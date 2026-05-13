@@ -132,7 +132,7 @@ def test_make_potential_generation(mock_entsoe_pandas_client):
     end = pd.Timestamp('2026-05-11').tz_localize('UTC')
 
     data = pd.DataFrame({
-        'target_datetime_utc': pd.date_range(start=start, end=end, freq='15T'),
+        'target_datetime_utc': pd.date_range(start=start, end=end, freq='15min'),
         'solar_generation_kw': [1] * 97
     })
 
