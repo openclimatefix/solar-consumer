@@ -136,10 +136,22 @@ async def app(
 
                 if historic_or_forecast == "forecast":
                     logger.info("Saving forecasts to the Data Platform.")
-                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__, init_time_utc=t0.to_pydatetime(), country=country)
+                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__, init_time_utc=t0.to_pydatetime(), config_name=country)
                 else:
                     logger.info("Saving generation data to the Data Platform.")
-                    await save_generation_to_data_platform(data_df=data, client=client, country=country)
+                    await save_generation_to_data_platform(data_df=data, client=client, config_name=country)
+
+                    # special save for Ned NL no curtailment
+                    # we might want to make this more generic a bit later
+                    if country == "nl" \
+                        and historic_or_forecast == "generation" \
+                        and os.getenv("NL_POTENTIAL_GENERATION", "False").lower() == "true":
+                        logger.info("Saving NL un-curtailed generation data to the Data Platform.")
+                        
+                        # change solar_generation_kw from solar_generation_no_curtailment_kw
+                        data['solar_generation_kw'] = data['solar_generation_no_curtailment_kw']
+                        # save to data platform
+                        await save_generation_to_data_platform(data_df=data, client=client, config_name="nl_no_curtailment")
 
             logger.info("Saving to data platform: done")
 

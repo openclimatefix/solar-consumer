@@ -2,6 +2,7 @@
 import os
 import requests
 from datetime import datetime, timedelta, timezone
+from entsoe import EntsoePandasClient
 import numpy as np
 import pandas as pd
 import time
@@ -206,6 +207,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # lets check that the regional capacities are close to the national one
     all_data = check_national_capacity_equals_regional_sum(all_data)
+    # lets add the potential generation values
+    if historic_or_forecast == "generation" and os.getenv("NL_POTENTIAL_GENERATION", "False").lower() == "true":
+        all_data = make_potential_generation(all_data)
 
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
     logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
@@ -260,5 +264,70 @@ def check_national_capacity_equals_regional_sum(data):
         )
 
     data.loc[dont_update_capacity_idx, "update_capacity"] = False
+
+    return data
+
+
+def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+    """Fetch the day-ahead prices from the ENTSOE API.
+    
+    We need to a ENSTOE api_key
+    """
+
+    client = EntsoePandasClient(api_key=os.getenv("APIKEY_ENTSOE"))
+    country_code = 'NL'  # Netherlands
+
+    # methods that return Pandas Series
+    print(f"Fetching day-ahead prices from ENTSOE API for {country_code} from {start} to {end}")
+    data = client.query_day_ahead_prices(country_code, start=start, end=end)
+
+    # validate data
+    if data.empty:
+        logger.warning("No data returned from ENTSOE API.")
+        return pd.DataFrame()
+    
+    # check there are not nans
+    if data.isnull().values.any():
+        logger.warning("Data contains NaNs.")
+        return pd.DataFrame()
+    
+    # make sure timezone is utc
+    data.index = data.index.tz_convert('UTC')
+
+    # convert to dataframe with columns ['target_datetime_utc', 'price']
+    data = data.reset_index()
+    data.columns = ['target_datetime_utc', 'NL_day_ahead_prices_euros_per_mwh']
+    data['target_datetime_utc'] = pd.to_datetime(data['target_datetime_utc'])
+
+    return data
+
+
+def make_potential_generation(data: pd.DataFrame) -> pd.DataFrame:
+    """Create a DataFrame for potential solar generation.
+    
+    params:
+    - data: A DataFrame containing the relevant input data. This needs to have the columns solar_generation_kw
+    """
+
+    logger.debug("Creating potential solar generation .")
+
+    col = 'solar_generation_no_curtailment_kw'
+    data[col] = data['solar_generation_kw']
+
+    start = pd.Timestamp(data['target_datetime_utc'].min())
+    end = pd.Timestamp(data['target_datetime_utc'].max())
+
+    # get prices for that day
+    prices = get_entsoe_day_prices(start=start, end=end)
+    data = data.merge(prices, on='target_datetime_utc')
+
+    # curtailment modelling. 
+    # 2026-05-13
+    # When there are negative prices, NEDNL model the generation values as 11% lower
+    # to get back the potential generation, we multiply by 1.11
+    price_threshold = 0
+    multiplier = 1.11
+    negative_price_idx = data['NL_day_ahead_prices_euros_per_mwh'] <= price_threshold
+    data[col] = data[col].mask(negative_price_idx, data[col] * multiplier)
 
     return data
