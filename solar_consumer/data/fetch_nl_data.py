@@ -268,13 +268,13 @@ def check_national_capacity_equals_regional_sum(data):
     return data
 
 
-def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
+def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) -> pd.DataFrame:
     """Fetch the day-ahead prices from the ENTSOE API.
     
     We need to a ENSTOE api_key
     """
 
-    client = EntsoePandasClient(api_key=os.getenv("APIKEY_ENTSOE"))
+    client = EntsoePandasClient(api_key=api_key)
     country_code = 'NL'  # Netherlands
 
     # methods that return Pandas Series
@@ -318,7 +318,8 @@ def make_potential_generation(data: pd.DataFrame) -> pd.DataFrame:
     end = pd.Timestamp(data['target_datetime_utc'].max())
 
     # get prices for that day
-    prices = get_entsoe_day_prices(start=start, end=end)
+    api_key = os.getenv("APIKEY_ENTSOE")
+    prices = get_entsoe_day_prices(start=start, end=end, api_key=api_key)
     data = data.merge(prices, on='target_datetime_utc')
 
     # curtailment modelling. 

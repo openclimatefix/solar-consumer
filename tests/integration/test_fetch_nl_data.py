@@ -1,20 +1,20 @@
 """ Function to check getting the nl data
 
-
 The following envs need to be set
-- APIKEY_NEDNL
 - APIKEY_ENTSOE
 """
 
 from solar_consumer.data.fetch_nl_data import get_entsoe_day_prices, make_potential_generation
 import pandas as pd
+import os
 
 def test_get_entsoe_day_prices():
 
     start = pd.Timestamp('2026-05-12').tz_localize('UTC')
     end = pd.Timestamp('2026-05-13').tz_localize('UTC')
+    api_key = os.getenv("APIKEY_ENTSOE")
 
-    prices = get_entsoe_day_prices(start=start, end=end)
+    prices = get_entsoe_day_prices(start=start, end=end, api_key=api_key)
     assert prices is not None
     assert isinstance(prices, pd.DataFrame)
     assert not prices.empty
