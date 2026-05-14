@@ -70,9 +70,6 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
     now = datetime.now(tz=timezone.utc)  # Use UTC timezone
-    now = datetime(
-        2026, 4, 28, tzinfo=timezone.utc
-    )  # for testing purposes, we set the current time to be 2026-05-10, so that we have some forecast and some generation data to test with. We can remove this line later
 
     # Define date range
     if historic_or_forecast == "generation":
