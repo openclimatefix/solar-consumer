@@ -75,7 +75,7 @@ class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
             "target_datetime_utc": [pd.Timestamp("2023-01-01 12:00:00")],
         })
         
-        await save_generation_to_data_platform(nl_input_df, client_mock, country="nl")
+        await save_generation_to_data_platform(nl_input_df, client_mock, config_name="nl")
         
         # Assert: 
         # 1. Update/Create Obs called ONLY for NL UUID
@@ -96,7 +96,7 @@ class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
         })
 
         client_mock.create_observations.reset_mock()
-        await save_generation_to_data_platform(gb_input_df, client_mock, country="gb")
+        await save_generation_to_data_platform(gb_input_df, client_mock, config_name="gb")
 
         # Assert:
         # 1. Interact ONLY with GB UUID

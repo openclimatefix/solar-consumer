@@ -29,12 +29,21 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl",
+            "country": "nl"
+        },
+        "nl_no_curtailment": {
+            "id_key": "region_id",
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
+            "metadata_type": "number",  
+            "observer_name": "nednl_no_curtailment",
+            "country": "nl"
         },
         "be": {
             "id_key": "region",
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",  
             "observer_name": "elia_be",
+            "country": "be"
         },
         "gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
@@ -42,6 +51,7 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
             "metadata_type": "number", 
             "observer_name": None, 
+            "country": "gb"
         },
     }
     return configs.get(country, configs["gb"])
@@ -197,7 +207,7 @@ async def _create_locations_from_csv(
 
 
 async def save_generation_to_data_platform(
-    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
+    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, config_name: str = "gb"
 ) -> None:
     """
     Saves model data via the data platform.
@@ -218,7 +228,8 @@ async def save_generation_to_data_platform(
         country: Country identifier ('gb', 'nl', or 'be')
     """
     tasks: list[asyncio.Task] = []
-    config = _get_country_config(country)
+    config = _get_country_config(config_name)
+    country = config['country']
     
     id_key = config["id_key"]
     # capacity_col and capacity_multiplier are no longer needed as we standardized on capacity_kw
