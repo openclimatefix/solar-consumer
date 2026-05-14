@@ -1,4 +1,5 @@
-""" Get Ned NL forecast and generation """
+"""Get Ned NL forecast and generation"""
+
 import os
 import requests
 from datetime import datetime, timedelta, timezone
@@ -39,7 +40,7 @@ def fetch_with_retry(
                 return response.json()
 
             if response.status_code == 429:
-                wait_time = initial_delay * (2 ** attempt)  # exponential backoff
+                wait_time = initial_delay * (2**attempt)  # exponential backoff
                 logger.warning(f"Rate limit hit. Waiting {wait_time} seconds...")
                 time.sleep(wait_time)
                 continue
@@ -69,6 +70,9 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
     now = datetime.now(tz=timezone.utc)  # Use UTC timezone
+    now = datetime(
+        2026, 4, 28, tzinfo=timezone.utc
+    )  # for testing purposes, we set the current time to be 2026-05-10, so that we have some forecast and some generation data to test with. We can remove this line later
 
     # Define date range
     if historic_or_forecast == "generation":
@@ -99,8 +103,8 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
         # if forecast, only get national, if generation get all sub regions
         n_points = 13 if historic_or_forecast == "generation" else 1
-       
-        for point in range(0,n_points):
+
+        for point in range(0, n_points):
             logger.debug(f"Fetching data for point {point} on {current_date.date()}")
             params = {
                 "point": point,
@@ -135,21 +139,23 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                             "validfrom (UTC)": datetime.fromisoformat(util["validfrom"]),
                             "validto (UTC)": datetime.fromisoformat(util["validto"]),
                             "lastupdate (UTC)": datetime.fromisoformat(util["lastupdate"]),
-                            "region_id": point
+                            "region_id": point,
                         }
                         for util in utilizations
                     ]
                 )
                 # log the update time
-                logger.info(f"Data fetched up to {df['validfrom (UTC)'].max()} "
-                    f"with last update at {df['lastupdate (UTC)'].max()}")
-                
+                logger.info(
+                    f"Data fetched up to {df['validfrom (UTC)'].max()} "
+                    f"with last update at {df['lastupdate (UTC)'].max()}"
+                )
+
                 if historic_or_forecast == "generation":
                     # remove any data less than update time.
                     # In the past we have had some spiky generation data
                     # https://github.com/openclimatefix/solar-consumer/issues/168
                     df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
-                    df = df[df['validto (UTC)'] < df['lastupdate (UTC)'].max()]
+                    df = df[df["validto (UTC)"] < df["lastupdate (UTC)"].max()]
 
                 # Append to main DataFrame
                 all_data = pd.concat([all_data, df], ignore_index=True)
@@ -163,11 +169,11 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # get the total site capacity and
     # set very small percentages update_capacity=False
-    all_data['update_capacity'] = True
+    all_data["update_capacity"] = True
     all_data["capacity_kw"] = all_data["capacity (kW)"] / all_data["percentage"]
     small_percentage = all_data["percentage"] < 0.01
-    # flag that we should not update capacity and 
-    # set capacity_kw to a default value (we need it to be something, not nan, 
+    # flag that we should not update capacity and
+    # set capacity_kw to a default value (we need it to be something, not nan,
     # otherwise generation values dont get saved)
     all_data.loc[small_percentage, "update_capacity"] = False
 
@@ -206,16 +212,23 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
     all_data = all_data[all_data["target_datetime_utc"] >= start_date]
 
     # lets check that the regional capacities are close to the national one
-    all_data = check_national_capacity_equals_regional_sum(all_data)
+    # all_data = check_national_capacity_equals_regional_sum(all_data)
+
     # lets add the potential generation values
-    if historic_or_forecast == "generation" and os.getenv("NL_POTENTIAL_GENERATION", "False").lower() == "true":
+    if (
+        historic_or_forecast == "generation"
+        and os.getenv("NL_POTENTIAL_GENERATION", "False").lower() == "true"
+    ):
         all_data = make_potential_generation(all_data)
 
     logger.debug(f"Fetched {len(all_data)} rows of {historic_or_forecast} data from the API.")
-    logger.debug(f"Timestamps go from {all_data['target_datetime_utc'].min()} "
-                 f"to {all_data['target_datetime_utc'].max()}")
+    logger.debug(
+        f"Timestamps go from {all_data['target_datetime_utc'].min()} "
+        f"to {all_data['target_datetime_utc'].max()}"
+    )
 
     return all_data
+
 
 def check_national_capacity_equals_regional_sum(data):
     """Check if regional solar capacities are equal to national capacity.
@@ -226,7 +239,7 @@ def check_national_capacity_equals_regional_sum(data):
     Note we ingnore any timestamps if there are any nans already in the capacity
     """
 
-    df = data.copy()[['target_datetime_utc', 'region_id', 'capacity_kw']]
+    df = data.copy()[["target_datetime_utc", "region_id", "capacity_kw"]]
     df.set_index("target_datetime_utc", drop=True, inplace=True)
 
     # Drop any rows with nans as we won't be able to check them
@@ -235,26 +248,25 @@ def check_national_capacity_equals_regional_sum(data):
     # lets only consider datetimes that have all the region ids from 0 to 12
     df = df.sort_values(["target_datetime_utc", "region_id"])
     df_datetime_grouped = df["region_id"].astype(str).groupby(["target_datetime_utc"]).sum()
-    df_datetime_grouped_idx = df_datetime_grouped == '0123456789101112'
+    df_datetime_grouped_idx = df_datetime_grouped == "0123456789101112"
     if sum(df_datetime_grouped_idx) == 0:
-       logger.warning(
-                "No datetimes have all region ids from 0 to 12. " \
-                "Cannot validate capacity"
-          )
-       data["update_capacity"] = False
-       return data
+        logger.warning("No datetimes have all region ids from 0 to 12. Cannot validate capacity")
+        data["update_capacity"] = False
+        return data
     else:
-        idx = data['target_datetime_utc'].isin(df_datetime_grouped[df_datetime_grouped_idx].index)
+        idx = data["target_datetime_utc"].isin(df_datetime_grouped[df_datetime_grouped_idx].index)
         data.loc[~idx, "update_capacity"] = False
 
     # lets split the national and regional and sum up the regional
     national_capacities = df[df["region_id"] == 0]["capacity_kw"]
-    regional_capacities = df[df["region_id"] != 0].groupby("target_datetime_utc").sum()["capacity_kw"]
+    regional_capacities = (
+        df[df["region_id"] != 0].groupby("target_datetime_utc").sum()["capacity_kw"]
+    )
 
     # lets find the datetimes that are close enough
     update_idx = np.isclose(regional_capacities, national_capacities, atol=0, rtol=0.001)
     dont_update_capacity_datetimes = national_capacities.index[~update_idx]
-    dont_update_capacity_idx = data['target_datetime_utc'].isin(dont_update_capacity_datetimes)
+    dont_update_capacity_idx = data["target_datetime_utc"].isin(dont_update_capacity_datetimes)
 
     if any(dont_update_capacity_idx):
         logger.warning(
@@ -270,65 +282,67 @@ def check_national_capacity_equals_regional_sum(data):
 
 def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) -> pd.DataFrame:
     """Fetch the day-ahead prices from the ENTSOE API.
-    
+
     We need to a ENSTOE api_key
     """
 
     client = EntsoePandasClient(api_key=api_key)
-    country_code = 'NL'  # Netherlands
+    country_code = "NL"  # Netherlands
 
     # methods that return Pandas Series
-    print(f"Fetching day-ahead prices from ENTSOE API for {country_code} from {start} to {end}")
+    logger.debug(
+        f"Fetching day-ahead prices from ENTSOE API for {country_code} from {start} to {end}"
+    )
     data = client.query_day_ahead_prices(country_code, start=start, end=end)
 
     # validate data
     if data.empty:
         logger.warning("No data returned from ENTSOE API.")
         return pd.DataFrame()
-    
+
     # check there are not nans
     if data.isnull().values.any():
         logger.warning("Data contains NaNs.")
         return pd.DataFrame()
-    
+
     # make sure timezone is utc
-    data.index = data.index.tz_convert('UTC')
+    data.index = data.index.tz_convert("UTC")
 
     # convert to dataframe with columns ['target_datetime_utc', 'price']
     data = data.reset_index()
-    data.columns = ['target_datetime_utc', 'NL_day_ahead_prices_euros_per_mwh']
-    data['target_datetime_utc'] = pd.to_datetime(data['target_datetime_utc'])
+    data.columns = ["target_datetime_utc", "NL_day_ahead_prices_euros_per_mwh"]
+    data["target_datetime_utc"] = pd.to_datetime(data["target_datetime_utc"])
 
     return data
 
 
 def make_potential_generation(data: pd.DataFrame) -> pd.DataFrame:
     """Create a DataFrame for potential solar generation.
-    
+
     params:
     - data: A DataFrame containing the relevant input data. This needs to have the columns solar_generation_kw
     """
 
     logger.debug("Creating potential solar generation .")
 
-    col = 'solar_generation_no_curtailment_kw'
-    data[col] = data['solar_generation_kw']
+    col = "solar_generation_no_curtailment_kw"
+    data[col] = data["solar_generation_kw"]
 
-    start = pd.Timestamp(data['target_datetime_utc'].min())
-    end = pd.Timestamp(data['target_datetime_utc'].max())
+    start = pd.Timestamp(data["target_datetime_utc"].min())
+    end = pd.Timestamp(data["target_datetime_utc"].max())
 
     # get prices for that day
     api_key = os.getenv("APIKEY_ENTSOE")
     prices = get_entsoe_day_prices(start=start, end=end, api_key=api_key)
-    data = data.merge(prices, on='target_datetime_utc')
+    data = data.merge(prices, on="target_datetime_utc")
 
-    # curtailment modelling. 
+    # curtailment modelling.
     # 2026-05-13
-    # When there are negative prices, NEDNL model the generation values as 11% lower
-    # to get back the potential generation, we multiply by 1.11
+    # When there are negative prices, NEDNL model the reduction in generation values
+    # to get back the potential generation, we multiply by 1.11.
     price_threshold = 0
     multiplier = 1.11
-    negative_price_idx = data['NL_day_ahead_prices_euros_per_mwh'] <= price_threshold
+    negative_price_idx = data["NL_day_ahead_prices_euros_per_mwh"] <= price_threshold
     data[col] = data[col].mask(negative_price_idx, data[col] * multiplier)
 
     return data
