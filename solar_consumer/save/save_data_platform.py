@@ -424,6 +424,7 @@ async def save_generation_to_data_platform(
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     for lid, vals in observations_by_loc.items():
+        logger.info(f"Creating observations for {lid} with {len(vals)} values = {vals}")
         await client.create_observations(
             dp.CreateObservationsRequest(
                 location_uuid=lid,
