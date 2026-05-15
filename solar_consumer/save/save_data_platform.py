@@ -423,23 +423,16 @@ async def save_generation_to_data_platform(
         regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
-    tasks = [
-        asyncio.create_task(
-            client.create_observations(
-                dp.CreateObservationsRequest(
-                    location_uuid=lid,
-                    energy_source=dp.EnergySource.SOLAR,
-                    observer_name=observer_name,
-                    values=vals,
-                ),
-            )
+    for lid, vals in observations_by_loc.items():
+        await client.create_observations(
+            dp.CreateObservationsRequest(
+                location_uuid=lid,
+                energy_source=dp.EnergySource.SOLAR,
+                observer_name=observer_name,
+                values=vals,
+            ),
         )
-        for lid, vals in observations_by_loc.items()
-    ]
 
-    if len(tasks) > 0:
-        logger.info(f"creating observations for {len(tasks)} {country.upper()} locations")
-        await _execute_async_tasks(tasks)
 
 async def save_forecasts_to_data_platform(
     data_df: pd.DataFrame, 
