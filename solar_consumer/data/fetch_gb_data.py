@@ -93,7 +93,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     pvlive = PVLive(domain_url=GB_PVLIVE_DOMAIN_URL)
     # ignore these gsp ids from PVLive as they are no longer used
-    ignore_gsp_ids = [4, 5, 17, 41, 53,56, 75,122, 139, 140, 143, 157, 158, 163, 225, 257, 310]
+    ignore_gsp_ids = [4, 5, 17, 41, 53, 56, 75, 122, 139, 140, 143, 157, 158, 163, 225, 257, 310]
 
     datetime_utc = datetime.now(timezone.utc)
 
