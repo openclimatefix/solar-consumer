@@ -90,8 +90,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - regime: either 'in-day' or 'day-after'
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
-
-    pvlive = PVLive(domain_url=GB_PVLIVE_DOMAIN_URL)
+    gb_pvlive_domain_url = os.getenv("GB_PVLIVE_DOMAIN_URL", GB_PVLIVE_DOMAIN_URL)
+    pvlive = PVLive(domain_url=gb_pvlive_domain_url)
     # ignore these gsp ids from PVLive as they are no longer used
     ignore_gsp_ids = [4, 5, 17, 41, 53, 56, 75, 122, 139, 140, 143, 157, 158, 163, 225, 257, 310]
 
