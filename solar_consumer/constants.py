@@ -21,7 +21,7 @@ GB_NESO_FORECAST_URL = (
 GB_NESO_DATASTORE_URL = "https://api.neso.energy/api/3/action/datastore_search_sql"
 
 # Great Britain - PVLive domain URL
-GB_PVLIVE_DOMAIN_URL = "api.solar.sheffield.ac.uk"
+GB_PVLIVE_DOMAIN_URL = "api.pvlive.uk"
 
 # Netherlands (NED) API base URL
 NL_BASE_URL = "https://api.ned.nl/v1"
