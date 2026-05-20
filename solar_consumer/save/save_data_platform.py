@@ -208,7 +208,7 @@ async def _create_locations_from_csv(
 
 async def _filter_existing_observations(
     joined_df: pd.DataFrame,
-    data_df: pd.DataFrame,
+    regime: str | None,
     client: dp.DataPlatformDataServiceStub,
     config: dict,
     country: str,
@@ -227,7 +227,6 @@ async def _filter_existing_observations(
     # Determine observer name based on country
     observer_name = config["observer_name"]
     if observer_name is None:  # GB needs regime from data
-        regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     # Read generation values from data platform, in parallel for all locations.
@@ -473,9 +472,10 @@ async def save_generation_to_data_platform(
         joined_df = joined_df[~idx]
 
     # Filter out observations that already exist in the data platform
+    regime = data_df["regime"].values[0] if "regime" in data_df.columns else None
     joined_df = await _filter_existing_observations(
         joined_df=joined_df,
-        data_df=data_df,
+        regime=regime,
         client=client,
         config=config,
         country=country,
