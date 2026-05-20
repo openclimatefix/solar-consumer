@@ -250,6 +250,9 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             client_mock.create_observations = AsyncMock()
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
+            client_mock.get_observations_as_timeseries = AsyncMock(
+                return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
+            )
 
             with self.subTest(case.name):
                 if not case.should_error:
@@ -416,6 +419,9 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
             client_mock.create_location = AsyncMock()
+            client_mock.get_observations_as_timeseries = AsyncMock(
+                return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
+            )
 
             with self.subTest(case.name):
                 if not case.should_error:
@@ -497,6 +503,9 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
         client_mock.create_observations = AsyncMock()
         client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
         client_mock.create_observer = AsyncMock()
+        client_mock.get_observations_as_timeseries = AsyncMock(
+            return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
+        )
 
         input_df = pd.DataFrame({
             "region_id": [0],

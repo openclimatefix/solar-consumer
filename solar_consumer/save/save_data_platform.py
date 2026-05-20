@@ -250,11 +250,11 @@ async def _filter_existing_observations(
 
     # Compare timestamps already in the data platform
     existing_observations = []
-    for task in read_observations_tasks:
+    for lid, task in zip(location_uuids, read_observations_tasks):
         try:
             existing_observations.extend(task.result().values)
         except Exception as e:
-            logger.error(f"Failed to read observations for location_uuid {task.location_uuid}: {e}")
+            logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
 
     existing_timestamps = {obs.timestamp_utc for obs in existing_observations}
 
