@@ -550,7 +550,7 @@ def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
 
 
 class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
-    """Unit tests for _filter_existing_observations (GB-specific)."""
+    """Unit tests for _filter_existing_observations."""
 
     # ------------------------------------------------------------------
     # Helpers
@@ -564,9 +564,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
                 rows.append({"location_uuid": lid, "target_datetime_utc": pd.Timestamp(ts)})
         return pd.DataFrame(rows)
 
-    def _gb_config(self) -> dict:
-        return {"observer_name": None}
-
     # ------------------------------------------------------------------
     # Tests
     # ------------------------------------------------------------------
@@ -577,9 +574,8 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         result = await _filter_existing_observations(
             joined_df=pd.DataFrame(),
-            regime=None,
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_in_day",
         )
 
         self.assertTrue(result.empty)
@@ -598,9 +594,8 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         result = await _filter_existing_observations(
             joined_df=joined_df,
-            regime="in-day",
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_in_day",
         )
 
         self.assertEqual(len(result), len(joined_df))
@@ -625,9 +620,8 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         result = await _filter_existing_observations(
             joined_df=joined_df,
-            regime="in-day",
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_in_day",
         )
 
         self.assertTrue(result.empty)
@@ -650,17 +644,16 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         result = await _filter_existing_observations(
             joined_df=joined_df,
-            regime="in-day",
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_in_day",
         )
 
         self.assertEqual(len(result), 1)
         self.assertEqual(result["target_datetime_utc"].iloc[0], ts_new)
 
     @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
-    async def test_regime_derives_correct_observer_name(self, client_mock):
-        """The observer name must be derived from the regime string (in-day → pvlive_in_day)."""
+    async def test_observer_name_passed_through_to_request(self, client_mock):
+        """The observer_name is passed directly to the GetObservationsAsTimeseriesRequest."""
 
         lid = str(uuid.uuid4())
         joined_df = self._make_joined_df([lid], ["2024-01-01T00:00:00"])
@@ -671,15 +664,36 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         await _filter_existing_observations(
             joined_df=joined_df,
-            regime="in-day",
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_in_day",
         )
 
         req: dp.GetObservationsAsTimeseriesRequest = (
             client_mock.get_observations_as_timeseries.call_args.args[0]
         )
         self.assertEqual(req.observer_name, "pvlive_in_day")
+
+    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    async def test_day_after_observer_name_passed_through_to_request(self, client_mock):
+        """The observer_name 'pvlive_day_after' is passed directly to the request."""
+
+        lid = str(uuid.uuid4())
+        joined_df = self._make_joined_df([lid], ["2024-01-01T00:00:00"])
+
+        client_mock.get_observations_as_timeseries = AsyncMock(
+            return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
+        )
+
+        await _filter_existing_observations(
+            joined_df=joined_df,
+            client=client_mock,
+            observer_name="pvlive_day_after",
+        )
+
+        req: dp.GetObservationsAsTimeseriesRequest = (
+            client_mock.get_observations_as_timeseries.call_args.args[0]
+        )
+        self.assertEqual(req.observer_name, "pvlive_day_after")
 
     @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
     async def test_multiple_locations_each_queried(self, client_mock):
@@ -694,9 +708,8 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         await _filter_existing_observations(
             joined_df=joined_df,
-            regime="day-after",
             client=client_mock,
-            config=self._gb_config(),
+            observer_name="pvlive_day_after",
         )
 
         self.assertEqual(client_mock.get_observations_as_timeseries.call_count, 3)

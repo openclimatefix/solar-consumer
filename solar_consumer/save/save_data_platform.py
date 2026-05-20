@@ -208,9 +208,8 @@ async def _create_locations_from_csv(
 
 async def _filter_existing_observations(
     joined_df: pd.DataFrame,
-    regime: str | None,
     client: dp.DataPlatformDataServiceStub,
-    config: dict,
+    observer_name: str,
 ) -> pd.DataFrame:
     """Filter out observations that already exist in the data platform."""
     if joined_df.empty:
@@ -222,11 +221,6 @@ async def _filter_existing_observations(
     # Get the min and max timestamps
     min_timestamp = joined_df["target_datetime_utc"].min()
     max_timestamp = datetime.datetime.now(datetime.timezone.utc)
-
-    # Determine observer name based on country
-    observer_name = config["observer_name"]
-    if observer_name is None:  # GB needs regime from data
-        observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     # Read generation values from data platform, in parallel for all locations.
     read_observations_tasks = []
@@ -456,6 +450,12 @@ async def save_generation_to_data_platform(
         logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=True)
+    
+    # Determine observer name based on country
+    observer_name = config["observer_name"]
+    if observer_name is None:  # GB needs regime from data
+        regime: str = data_df["regime"].values[0]
+        observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
@@ -471,12 +471,10 @@ async def save_generation_to_data_platform(
         joined_df = joined_df[~idx]
 
     # Filter out observations that already exist in the data platform
-    regime = data_df["regime"].values[0] if "regime" in data_df.columns else None
     joined_df = await _filter_existing_observations(
         joined_df=joined_df,
-        regime=regime,
         client=client,
-        config=config,
+        observer_name=observer_name,
     )
 
 
@@ -490,11 +488,7 @@ async def save_generation_to_data_platform(
             dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=val)
         )
 
-    # Determine observer name based on country
-    observer_name = config["observer_name"]
-    if observer_name is None:  # GB needs regime from data
-        regime: str = data_df["regime"].values[0]
-        observer_name = f"pvlive_{regime.replace('-', '_')}"
+    
 
     tasks = [
         asyncio.create_task(
