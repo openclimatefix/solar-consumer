@@ -580,7 +580,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime=None,
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         self.assertTrue(result.empty)
@@ -602,7 +601,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime="in-day",
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         self.assertEqual(len(result), len(joined_df))
@@ -630,7 +628,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime="in-day",
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         self.assertTrue(result.empty)
@@ -656,7 +653,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime="in-day",
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         self.assertEqual(len(result), 1)
@@ -678,7 +674,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime="in-day",
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         req: dp.GetObservationsAsTimeseriesRequest = (
@@ -702,7 +697,6 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
             regime="day-after",
             client=client_mock,
             config=self._gb_config(),
-            country="gb",
         )
 
         self.assertEqual(client_mock.get_observations_as_timeseries.call_count, 3)

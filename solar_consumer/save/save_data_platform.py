@@ -211,7 +211,6 @@ async def _filter_existing_observations(
     regime: str | None,
     client: dp.DataPlatformDataServiceStub,
     config: dict,
-    country: str,
 ) -> pd.DataFrame:
     """Filter out observations that already exist in the data platform."""
     if joined_df.empty:
@@ -244,7 +243,7 @@ async def _filter_existing_observations(
         read_observations_tasks.append(asyncio.create_task(client.get_observations_as_timeseries(req)))
 
     if len(read_observations_tasks) > 0:
-        logger.info(f"reading observations for {len(read_observations_tasks)} {country.upper()} locations")
+        logger.info(f"reading observations for {len(read_observations_tasks)}  locations")
         await _execute_async_tasks(read_observations_tasks, ignore_exceptions=True)
 
     # Compare timestamps already in the data platform
@@ -478,7 +477,6 @@ async def save_generation_to_data_platform(
         regime=regime,
         client=client,
         config=config,
-        country=country,
     )
 
 
