@@ -449,7 +449,7 @@ async def save_generation_to_data_platform(
             location_uuid=lid,
             energy_source=dp.EnergySource.SOLAR,
             new_effective_capacity_watts=int(new_cap),
-            valid_from_utc=datetime.datetime.now(datetime.timezone.utc),
+            valid_from_utc=t,
             new_metadata=metadata,
         )
         tasks.append(asyncio.create_task(client.update_location(req)))
