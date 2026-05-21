@@ -206,6 +206,64 @@ async def _create_locations_from_csv(
     )
 
 
+async def _filter_existing_observations(
+    joined_df: pd.DataFrame,
+    client: dp.DataPlatformDataServiceStub,
+    observer_name: str,
+) -> pd.DataFrame:
+    """Filter out observations that already exist in the data platform."""
+    if joined_df.empty:
+        return joined_df
+
+    # Get the locations
+    location_uuids = joined_df["location_uuid"].unique()
+    
+    # Get the min and max timestamps
+    min_timestamp = joined_df["target_datetime_utc"].min()
+    max_timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+    # Read generation values from data platform, in parallel for all locations.
+    read_observations_tasks = []
+    for lid in location_uuids:
+        req = dp.GetObservationsAsTimeseriesRequest(
+            location_uuid=lid,
+            observer_name=observer_name,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=min_timestamp,
+                end_timestamp_utc=max_timestamp
+            )
+        )
+        read_observations_tasks.append(asyncio.create_task(client.get_observations_as_timeseries(req)))
+
+    if len(read_observations_tasks) > 0:
+        logger.info(f"reading observations for {len(read_observations_tasks)}  locations")
+        await _execute_async_tasks(read_observations_tasks, ignore_exceptions=True)
+
+    # Compare timestamps already in the data platform
+    existing_observations = []
+    for lid, task in zip(location_uuids, read_observations_tasks):
+        try:
+            existing_observations.extend(task.result().values)
+        except Exception as e:
+            logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
+
+    existing_timestamps = {obs.timestamp_utc for obs in existing_observations}
+
+    # if any timestamps already in the data-platform, remove from data in app
+    idx = joined_df["target_datetime_utc"].isin(existing_timestamps)
+    if idx.any():
+        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+        logger.warning(
+            f"Found {idx.sum()} values already existing in data platform "
+            f"for location_uuid {location_uuids}. "
+            "These values will be dropped."
+        )
+        joined_df = joined_df[~idx]
+
+    return joined_df
+
+
 async def save_generation_to_data_platform(
     data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, config_name: str = "gb"
 ) -> None:
@@ -392,6 +450,12 @@ async def save_generation_to_data_platform(
         logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
         await _execute_async_tasks(tasks, ignore_exceptions=True)
+    
+    # Determine observer name based on country
+    observer_name = config["observer_name"]
+    if observer_name is None:  # GB needs regime from data
+        regime: str = data_df["regime"].values[0]
+        observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
@@ -406,6 +470,13 @@ async def save_generation_to_data_platform(
                         These values will be dropped.")
         joined_df = joined_df[~idx]
 
+    # Filter out observations that already exist in the data platform
+    joined_df = await _filter_existing_observations(
+        joined_df=joined_df,
+        client=client,
+        observer_name=observer_name,
+    )
+
 
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     for lid, t, val in zip(
@@ -417,11 +488,7 @@ async def save_generation_to_data_platform(
             dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=val)
         )
 
-    # Determine observer name based on country
-    observer_name = config["observer_name"]
-    if observer_name is None:  # GB needs regime from data
-        regime: str = data_df["regime"].values[0]
-        observer_name = f"pvlive_{regime.replace('-', '_')}"
+    
 
     tasks = [
         asyncio.create_task(

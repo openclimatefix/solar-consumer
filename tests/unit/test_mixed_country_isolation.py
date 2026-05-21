@@ -66,6 +66,9 @@ class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
         client_mock.list_observers = AsyncMock(return_value=dp.ListObserversResponse(observers=[]))
         client_mock.create_observer = AsyncMock()
         client_mock.create_location = AsyncMock()
+        client_mock.get_observations_as_timeseries = AsyncMock(
+            return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
+        )
 
         # Execute: Try to save data for NL
         nl_input_df = pd.DataFrame({
