@@ -139,29 +139,7 @@ async def app(
                     await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__, init_time_utc=t0.to_pydatetime(), country=country)
                 else:
                     logger.info("Saving generation data to the Data Platform.")
-                    if country == "gb" and "gsp_id" in data.columns:
-                        # Process each GSP location in parallel so that a failure or missing
-                        # location data for one GSP does not block all others.
-                        gsp_ids = data["gsp_id"].unique()
-                        logger.info(f"Saving GB generation data for {len(gsp_ids)} GSP locations in parallel.")
-                        results = await asyncio.gather(
-                            *[
-                                save_generation_to_data_platform(
-                                    data_df=data[data["gsp_id"] == gsp_id].copy(),
-                                    client=client,
-                                    config_name=country,
-                                )
-                                for gsp_id in gsp_ids
-                            ],
-                            return_exceptions=True,
-                        )
-                        for gsp_id, result in zip(gsp_ids, results):
-                            if isinstance(result, Exception):
-                                logger.error(
-                                    f"Failed to save generation data for gsp_id={gsp_id}: {result}"
-                                )
-                    else:
-                        await save_generation_to_data_platform(data_df=data, client=client, config_name=country)
+                    await save_generation_to_data_platform(data_df=data, client=client, config_name=country)
 
                     # special save for Ned NL no curtailment
                     # we might want to make this more generic a bit later
