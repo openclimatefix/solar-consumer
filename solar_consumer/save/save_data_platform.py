@@ -241,25 +241,40 @@ async def _filter_existing_observations(
         await _execute_async_tasks(read_observations_tasks, ignore_exceptions=True)
 
     # Compare timestamps already in the data platform
-    existing_observations = []
+    # (existing_pairs built below, together with the filter)
+
+    # Build a set of (location_uuid, timestamp) pairs that already exist in the data platform.
+    # We must match on both dimensions so that a timestamp saved for one location does not
+    # accidentally suppress the same timestamp for a different location.
+    existing_rows = []
     for lid, task in zip(location_uuids, read_observations_tasks):
         try:
-            existing_observations.extend(task.result().values)
+            for obs in task.result().values:
+                existing_rows.append({"location_uuid": lid, "target_datetime_utc": obs.timestamp_utc})
         except Exception as e:
             logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
 
-    existing_timestamps = {obs.timestamp_utc for obs in existing_observations}
-
-    # if any timestamps already in the data-platform, remove from data in app
-    idx = joined_df["target_datetime_utc"].isin(existing_timestamps)
-    if idx.any():
-        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-        logger.warning(
-            f"Found {idx.sum()} values already existing in data platform "
-            f"for location_uuid {location_uuids}. "
-            "These values will be dropped."
+    # if any (location, timestamp) pairs already in the data-platform, remove from data in app
+    if existing_rows:
+        existing_pairs_df = pd.DataFrame(existing_rows).assign(
+            target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"])
         )
-        joined_df = joined_df[~idx]
+        existing_pairs_df["_exists"] = True
+
+        merged = joined_df.merge(
+            existing_pairs_df,
+            on=["location_uuid", "target_datetime_utc"],
+            how="left",
+        )
+        idx = merged["_exists"].fillna(False)
+        if idx.any():
+            duplicate_location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+            logger.warning(
+                f"Found {idx.sum()} values already existing in data platform "
+                f"for location_uuid {duplicate_location_uuids}. "
+                "These values will be dropped."
+            )
+            joined_df = joined_df[~idx.values]
 
     return joined_df
 

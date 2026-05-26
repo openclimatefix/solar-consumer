@@ -713,3 +713,147 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(client_mock.get_observations_as_timeseries.call_count, 3)
+
+    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    async def test_cross_location_timestamp_isolation(self, client_mock):
+        """
+        Core regression test for the per-location filtering fix.
+
+        If location A already has T=12:00 saved, that must NOT cause T=12:00
+        to be dropped for location B, which has never been saved.
+
+        Old (buggy) behaviour: flat timestamp set caused cross-location suppression.
+        New (fixed) behaviour: filter on (location_uuid, timestamp) pairs.
+        """
+        lid_a = str(uuid.uuid4())
+        lid_b = str(uuid.uuid4())
+        ts = pd.Timestamp("2024-01-01T12:00:00", tz="UTC")
+
+        # Both locations have the same timestamp in joined_df
+        joined_df = pd.DataFrame([
+            {"location_uuid": lid_a, "target_datetime_utc": ts},
+            {"location_uuid": lid_b, "target_datetime_utc": ts},
+        ])
+
+        # Only location A's timestamp exists in the data platform
+        existing_for_a = [
+            dp.GetObservationsAsTimeseriesResponseValue(
+                timestamp_utc=ts, value_fraction=0.5, effective_capacity_watts=1_000_000
+            )
+        ]
+
+        def mock_get_obs(req: dp.GetObservationsAsTimeseriesRequest):
+            if req.location_uuid == lid_a:
+                return dp.GetObservationsAsTimeseriesResponse(values=existing_for_a)
+            return dp.GetObservationsAsTimeseriesResponse(values=[])
+
+        client_mock.get_observations_as_timeseries = AsyncMock(side_effect=mock_get_obs)
+
+        result = await _filter_existing_observations(
+            joined_df=joined_df,
+            client=client_mock,
+            observer_name="pvlive_in_day",
+        )
+
+        # Only location A's row should be dropped; location B's row must survive
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result["location_uuid"].iloc[0], lid_b)
+        self.assertEqual(result["target_datetime_utc"].iloc[0], ts)
+
+    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    async def test_partial_drop_per_location_keeps_other_timestamps(self, client_mock):
+        """
+        For a single location with multiple timestamps, only the already-saved
+        timestamps are dropped — the others are kept.
+        """
+        lid = str(uuid.uuid4())
+        ts_saved = pd.Timestamp("2024-01-01T00:00:00", tz="UTC")
+        ts_new_1 = pd.Timestamp("2024-01-01T00:30:00", tz="UTC")
+        ts_new_2 = pd.Timestamp("2024-01-01T01:00:00", tz="UTC")
+
+        joined_df = self._make_joined_df([lid], [ts_saved, ts_new_1, ts_new_2])
+
+        existing = [
+            dp.GetObservationsAsTimeseriesResponseValue(
+                timestamp_utc=ts_saved, value_fraction=0.3, effective_capacity_watts=1_000_000
+            )
+        ]
+        client_mock.get_observations_as_timeseries = AsyncMock(
+            return_value=dp.GetObservationsAsTimeseriesResponse(values=existing)
+        )
+
+        result = await _filter_existing_observations(
+            joined_df=joined_df,
+            client=client_mock,
+            observer_name="pvlive_in_day",
+        )
+
+        self.assertEqual(len(result), 2)
+        remaining_timestamps = set(result["target_datetime_utc"])
+        self.assertIn(ts_new_1, remaining_timestamps)
+        self.assertIn(ts_new_2, remaining_timestamps)
+        self.assertNotIn(ts_saved, remaining_timestamps)
+
+    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    async def test_multiple_locations_independent_filtering(self, client_mock):
+        """
+        Each location's observations are filtered independently.
+
+        - Location A: T1 already saved → T1 dropped, T2 kept
+        - Location B: nothing saved  → both T1 and T2 kept
+        - Location C: T1 and T2 both saved → both dropped
+        """
+        lid_a = str(uuid.uuid4())
+        lid_b = str(uuid.uuid4())
+        lid_c = str(uuid.uuid4())
+        t1 = pd.Timestamp("2024-01-01T00:00:00", tz="UTC")
+        t2 = pd.Timestamp("2024-01-01T00:30:00", tz="UTC")
+
+        joined_df = self._make_joined_df([lid_a, lid_b, lid_c], [t1, t2])
+        # 6 rows total: 2 per location
+
+        existing_a = [
+            dp.GetObservationsAsTimeseriesResponseValue(
+                timestamp_utc=t1, value_fraction=0.1, effective_capacity_watts=1_000_000
+            )
+        ]
+        existing_c = [
+            dp.GetObservationsAsTimeseriesResponseValue(
+                timestamp_utc=t1, value_fraction=0.2, effective_capacity_watts=1_000_000
+            ),
+            dp.GetObservationsAsTimeseriesResponseValue(
+                timestamp_utc=t2, value_fraction=0.3, effective_capacity_watts=1_000_000
+            ),
+        ]
+
+        def mock_get_obs(req: dp.GetObservationsAsTimeseriesRequest):
+            if req.location_uuid == lid_a:
+                return dp.GetObservationsAsTimeseriesResponse(values=existing_a)
+            elif req.location_uuid == lid_c:
+                return dp.GetObservationsAsTimeseriesResponse(values=existing_c)
+            return dp.GetObservationsAsTimeseriesResponse(values=[])
+
+        client_mock.get_observations_as_timeseries = AsyncMock(side_effect=mock_get_obs)
+
+        result = await _filter_existing_observations(
+            joined_df=joined_df,
+            client=client_mock,
+            observer_name="pvlive_in_day",
+        )
+
+        # Expected survivors: A→T2, B→T1, B→T2  (3 rows)
+        self.assertEqual(len(result), 3)
+
+        result_a = result[result["location_uuid"] == lid_a]
+        result_b = result[result["location_uuid"] == lid_b]
+        result_c = result[result["location_uuid"] == lid_c]
+
+        # A: only T2 survives
+        self.assertEqual(len(result_a), 1)
+        self.assertEqual(result_a["target_datetime_utc"].iloc[0], t2)
+
+        # B: both T1 and T2 survive
+        self.assertEqual(len(result_b), 2)
+
+        # C: nothing survives
+        self.assertEqual(len(result_c), 0)
