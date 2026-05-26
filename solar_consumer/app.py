@@ -140,19 +140,25 @@ async def app(
                 else:
                     logger.info("Saving generation data to the Data Platform.")
                     if country == "gb" and "gsp_id" in data.columns:
-                        # Process each GSP location individually so that a failure or missing
+                        # Process each GSP location in parallel so that a failure or missing
                         # location data for one GSP does not block all others.
                         gsp_ids = data["gsp_id"].unique()
-                        logger.info(f"Saving GB generation data for {len(gsp_ids)} GSP locations one by one.")
-                        for gsp_id in gsp_ids:
-                            gsp_data = data[data["gsp_id"] == gsp_id].copy()
-                            try:
-                                await save_generation_to_data_platform(
-                                    data_df=gsp_data, client=client, config_name=country
+                        logger.info(f"Saving GB generation data for {len(gsp_ids)} GSP locations in parallel.")
+                        results = await asyncio.gather(
+                            *[
+                                save_generation_to_data_platform(
+                                    data_df=data[data["gsp_id"] == gsp_id].copy(),
+                                    client=client,
+                                    config_name=country,
                                 )
-                            except Exception as e:
+                                for gsp_id in gsp_ids
+                            ],
+                            return_exceptions=True,
+                        )
+                        for gsp_id, result in zip(gsp_ids, results):
+                            if isinstance(result, Exception):
                                 logger.error(
-                                    f"Failed to save generation data for gsp_id={gsp_id}: {e}"
+                                    f"Failed to save generation data for gsp_id={gsp_id}: {result}"
                                 )
                     else:
                         await save_generation_to_data_platform(data_df=data, client=client, config_name=country)
