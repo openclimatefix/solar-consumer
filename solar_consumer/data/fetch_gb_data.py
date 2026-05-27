@@ -109,9 +109,9 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     all_gsps_yields = []
     gsp_ids = pvlive.gsp_ids
-    n_gsps = os.getenv("UK_PVLIVE_N_GSPS")
+    n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", 342))
     if n_gsps is not None:
-        gsp_ids = gsp_ids[: int(n_gsps)]
+        gsp_ids = [id for id in gsp_ids if id < n_gsps]
     for gsp_id in gsp_ids:
 
         logger.info(
