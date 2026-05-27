@@ -105,7 +105,7 @@ The package provides three main functionalities:
   `site-db` is supported for NL, DE, and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
-- `UK_PVLIVE_N_GSPS=342`: For UK PVLive, the amount of gsps we pull data for.
+- `UK_PVLIVE_MAX_GSP_ID=342`: For UK PVLive, the amount of gsps we pull data for.
 - `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
 - `UK_PVLIVE_DOMAIN_URL`: For UK PVLive, the domain URL to fetch data from. Defaults to "api.pvlive.uk"
 - `NL_POTENTIAL_GENERATION`: boolen, to create and save a potential solar generation

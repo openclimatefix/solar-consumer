@@ -173,7 +173,7 @@ def test_gb_historic_inday():
 
     # set enviormental variable REGIME to inday
     os.environ["UK_PVLIVE_REGIME"] = "in-day"
-    os.environ["UK_PVLIVE_N_GSPS"] = "10"
+    os.environ["UK_PVLIVE_MAX_GSP_ID"] = "10"
 
     df = fetch_data(country = "gb", historic_or_forecast = "historic")
 
@@ -187,7 +187,7 @@ def test_gb_historic_day_after():
 
     # set enviormental variable REGIME to inday
     os.environ["UK_PVLIVE_REGIME"] = "day-after"
-    os.environ["UK_PVLIVE_N_GSPS"] = "10"
+    os.environ["UK_PVLIVE_MAX_GSP_ID"] = "10"
 
     df = fetch_data(country = "gb", historic_or_forecast = "historic")
 

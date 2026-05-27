@@ -163,6 +163,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     if n_gsps is not None:
         gsp_ids = [id for id in gsp_ids if id < n_gsps]
 
+
     # Cache fetched DataFrames by gsp_id to avoid duplicate API calls when the
     # same source ID is shared across multiple remapping targets.
     fetched_cache: dict[int, pd.DataFrame] = {}
