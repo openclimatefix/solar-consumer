@@ -179,9 +179,10 @@ def test_merge_remapping(tmp_path):
     ), patch("solar_consumer.data.fetch_gb_data.PVLive", return_value=mock_pvl):
         if "UK_PVLIVE_N_GSPS" in os.environ:
             del os.environ["UK_PVLIVE_N_GSPS"]
+        if "UK_PVLIVE_MAX_GSP_ID" in os.environ:
+            del os.environ["UK_PVLIVE_MAX_GSP_ID"]
         from solar_consumer.data.fetch_gb_data import fetch_gb_data_historic
         df = fetch_gb_data_historic(regime="in-day")
-
     gsp225 = df[df["gsp_id"] == 225]
     assert not gsp225.empty, "Expected rows for remapped GSP ID 225"
     assert (gsp225["solar_generation_kw"] == 5_000.0).all(), (
@@ -228,9 +229,10 @@ def test_negative_weight(tmp_path):
     ), patch("solar_consumer.data.fetch_gb_data.PVLive", return_value=mock_pvl):
         if "UK_PVLIVE_N_GSPS" in os.environ:
             del os.environ["UK_PVLIVE_N_GSPS"]
+        if "UK_PVLIVE_MAX_GSP_ID" in os.environ:
+            del os.environ["UK_PVLIVE_MAX_GSP_ID"]
         from solar_consumer.data.fetch_gb_data import fetch_gb_data_historic
         df = fetch_gb_data_historic(regime="in-day")
-
     gsp158 = df[df["gsp_id"] == 158]
     assert not gsp158.empty, "Expected rows for remapped GSP ID 158"
     assert np.allclose(gsp158["solar_generation_kw"].values, 7_000.0), (
