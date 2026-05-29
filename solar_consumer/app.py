@@ -12,7 +12,7 @@ import asyncio
 import pandas as pd
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
-from solar_consumer.format_forecast import format_to_forecast_sql
+# legacy nowcasting_datamodel-based formatting removed
 from solar_consumer.save.save_csv import save_forecasts_to_csv
 from solar_consumer.save.save_database import save_forecasts_to_db
 from solar_consumer.save.save_site_database import (
@@ -23,8 +23,8 @@ from solar_consumer.save.save_data_platform import (
     save_generation_to_data_platform,
     save_forecasts_to_data_platform,
 )
-from nowcasting_datamodel.connection import DatabaseConnection
-from nowcasting_datamodel.models import Base_Forecast
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from solar_consumer import __version__  # Import version from __init__.py
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
@@ -75,29 +75,9 @@ async def app(
             logger.warning("No data fetched. Exiting the pipeline.")
             return
         if save_method == "db":
-            # Initialize database connection
-            connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
-
-            with connection.get_session() as session:
-                # Step 2: Formate and save the forecast data
-                # A. Format forecast to database object and save
-                logger.info(f"Formatting {len(data)} rows of forecast data.")
-                forecasts = format_to_forecast_sql(
-                    data=data,
-                    model_tag=model_tag,
-                    model_version=__version__,  # Use the version from __init__.py
-                    session=session,
-                )
-
-                if not forecasts:
-                    logger.warning("No forecasts generated. Exiting the pipeline.")
-                    return
-
-                logger.info(f"Generated {len(forecasts)} ForecastSQL objects.")
-
-                # Saving formatted forecasts to the database
-                logger.info("Saving forecasts to the database.")
-                save_forecasts_to_db(forecasts, session)
+            # Legacy DB support (nowcasting_datamodel) has been removed.
+            logger.error("The legacy DB save method ('db') has been removed. Use 'site-db' or 'data-platform' instead.")
+            raise RuntimeError("Legacy DB save method removed")
 
         # B. Save directly to CSV
         elif save_method == "csv":
@@ -106,10 +86,11 @@ async def app(
 
         # C. TODO: Potential new save methods
         elif save_method == "site-db":
-            # Initialize database connection
-            connection = DatabaseConnection(url=db_url, echo=False)
-
-            with connection.get_session() as session:
+            # Create a SQLAlchemy session directly (legacy nowcasting_datamodel removed)
+            engine = create_engine(db_url)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+            try:
                 logger.info("Saving generations to the site database.")
                 if historic_or_forecast == "generation":
                     save_generation_to_site_db(
@@ -127,6 +108,8 @@ async def app(
                         model_tag=model_tag,
                         model_version=__version__,
                     )
+            finally:
+                session.close()
 
         elif save_method == "data-platform":
             logger.info("Saving to data platform")

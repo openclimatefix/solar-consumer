@@ -28,15 +28,15 @@ The solar consumer supports **RUVNL (Rajasthan, India)** real-time generation da
 
 Here are the different sources of data, and which methods can be used to save the results
 
-| Source | Country | CSV | Data Platform | DB (Legacy) | Site DB (Legacy) |
-| --- | ---  | --- | --- | --- |  ---|
-| PVLive | 🇬🇧 | ✅ | ✅ | | |
-| NESO forecast | 🇬🇧 | ✅ | ✅ | ✅| 
-| Ned-nl | 🇳🇱 | ✅ | ✅ | | ✅ |
-| Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
-| Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
-| Elia Open Data | 🇧🇪 | ✅ | ✅ |  |  |
-| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  | ✅ |
+| Source | Country | CSV | Data Platform |
+| --- | ---  | --- | --- |
+| PVLive | 🇬🇧 | ✅ | ✅ |
+| NESO forecast | 🇬🇧 | ✅ | ✅ |
+| Ned-nl | 🇳🇱 | ✅ | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ | |
+| Germany (ENTSOE) | 🇩🇪 | ✅ | |
+| Elia Open Data | 🇧🇪 | ✅ | ✅ |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | |
 
 
 ## Requirements

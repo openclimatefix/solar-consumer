@@ -1,29 +1,12 @@
 from loguru import logger
-from nowcasting_datamodel.save.save import save
 
 
 def save_forecasts_to_db(forecasts: list, session):
-    """Save forecasts to the database.
+    """Legacy function removed.
 
-    Parameters:
-        forecasts (list): List of forecast objects to save.
-        session: SQLAlchemy session for database access.
-
-    Return:
-        None
+    The project no longer uses `nowcasting_datamodel` for saving forecasts. This
+    function is kept for compatibility but will raise an error to indicate that
+    the legacy DB save path has been removed.
     """
-    # Check if forecasts is empty
-    if not forecasts:
-        logger.warning("No forecasts provided to save!")
-        return
-
-    try:
-        logger.info("Saving forecasts to the database.")
-        save(
-            forecasts=forecasts,
-            session=session,
-        )
-        logger.info(f"Successfully saved {len(forecasts)} forecasts to the database.")
-    except Exception as e:
-        logger.error(f"An error occurred while saving forecasts: {e}")
-        raise e
+    logger.error("Legacy DB save method removed. Cannot save forecasts using this function.")
+    raise RuntimeError("Legacy DB save method removed. Use 'site-db' or 'data-platform'.")
