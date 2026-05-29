@@ -182,6 +182,14 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             weights_config = gsp_merge_weights[gsp_id]
             source_dfs = []
 
+            source_summary = ", ".join(
+                f"GSP {w['gsp_id']} x{w['weight']}" for w in weights_config
+            )
+            logger.info(
+                f"GSP ID {gsp_id} is a remapping target — will be reconstructed "
+                f"from {len(weights_config)} source(s): [{source_summary}]"
+            )
+
             for w in weights_config:
                 source_id = w["gsp_id"]
                 weight = w["weight"]
@@ -189,7 +197,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
                 # Fetch source if not already cached.
                 if source_id not in fetched_cache:
                     logger.info(
-                        f"Fetching source GSP ID {source_id} for remapping target {gsp_id}"
+                        f"  GSP {gsp_id} <- fetching source GSP {source_id} (weight={weight}) from PVLive"
                     )
                     source_df = pvlive.between(
                         start=start,
@@ -200,9 +208,20 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
                         extra_fields="installedcapacity_mwp,capacity_mwp,updated_gmt",
                     )
                     fetched_cache[source_id] = source_df
+                else:
+                    logger.debug(
+                        f"  GSP {gsp_id} <- source GSP {source_id} (weight={weight}) served from cache"
+                    )
 
+                raw_total = fetched_cache[source_id]["generation_mw"].sum()
                 weighted = fetched_cache[source_id].copy()
                 weighted["generation_mw"] = weighted["generation_mw"] * weight
+                weighted_total = weighted["generation_mw"].sum()
+                logger.debug(
+                    f"  GSP {gsp_id} <- source GSP {source_id}: "
+                    f"raw generation sum={raw_total:.3f} MW, "
+                    f"after weight ({weight}): {weighted_total:.3f} MW"
+                )
                 source_dfs.append(weighted)
 
             if not source_dfs:
@@ -224,8 +243,11 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
             base["updated_gmt"] = source_dfs[0]["updated_gmt"].values
             gsp_yield_df = base
 
+            final_total = base["generation_mw"].sum()
             logger.info(
-                f"Reconstructed GSP ID {gsp_id} from {len(weights_config)} source(s)"
+                f"GSP ID {gsp_id} reconstruction complete: "
+                f"{len(weights_config)} source(s) combined, "
+                f"final generation sum={final_total:.3f} MW over {len(base)} timestamps"
             )
 
         # Normal direct fetch.

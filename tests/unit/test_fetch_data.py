@@ -177,11 +177,13 @@ def test_gb_historic_inday():
 
     df = fetch_data(country = "gb", historic_or_forecast = "historic")
 
-    # With UK_PVLIVE_MAX_GSP_ID=10 (filter: id < 10), PVLive returns 8 GSPs
-    # because IDs 4 and 5 do not exist in the registry.
-    n_active = 8
+    # With UK_PVLIVE_MAX_GSP_ID=10 (filter: id < 10), PVLive returns 8 live GSPs
+    # (IDs 4 and 5 are absent from the registry). However, IDs 4 and 5 are
+    # configured in gsp_merge_weights and are reconstructed from their split
+    # replacement GSPs — so the total is 10 GSPs processed.
+    n_gsps = 10
     # Each GSP should have 3 to 5 data points for a 2-hour backfill
-    assert n_active * 3 <= len(df) <= n_active * 5
+    assert n_gsps * 3 <= len(df) <= n_gsps * 5
 
 
 def test_gb_historic_day_after():
@@ -192,9 +194,11 @@ def test_gb_historic_day_after():
 
     df = fetch_data(country = "gb", historic_or_forecast = "historic")
 
-    # With UK_PVLIVE_MAX_GSP_ID=10 (filter: id < 10), PVLive returns 8 GSPs
-    # because IDs 4 and 5 do not exist in the registry.
-    n_active = 8
+    # With UK_PVLIVE_MAX_GSP_ID=10 (filter: id < 10), PVLive returns 8 live GSPs
+    # (IDs 4 and 5 are absent from the registry). However, IDs 4 and 5 are
+    # configured in gsp_merge_weights and are reconstructed from their split
+    # replacement GSPs — so the total is 10 GSPs processed.
+    n_gsps = 10
     # Each GSP should have around 48 data points, but we use a lower bound
     # because the API currently returns fewer slots (~37) for some GSPs.
-    assert n_active * 30 <= len(df) <= n_active * 48
+    assert n_gsps * 30 <= len(df) <= n_gsps * 48
