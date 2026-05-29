@@ -182,8 +182,9 @@ def test_gb_historic_inday():
     # configured in gsp_merge_weights and are reconstructed from their split
     # replacement GSPs — so the total is 10 GSPs processed.
     n_gsps = 10
-    # Each GSP should have 3 to 5 data points for a 2-hour backfill
-    assert n_gsps * 3 <= len(df) <= n_gsps * 5
+    # Each GSP should have 3 to 7 data points for a 2-hour backfill window
+    # (30-min slots over a ~2.5h window: t-120 to t+30)
+    assert n_gsps * 3 <= len(df) <= n_gsps * 7
 
 
 def test_gb_historic_day_after():

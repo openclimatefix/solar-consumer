@@ -170,9 +170,10 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     # Append any merge-weights targets that aren't in the live registry
     # (retired/deprecated IDs that need reconstruction from their replacements).
+    # Also apply the same n_gsps cap so UK_PVLIVE_MAX_GSP_ID limits all GSPs uniformly.
     live_id_set = set(gsp_ids)
     gsp_ids_to_process = list(gsp_ids) + [
-        gid for gid in gsp_merge_weights if gid not in live_id_set
+        gid for gid in gsp_merge_weights if gid not in live_id_set and gid < n_gsps
     ]
 
     for gsp_id in gsp_ids_to_process:
@@ -237,9 +238,16 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
                 for df in source_dfs
             ).values
 
-            # Use capacity/metadata from first source as best approximation.
-            base["installedcapacity_mwp"] = source_dfs[0]["installedcapacity_mwp"].values
-            base["capacity_mwp"] = source_dfs[0]["capacity_mwp"].values
+            # Sum capacities across all sources — generation is the total of all parts,
+            # so capacity must also be the total to avoid exceeding the 110% DP limit.
+            base["installedcapacity_mwp"] = sum(
+                df.set_index("datetime_gmt")["installedcapacity_mwp"]
+                for df in source_dfs
+            ).values
+            base["capacity_mwp"] = sum(
+                df.set_index("datetime_gmt")["capacity_mwp"]
+                for df in source_dfs
+            ).values
             base["updated_gmt"] = source_dfs[0]["updated_gmt"].values
             gsp_yield_df = base
 
