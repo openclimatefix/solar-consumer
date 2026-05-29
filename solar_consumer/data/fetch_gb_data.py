@@ -159,9 +159,9 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     # This avoids a hardcoded ignore list — IDs that no longer exist in PVLive
     # simply won't appear here.
     gsp_ids = pvlive.gsp_ids
-    n_gsps = os.getenv("UK_PVLIVE_N_GSPS")
+    n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", 342))
     if n_gsps is not None:
-        gsp_ids = gsp_ids[: int(n_gsps)]
+        gsp_ids = [id for id in gsp_ids if id < n_gsps]
 
     # Cache fetched DataFrames by gsp_id to avoid duplicate API calls when the
     # same source ID is shared across multiple remapping targets.
@@ -176,7 +176,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
 
     for gsp_id in gsp_ids_to_process:
 
-        # 2. If this ID is a remapping target, reconstruct from weighted sources.
+        # If this ID is a remapping target, reconstruct from weighted sources.
         if gsp_id in gsp_merge_weights:
             weights_config = gsp_merge_weights[gsp_id]
             source_dfs = []
@@ -227,7 +227,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
                 f"Reconstructed GSP ID {gsp_id} from {len(weights_config)} source(s)"
             )
 
-        # 3. Normal direct fetch.
+        # Normal direct fetch.
         else:
             logger.info(
                 f"Getting data for GSP ID {gsp_id}, out of {len(gsp_ids_to_process)} GSPs, for regime {regime}"
