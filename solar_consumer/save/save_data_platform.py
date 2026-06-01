@@ -77,50 +77,38 @@ async def _execute_async_tasks(
 
 async def _list_locations(
     client: dp.DataPlatformDataServiceStub,
-    location_type: dp.LocationType | list[dp.LocationType],
+    location_type: list[dp.LocationType],
     country: str = "gb",
 ) -> list[dict]:
     """List locations from data platform and convert to dict format."""
     if country == "ind_rajasthan":
-        es_filter = dp.EnergySource.UNSPECIFIED
+        es_filters = [dp.EnergySource.SOLAR, dp.EnergySource.WIND]
     else:
-        es_filter = dp.EnergySource.SOLAR
+        es_filters = [dp.EnergySource.SOLAR]
 
-    if isinstance(location_type, list):
-        # Handle multiple location types (e.g., GB with GSP and NATION)
-        tasks = [
-            asyncio.create_task(
-                client.list_locations(
-                    dp.ListLocationsRequest(
-                        location_type_filter=loc_type,
-                        energy_source_filter=es_filter,
-                    )
+    tasks = [
+        asyncio.create_task(
+            client.list_locations(
+                dp.ListLocationsRequest(
+                    location_type_filter=loc_type,
+                    energy_source_filter=es_filter,
                 )
             )
-            for loc_type in location_type
-        ]
-        list_results = await _execute_async_tasks(tasks)        
-        all_locations = list(
-            itertools.chain(
-                *[
-                    r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
-                        "locations"
-                    ]
-                    for r in list_results
+        )
+        for loc_type in location_type
+        for es_filter in es_filters
+    ]
+    list_results = await _execute_async_tasks(tasks)
+    all_locations = list(
+        itertools.chain(
+            *[
+                r.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=True)[
+                    "locations"
                 ]
-            )
+                for r in list_results
+            ]
         )
-    else:
-        # Single location type
-        list_locations_request = dp.ListLocationsRequest(
-            location_type_filter=location_type,
-            energy_source_filter=es_filter,
-        )
-        list_locations_response = await client.list_locations(list_locations_request)
-        all_locations = list_locations_response.to_dict(
-            casing=betterproto.Casing.SNAKE,
-            include_default_values=True,
-        ).get("locations", [])
+    )
 
     # Filter based on country metadata
     filtered_locations = []
@@ -168,7 +156,7 @@ async def _create_locations_from_csv(
         location_name = location["name"]
         location_type_str = location.get("location_type", "NATION")
 
-        effective_capacity_watts = 100_000_000_000
+        effective_capacity_watts = 100_000_000
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
@@ -389,9 +377,10 @@ async def save_generation_to_data_platform(
             else:
                 metadata = None
 
+            energy_source = dp.EnergySource[row.energy_source] if hasattr(row, 'energy_source') else dp.EnergySource.SOLAR
             req = dp.UpdateLocationRequest(
                 location_uuid=lid,
-                energy_source=dp.EnergySource.SOLAR,
+                energy_source=energy_source,
                 new_effective_capacity_watts=int(new_cap),
                 valid_from_utc=t,
                 new_metadata=metadata,
@@ -426,7 +415,7 @@ async def save_generation_to_data_platform(
         joined_df["energy_source"],
     ):
         observations_by_loc[lid].append(
-            dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=val)
+            dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=int(val))
         )
         energy_source_by_loc[lid] = dp.EnergySource[es]
 

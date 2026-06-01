@@ -40,15 +40,20 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
     await save_generation_to_data_platform(fake_data, client=client, country=COUNTRY)
 
     # Verify both locations were created from the CSV.
-    list_locations_response = await client.list_locations(
-        dp.ListLocationsRequest(
-            location_type_filter=dp.LocationType.STATE,
-            energy_source_filter=dp.EnergySource.SOLAR,
+    # Query SOLAR and WIND separately since UNSPECIFIED doesn't match either.
+    locations_data = []
+    for es in (dp.EnergySource.SOLAR, dp.EnergySource.WIND):
+        resp = await client.list_locations(
+            dp.ListLocationsRequest(
+                location_type_filter=dp.LocationType.STATE,
+                energy_source_filter=es,
+            )
         )
-    )
-    locations_data = list_locations_response.to_dict(
-        casing=betterproto.Casing.SNAKE, include_default_values=True
-    ).get("locations", [])
+        locations_data.extend(
+            resp.to_dict(
+                casing=betterproto.Casing.SNAKE, include_default_values=True
+            ).get("locations", [])
+        )
 
     loc_by_name = {
         loc["location_name"]: loc
@@ -67,17 +72,17 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
     )
 
     expected_watts = {
-        "ruvnl_solar": 1_500_000,  # 1500 kW -> W
-        "ruvnl_wind": 800_000,     # 800 kW -> W
+        "ruvnl_solar": (1_500_000, dp.EnergySource.SOLAR),   # 1500 kW -> W
+        "ruvnl_wind": (800_000, dp.EnergySource.WIND),       # 800 kW -> W
     }
 
-    for name, expected in expected_watts.items():
+    for name, (expected, energy_source) in expected_watts.items():
         location_uuid = loc_by_name[name]["location_uuid"]
         observations_response = await client.get_observations_as_timeseries(
             dp.GetObservationsAsTimeseriesRequest(
                 location_uuid=location_uuid,
                 observer_name=OBSERVER_NAME,
-                energy_source=dp.EnergySource.SOLAR,
+                energy_source=energy_source,
                 time_window=time_window,
             )
         )
