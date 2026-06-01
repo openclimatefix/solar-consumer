@@ -109,7 +109,9 @@
       weight: 1.0
 
 # SEAB1|SAFO_1 → SEAB1 (348) & SAFO_1 (347)  (20251204)
-157:
+# gsp_id=257 confirmed from Data Platform: location registered as "seab1|safo_1"
+# (gsp_id=157 was incorrect — 157 never existed in PVLive, IDs jump 156→159)
+257:
   pvlive_merge_weights:
     - gsp_id: 348  # SEAB1
       weight: 1.0
@@ -133,32 +135,11 @@
       weight: 1.0
 
 # -----------------------------------------------------------------------
-# MERGES: new combined region reconstructed from constituent parts
-# (weights may be <1.0 if regions are meshed or partially overlapping)
-# -----------------------------------------------------------------------
-
-# CARR_1 + FIDF_1 → CARR_1|FIDF_1 (351)  (20260209, meshed network)
-# gsp_id=225 was the old standalone CARR_1 or FIDF_1 region before the merge.
-# Weights are placeholder (0.5/0.5) — update from DSCP flow data from Elexon.
-# TODO: Consult DSCP data from Elexon to determine appropriate split weights.
-225:
-  pvlive_merge_weights:
-    - gsp_id: 351  # CARR_1|FIDF_1 (new combined region)
-      weight: 0.5  # placeholder — update from DSCP flow data
-
-# -----------------------------------------------------------------------
-# BARKW3: replaced by BARKR_A + BARKR_C (20250109, BARKC1 de-registered)
-# gsp_id=322 (BARKW3) is still active in PVLive; this entry reconstructs
-# an OLD pre-split ID if one existed. If BARKW3 (322) is itself the target,
-# it will be fetched normally since it appears in pvlive.gsp_ids.
-# The entry below maps any old BARKW3-equivalent ID → 320 + 321.
-# TODO: Confirm which ignore_gsp_id (if any) was the predecessor to BARKW3.
-257:
-  pvlive_merge_weights:
-    - gsp_id: 320  # BARKR_A
-      weight: 1.0
-    - gsp_id: 321  # BARKR_C
-      weight: 1.0
+# BARKW3 NOTE (20250109): BARKC1 was split from BARKW3 and renamed to
+# BARKR_A (320) and BARKR_C (321). BARKW3 (322) is still active in PVLive
+# and is fetched directly — no remapping entry needed.
+# No confirmed old predecessor ID for BARKW3 was found; the previous
+# entry mapping gsp_id=257 to BARKR_A+BARKR_C was incorrect (257=SEAB1|SAFO_1).
 
 # -----------------------------------------------------------------------
 # DEPRECATED / REMOVED — no remapping possible
@@ -166,4 +147,7 @@
 # -----------------------------------------------------------------------
 # ID 163 — likely BESW_1 (_E), not a real region, removed 20250102
 # ID 310 — likely RASS_1 (_E) or WILL_1 (_E), not a real region, removed 20250102
-# These remain in ignore_gsp_ids with no config entry and will be skipped.
+#
+# These IDs are absent from pvlive.gsp_ids and have no entry in this config,
+# so they are automatically never processed. No action is required here.
+

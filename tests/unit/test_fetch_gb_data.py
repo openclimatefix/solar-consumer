@@ -153,11 +153,16 @@ def test_split_remapping(tmp_path):
 
 def test_merge_remapping(tmp_path):
     """
-    GSP 225 is absent from pvlive.gsp_ids. It is reconstructed with weight 0.5
-    from source 351 (10 MW). Expected target generation = 5 MW per slot.
+    Tests fractional weight reconstruction: a hypothetical target GSP (ID 999,
+    absent from pvlive.gsp_ids) is reconstructed with weight 0.5 from source
+    GSP 351 (10 MW). Expected target generation = 5 MW per slot.
+
+    Note: GSP 225 was previously used here but was confirmed to never exist in
+    PVLive's registry and has been removed from gsp_merge_weights.yaml.
+    This test uses a clearly fictional ID (999) to test the logic in isolation.
     """
     yaml_content = textwrap.dedent("""\
-        225:
+        999:
           pvlive_merge_weights:
             - gsp_id: 351
               weight: 0.5
@@ -183,11 +188,12 @@ def test_merge_remapping(tmp_path):
             del os.environ["UK_PVLIVE_MAX_GSP_ID"]
         from solar_consumer.data.fetch_gb_data import fetch_gb_data_historic
         df = fetch_gb_data_historic(regime="in-day")
-    gsp225 = df[df["gsp_id"] == 225]
-    assert not gsp225.empty, "Expected rows for remapped GSP ID 225"
-    assert (gsp225["solar_generation_kw"] == 5_000.0).all(), (
-        f"Expected 5000 kW, got {gsp225['solar_generation_kw'].unique()}"
+    gsp999 = df[df["gsp_id"] == 999]
+    assert not gsp999.empty, "Expected rows for remapped GSP ID 999"
+    assert (gsp999["solar_generation_kw"] == 5_000.0).all(), (
+        f"Expected 5000 kW, got {gsp999['solar_generation_kw'].unique()}"
     )
+
 
 
 # ---------------------------------------------------------------------------
