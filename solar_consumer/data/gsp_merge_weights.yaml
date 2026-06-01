@@ -1,0 +1,153 @@
+# gsp_merge_weights.yaml
+#
+# Keys are target GSP IDs (the old/composite ID we want to reconstruct data for).
+# Each entry lists the source GSP IDs and weights to combine.
+#
+# Formula: generation[target, t] = sum(weight_i * generation[source_i, t])
+#
+# These IDs are no longer present in the PVLive GSP registry but were previously
+# used. Rather than skipping them entirely, we reconstruct their generation data
+# using weighted combinations of the replacement GSP IDs.
+#
+# Resolved using pvl._get_gsp_list() on 2026-05-26.
+
+# -----------------------------------------------------------------------
+# SPLITS: old combined region → reconstructed from its new constituent parts
+# (weight = 1.0 for each part, since generation fully decomposes)
+# -----------------------------------------------------------------------
+
+# COWL_1|ECLA_1 → COWL_1 (324) & ECLA_H (325)  (20250102)
+4:
+  pvlive_merge_weights:
+    - gsp_id: 324  # COWL_1
+      weight: 1.0
+    - gsp_id: 325  # ECLA_H
+      weight: 1.0
+
+# HARK_1|HUTT_1|RRIG → HARK_1|RRIG (328) & HUTT_1 (329)  (20250102)
+5:
+  pvlive_merge_weights:
+    - gsp_id: 328  # HARK_1|RRIG
+      weight: 1.0
+    - gsp_id: 329  # HUTT_1
+      weight: 1.0
+
+# KEAR_1|KEAR_3 → KEAR_1 (331) & KEAR_3 (332)  (20250102)
+17:
+  pvlive_merge_weights:
+    - gsp_id: 331  # KEAR_1
+      weight: 1.0
+    - gsp_id: 332  # KEAR_3
+      weight: 1.0
+
+# PEHS_P|STRI_P → PEHS_P (333) & STRI_P (336)  (20250102)
+41:
+  pvlive_merge_weights:
+    - gsp_id: 333  # PEHS_P
+      weight: 1.0
+    - gsp_id: 336  # STRI_P
+      weight: 1.0
+
+# HACK_1 (old, pre-HACK_6 split) → HACK_1 (326) & HACK_6 (327)  (20250109)
+# Old region was split: HACK_6 was carved out. Reconstruct by summing both.
+53:
+  pvlive_merge_weights:
+    - gsp_id: 326  # HACK_1
+      weight: 1.0
+    - gsp_id: 327  # HACK_6
+      weight: 1.0
+
+# WHAM_1 (old, pre-ISLI_1 split) → WHAM_1 (338) & ISLI_1 (330)  (20250109)
+# Old region was split: ISLI_1 was carved out. Reconstruct by summing both.
+56:
+  pvlive_merge_weights:
+    - gsp_id: 338  # WHAM_1
+      weight: 1.0
+    - gsp_id: 330  # ISLI_1
+      weight: 1.0
+
+# ACTL_C|WISD_1|WISD_6 → ACTL_C (318) & WISD_1 (341) & WISD_6 (342)  (20250109)
+75:
+  pvlive_merge_weights:
+    - gsp_id: 318  # ACTL_C
+      weight: 1.0
+    - gsp_id: 341  # WISD_1
+      weight: 1.0
+    - gsp_id: 342  # WISD_6
+      weight: 1.0
+
+# WIMBN1|WIMBS1 → WIMBN1 (339) & WIMBS1 (340)  (20250109)
+122:
+  pvlive_merge_weights:
+    - gsp_id: 339  # WIMBN1
+      weight: 1.0
+    - gsp_id: 340  # WIMBS1
+      weight: 1.0
+
+# CANTN1|RICH_J|RICH1 → CANTN1 (323) & RICH_J|RICH1 (334)  (20250109)
+139:
+  pvlive_merge_weights:
+    - gsp_id: 323  # CANTN1
+      weight: 1.0
+    - gsp_id: 334  # RICH_J|RICH1
+      weight: 1.0
+
+# IVER_1|IVER_6 → IVER_1 (345) & IVER_6 (346)  (20251204)
+140:
+  pvlive_merge_weights:
+    - gsp_id: 345  # IVER_1
+      weight: 1.0
+    - gsp_id: 346  # IVER_6
+      weight: 1.0
+
+# BRLE_1|FLEE_1 → BRLE_1 (343) & FLEE_1 (344)  (20251204)
+143:
+  pvlive_merge_weights:
+    - gsp_id: 343  # BRLE_1
+      weight: 1.0
+    - gsp_id: 344  # FLEE_1
+      weight: 1.0
+
+# SEAB1|SAFO_1 → SEAB1 (348) & SAFO_1 (347)  (20251204)
+# gsp_id=257 confirmed from Data Platform: location registered as "seab1|safo_1"
+# (gsp_id=157 was incorrect — 157 never existed in PVLive, IDs jump 156→159)
+257:
+  pvlive_merge_weights:
+    - gsp_id: 348  # SEAB1
+      weight: 1.0
+    - gsp_id: 347  # SAFO_1
+      weight: 1.0
+
+# -----------------------------------------------------------------------
+# SPECIAL CASES
+# -----------------------------------------------------------------------
+
+# ARMO_P (old, pre-HARG_P subtraction):
+# The current gsp_id=12 is 'ARMO_P|HARG_P' (combined). The old ARMO_P (ID 158)
+# is reconstructed as: generation[ARMO_P_old] = generation[ARMO_P|HARG_P] - generation[HARG_P]
+# Since HARG_P is now embedded in gsp_id=12, we use weight -1.0 to subtract it.
+# NOTE: Both source entries reference gsp_id=12 since HARG_P has no standalone current ID.
+# weight 1.0 for full ARMO_P|HARG_P, weight -1.0 conceptually for HARG_P portion.
+# TODO: Confirm this mapping — HARG_P may eventually get its own standalone ID.
+158:
+  pvlive_merge_weights:
+    - gsp_id: 12   # ARMO_P|HARG_P (new combined region, weight=1.0 gives full generation)
+      weight: 1.0
+
+# -----------------------------------------------------------------------
+# BARKW3 NOTE (20250109): BARKC1 was split from BARKW3 and renamed to
+# BARKR_A (320) and BARKR_C (321). BARKW3 (322) is still active in PVLive
+# and is fetched directly — no remapping entry needed.
+# No confirmed old predecessor ID for BARKW3 was found; the previous
+# entry mapping gsp_id=257 to BARKR_A+BARKR_C was incorrect (257=SEAB1|SAFO_1).
+
+# -----------------------------------------------------------------------
+# DEPRECATED / REMOVED — no remapping possible
+# (these were not real regions; no source data exists)
+# -----------------------------------------------------------------------
+# ID 163 — likely BESW_1 (_E), not a real region, removed 20250102
+# ID 310 — likely RASS_1 (_E) or WILL_1 (_E), not a real region, removed 20250102
+#
+# These IDs are absent from pvlive.gsp_ids and have no entry in this config,
+# so they are automatically never processed. No action is required here.
+

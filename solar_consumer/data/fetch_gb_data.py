@@ -3,6 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 import os
+import yaml
 from loguru import logger
 
 from datetime import datetime, timedelta, timezone
@@ -73,6 +74,40 @@ def fetch_gb_data_forecast() -> pd.DataFrame:
     return df
 
 
+def load_gsp_merge_weights(config_path: str = None) -> dict:
+    """
+    Load GSP merge weight config from YAML.
+
+    Returns a dict mapping each target GSP ID (int) to a list of source entries:
+        {target_gsp_id: [{"gsp_id": int, "weight": float}, ...]}
+
+    Missing or empty config files are handled gracefully — an empty dict is returned.
+    """
+    if config_path is None:
+        config_path = os.path.join(os.path.dirname(__file__), "gsp_merge_weights.yaml")
+
+    if not os.path.exists(config_path):
+        logger.warning(f"No GSP merge weights config found at {config_path}")
+        return {}
+
+    with open(config_path, "r") as f:
+        raw = yaml.safe_load(f)
+
+    if not raw:
+        return {}
+
+    result = {}
+    for target_id, entry in raw.items():
+        weights = entry.get("pvlive_merge_weights", [])
+        result[int(target_id)] = [
+            {"gsp_id": int(w["gsp_id"]), "weight": float(w["weight"])}
+            for w in weights
+        ]
+
+    logger.info(f"Loaded GSP merge weights for {len(result)} target GSP IDs")
+    return result
+
+
 def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     """Fetch data from PVLive
 
@@ -93,6 +128,17 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     gb_pvlive_domain_url = os.getenv("GB_PVLIVE_DOMAIN_URL", GB_PVLIVE_DOMAIN_URL)
     pvlive = PVLive(domain_url=gb_pvlive_domain_url)
 
+    # Load YAML-driven merge weights config. IDs present in this config will be
+    # reconstructed from weighted combinations of replacement source GSP IDs
+    # rather than being skipped outright.
+    gsp_merge_weights = load_gsp_merge_weights()
+
+    # Collect all source IDs that must be fetched to support remapping targets.
+    required_source_ids: set[int] = set()
+    for weights in gsp_merge_weights.values():
+        for w in weights:
+            required_source_ids.add(w["gsp_id"])
+
     datetime_utc = datetime.now(timezone.utc)
 
     if regime == "in-day":
@@ -108,24 +154,125 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         )   - timedelta(minutes=30)  # so we don't include 00:00
 
     all_gsps_yields = []
+
+    # Use the live PVLive registry as the source of truth for valid GSP IDs.
+    # This avoids a hardcoded ignore list — IDs that no longer exist in PVLive
+    # simply won't appear here.
     gsp_ids = pvlive.gsp_ids
     n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", 342))
     if n_gsps is not None:
         gsp_ids = [id for id in gsp_ids if id < n_gsps]
-    for gsp_id in gsp_ids:
 
-        logger.info(
-            f"Getting data for GSP ID {gsp_id}, out of {len(gsp_ids)} GSPs, for regime {regime}"
-        )
 
-        gsp_yield_df: pd.DataFrame = pvlive.between(
-            start=start,
-            end=end,
-            entity_type="gsp",
-            entity_id=gsp_id,
-            dataframe=True,
-            extra_fields="installedcapacity_mwp,capacity_mwp,updated_gmt",
-        )
+    # Cache fetched DataFrames by gsp_id to avoid duplicate API calls when the
+    # same source ID is shared across multiple remapping targets.
+    fetched_cache: dict[int, pd.DataFrame] = {}
+
+    # Append any merge-weights targets that aren't in the live registry
+    # (retired/deprecated IDs that need reconstruction from their replacements).
+    # Also apply the same n_gsps cap so UK_PVLIVE_MAX_GSP_ID limits all GSPs uniformly.
+    live_id_set = set(gsp_ids)
+    gsp_ids_to_process = list(gsp_ids) + [
+        gid for gid in gsp_merge_weights if gid not in live_id_set and gid < n_gsps
+    ]
+
+    for gsp_id in gsp_ids_to_process:
+
+        # If this ID is a remapping target, reconstruct from weighted sources.
+        if gsp_id in gsp_merge_weights:
+            weights_config = gsp_merge_weights[gsp_id]
+            source_dfs = []
+
+            source_summary = ", ".join(
+                f"GSP {w['gsp_id']} x{w['weight']}" for w in weights_config
+            )
+            logger.info(
+                f"GSP ID {gsp_id} is a remapping target — will be reconstructed "
+                f"from {len(weights_config)} source(s): [{source_summary}]"
+            )
+
+            for w in weights_config:
+                source_id = w["gsp_id"]
+                weight = w["weight"]
+
+                # Fetch source if not already cached.
+                if source_id not in fetched_cache:
+                    logger.info(
+                        f"  GSP {gsp_id} <- fetching source GSP {source_id} (weight={weight}) from PVLive"
+                    )
+                    source_df = pvlive.between(
+                        start=start,
+                        end=end,
+                        entity_type="gsp",
+                        entity_id=source_id,
+                        dataframe=True,
+                        extra_fields="installedcapacity_mwp,capacity_mwp,updated_gmt",
+                    )
+                    fetched_cache[source_id] = source_df
+                else:
+                    logger.debug(
+                        f"  GSP {gsp_id} <- source GSP {source_id} (weight={weight}) served from cache"
+                    )
+
+                raw_total = fetched_cache[source_id]["generation_mw"].sum()
+                weighted = fetched_cache[source_id].copy()
+                weighted["generation_mw"] = weighted["generation_mw"] * weight
+                weighted_total = weighted["generation_mw"].sum()
+                logger.debug(
+                    f"  GSP {gsp_id} <- source GSP {source_id}: "
+                    f"raw generation sum={raw_total:.3f} MW, "
+                    f"after weight ({weight}): {weighted_total:.3f} MW"
+                )
+                source_dfs.append(weighted)
+
+            if not source_dfs:
+                logger.warning(
+                    f"No source data found for remapped GSP ID {gsp_id}, skipping"
+                )
+                continue
+
+            # Sum weighted generation across all sources, aligned by timestamp.
+            base = source_dfs[0][["datetime_gmt"]].copy()
+            base["generation_mw"] = sum(
+                df.set_index("datetime_gmt")["generation_mw"]
+                for df in source_dfs
+            ).values
+
+            # Sum capacities across all sources — generation is the total of all parts,
+            # so capacity must also be the total to avoid exceeding the 110% DP limit.
+            base["installedcapacity_mwp"] = sum(
+                df.set_index("datetime_gmt")["installedcapacity_mwp"]
+                for df in source_dfs
+            ).values
+            base["capacity_mwp"] = sum(
+                df.set_index("datetime_gmt")["capacity_mwp"]
+                for df in source_dfs
+            ).values
+            base["updated_gmt"] = source_dfs[0]["updated_gmt"].values
+            gsp_yield_df = base
+
+            final_total = base["generation_mw"].sum()
+            logger.info(
+                f"GSP ID {gsp_id} reconstruction complete: "
+                f"{len(weights_config)} source(s) combined, "
+                f"final generation sum={final_total:.3f} MW over {len(base)} timestamps"
+            )
+
+        # Normal direct fetch.
+        else:
+            logger.info(
+                f"Getting data for GSP ID {gsp_id}, out of {len(gsp_ids_to_process)} GSPs, for regime {regime}"
+            )
+            gsp_yield_df = pvlive.between(
+                start=start,
+                end=end,
+                entity_type="gsp",
+                entity_id=gsp_id,
+                dataframe=True,
+                extra_fields="installedcapacity_mwp,capacity_mwp,updated_gmt",
+            )
+            # Cache in case this ID is needed as a source for a later remapping target.
+            fetched_cache[gsp_id] = gsp_yield_df
 
         logger.debug(
             f"Got {len(gsp_yield_df)} gsp yield for gsp id {gsp_id} before filtering"
@@ -148,7 +295,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         gsp_yield_df["solar_generation_kw"] = 1000 * gsp_yield_df["generation_mw"]
         gsp_yield_df["target_datetime_utc"] = gsp_yield_df["datetime_gmt"]
         gsp_yield_df["pvlive_updated_utc"] = pd.to_datetime(gsp_yield_df["updated_gmt"])
-        
+
         # Convert capacity to kW
         gsp_yield_df["capacity_kw"] = gsp_yield_df["capacity_mwp"] * 1000
         gsp_yield_df["capacity_no_degradation_kw"] = gsp_yield_df["installedcapacity_mwp"] * 1000
