@@ -145,7 +145,6 @@ async def test_save_forecasts_to_data_platform(client):
     # Get the forecast back from the data platform
     get_latest_forecasts_request = dp.GetLatestForecastsRequest(
         energy_source=dp.EnergySource.SOLAR,
-        pivot_timestamp_utc=start_time + datetime.timedelta(days=1),
         location_uuid=location_uuid,
     )
     get_latest_forecasts_response = await client.get_latest_forecasts(
@@ -154,36 +153,12 @@ async def test_save_forecasts_to_data_platform(client):
     assert len(get_latest_forecasts_response.forecasts) == 1
     forecast = get_latest_forecasts_response.forecasts[0]
 
-    stream_forecast_data_request = dp.StreamForecastDataRequest(
-        energy_source=dp.EnergySource.SOLAR,
-        location_uuid=location_uuid,
-        forecasters=forecast.forecaster,
-        time_window=dp.TimeWindow(
-            start_timestamp_utc=start_time,
-            end_timestamp_utc=start_time + datetime.timedelta(hours=2),
-        ),
-    )
-    stream_forecast_data_response = client.stream_forecast_data(
-        stream_forecast_data_request,
-    )
-
-    values = []
-    async for d in stream_forecast_data_response:
-        values.append(d)
-
-    assert len(values) == 2
-
-    # Check values. a p50_fraction = solar_generation_kw * 1000 / effective_capacity_watts
-    # value 1: 100 kw * 1000 W/kw / 1_000_000 W = 0.1
-    # value 2: 500 kw * 1000 W/kw / 1_000_000 W = 0.5
-    assert np.isclose(values[0].p50_fraction, 0.1)
-    assert np.isclose(values[1].p50_fraction, 0.5)
-
     forecasts = await client.get_forecast_as_timeseries(
         dp.GetForecastAsTimeseriesRequest(
             location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
             forecaster=forecast.forecaster,
+            initialization_timestamp_utc=start_time,
             time_window=dp.TimeWindow(
                 start_timestamp_utc=start_time,
                 end_timestamp_utc=start_time + datetime.timedelta(hours=2),
@@ -191,6 +166,12 @@ async def test_save_forecasts_to_data_platform(client):
         )
     )
     assert len(forecasts.values) == 2
+
+    # Check values. a p50_value_fraction = solar_generation_kw * 1000 / effective_capacity_watts
+    # value 1: 100 kw * 1000 W/kw / 1_000_000 W = 0.1
+    # value 2: 500 kw * 1000 W/kw / 1_000_000 W = 0.5
+    assert np.isclose(forecasts.values[0].p50_value_fraction, 0.1)
+    assert np.isclose(forecasts.values[1].p50_value_fraction, 0.5)
 
 def test_get_update_capacity_df():
 
