@@ -10,7 +10,7 @@ from solar_consumer.save.save_data_platform import (
     save_forecasts_to_data_platform,
 )
 
-from dp_sdk.ocf import dp
+from ocf import dp
 
 
 @pytest.mark.asyncio(loop_scope="module")

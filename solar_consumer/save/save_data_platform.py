@@ -5,7 +5,7 @@ https://github.com/openclimatefix/data-platform
 """
 
 import datetime
-from dp_sdk.ocf import dp
+from ocf import dp
 import pandas as pd
 
 import asyncio

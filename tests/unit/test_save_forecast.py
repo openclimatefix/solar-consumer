@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 import dataclasses
 import uuid
-from dp_sdk.ocf import dp
+from ocf import dp
 from betterproto.lib.google.protobuf import Struct, Value
 import numpy as np
 
@@ -115,7 +115,7 @@ def test_save_forecasts_to_site_db(db_site_session):
 
 class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_generation_to_data_platform(self, client_mock):
 
         # Mock the list_locations call to return one national and three GSP locations
@@ -287,7 +287,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_nl_generation_to_data_platform(self, client_mock):
         """Test the NL branch of save_generation_to_data_platform."""
 
@@ -460,7 +460,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(Exception):
                         await save_generation_to_data_platform(case.input_df, client_mock, config_name="nl")
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_save_nl_generation_creates_locations_when_none_exist(self, client_mock):
         """Test that NL locations are created from CSV when none exist in data platform."""
 
@@ -568,7 +568,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
     # Tests
     # ------------------------------------------------------------------
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_empty_joined_df_returns_immediately(self, client_mock):
         """An empty joined_df must be returned as-is without any client calls."""
 
@@ -581,7 +581,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.empty)
         client_mock.get_observations_as_timeseries.assert_not_called()
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_no_existing_observations_returns_full_df(self, client_mock):
         """When the data platform returns no observations, the full df is returned unchanged."""
 
@@ -601,7 +601,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result), len(joined_df))
         client_mock.get_observations_as_timeseries.assert_called_once()
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_all_observations_already_exist_returns_empty(self, client_mock):
         """When every timestamp already exists in the data platform, the result is empty."""
 
@@ -626,7 +626,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(result.empty)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_partial_overlap_drops_only_duplicates(self, client_mock):
         """Only the timestamps already in the data platform are dropped."""
 
@@ -651,7 +651,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result["target_datetime_utc"].iloc[0], ts_new)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_observer_name_passed_through_to_request(self, client_mock):
         """The observer_name is passed directly to the GetObservationsAsTimeseriesRequest."""
 
@@ -673,7 +673,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(req.observer_name, "pvlive_in_day")
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_day_after_observer_name_passed_through_to_request(self, client_mock):
         """The observer_name 'pvlive_day_after' is passed directly to the request."""
 
@@ -695,7 +695,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(req.observer_name, "pvlive_day_after")
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_multiple_locations_each_queried(self, client_mock):
         """One get_observations_as_timeseries call is made per unique location_uuid."""
 
@@ -714,7 +714,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(client_mock.get_observations_as_timeseries.call_count, 3)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_cross_location_timestamp_isolation(self, client_mock):
         """
         Core regression test for the per-location filtering fix.
@@ -760,7 +760,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["location_uuid"].iloc[0], lid_b)
         self.assertEqual(result["target_datetime_utc"].iloc[0], ts)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_partial_drop_per_location_keeps_other_timestamps(self, client_mock):
         """
         For a single location with multiple timestamps, only the already-saved
@@ -794,7 +794,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         self.assertIn(ts_new_2, remaining_timestamps)
         self.assertNotIn(ts_saved, remaining_timestamps)
 
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_multiple_locations_independent_filtering(self, client_mock):
         """
         Each location's observations are filtered independently.

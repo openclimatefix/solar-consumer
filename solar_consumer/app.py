@@ -2,9 +2,8 @@
 Main Script to Fetch, Format, and Save NESO Solar Forecast Data
 
 This script orchestrates the following steps:
-1. Fetches solar forecast data using the `fetch_data` function.
-2. Formats the forecast data into `ForecastSQL` objects using `format_forecast.py`.
-3. Saves the formatted forecasts into the database using `save_forecast.py`.
+1. Fetches solar generation/forecast data using the `fetch_data` function.
+2. Saves the data via the chosen save method (CSV, data platform, or the legacy site database).
 """
 
 import os
@@ -12,9 +11,7 @@ import asyncio
 import pandas as pd
 from loguru import logger
 from solar_consumer.fetch_data import fetch_data
-from solar_consumer.format_forecast import format_to_forecast_sql
 from solar_consumer.save.save_csv import save_forecasts_to_csv
-from solar_consumer.save.save_database import save_forecasts_to_db
 from solar_consumer.save.save_site_database import (
     save_generation_to_site_db,
     save_forecasts_to_site_db,
@@ -23,10 +20,9 @@ from solar_consumer.save.save_data_platform import (
     save_generation_to_data_platform,
     save_forecasts_to_data_platform,
 )
-from nowcasting_datamodel.connection import DatabaseConnection
-from nowcasting_datamodel.models import Base_Forecast
+from pvsite_datamodel.connection import DatabaseConnection
 from solar_consumer import __version__  # Import version from __init__.py
-from dp_sdk.ocf import dp
+from ocf import dp
 from grpclib.client import Channel
 
 
@@ -74,37 +70,12 @@ async def app(
         if data.empty:
             logger.warning("No data fetched. Exiting the pipeline.")
             return
-        if save_method == "db":
-            # Initialize database connection
-            connection = DatabaseConnection(url=db_url, base=Base_Forecast, echo=False)
-
-            with connection.get_session() as session:
-                # Step 2: Formate and save the forecast data
-                # A. Format forecast to database object and save
-                logger.info(f"Formatting {len(data)} rows of forecast data.")
-                forecasts = format_to_forecast_sql(
-                    data=data,
-                    model_tag=model_tag,
-                    model_version=__version__,  # Use the version from __init__.py
-                    session=session,
-                )
-
-                if not forecasts:
-                    logger.warning("No forecasts generated. Exiting the pipeline.")
-                    return
-
-                logger.info(f"Generated {len(forecasts)} ForecastSQL objects.")
-
-                # Saving formatted forecasts to the database
-                logger.info("Saving forecasts to the database.")
-                save_forecasts_to_db(forecasts, session)
-
-        # B. Save directly to CSV
-        elif save_method == "csv":
+        # A. Save directly to CSV
+        if save_method == "csv":
             logger.info(f"Saving {len(data)} rows of forecast data directly to CSV.")
             save_forecasts_to_csv(data, csv_dir=csv_dir)
 
-        # C. TODO: Potential new save methods
+        # B. Save generation/forecasts to the site database
         elif save_method == "site-db":
             # Initialize database connection
             connection = DatabaseConnection(url=db_url, echo=False)
@@ -169,14 +140,14 @@ if __name__ == "__main__":
     # Step 1: Fetch the database URL from the environment variable
     db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
     country = os.getenv("COUNTRY", "gb")
-    save_method = os.getenv("SAVE_METHOD", "db").lower()  # Default to "db"
+    save_method = os.getenv("SAVE_METHOD", "data-platform").lower()  # Default to "data-platform"
     csv_dir = os.getenv("CSV_DIR")
     historic_or_forecast = os.getenv("HISTORIC_OR_FORECAST", "generation").lower()
 
     if save_method == "csv" and not csv_dir:
         logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
         exit(1)
-    if (save_method in ["db", "site-db"]) and (db_url is None):
+    if (save_method == "site-db") and (db_url is None):
         logger.error("DB_URL environment variable is not set. Exiting.")
         exit(1)
 

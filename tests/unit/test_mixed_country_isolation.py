@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import AsyncMock, patch
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 from betterproto.lib.google.protobuf import Struct, Value
 import uuid
 
@@ -9,7 +9,7 @@ import uuid
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
-    @patch("dp_sdk.ocf.dp.DataPlatformDataServiceStub")
+    @patch("ocf.dp.DataPlatformDataServiceStub")
     async def test_mixed_country_locations_isolation(self, client_mock):
         """
         Verify that operations for one country (NL) do not interact with locations 

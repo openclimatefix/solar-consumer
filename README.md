@@ -28,15 +28,15 @@ The solar consumer supports **RUVNL (Rajasthan, India)** real-time generation da
 
 Here are the different sources of data, and which methods can be used to save the results
 
-| Source | Country | CSV | Data Platform | DB (Legacy) | Site DB (Legacy) |
-| --- | ---  | --- | --- | --- |  ---|
-| PVLive | 🇬🇧 | ✅ | ✅ | | |
-| NESO forecast | 🇬🇧 | ✅ | ✅ | ✅| 
-| Ned-nl | 🇳🇱 | ✅ | ✅ | | ✅ |
-| Ned-nl forecast | 🇳🇱 | ✅ ||| ✅ |
-| Germany (ENTSOE) | 🇩🇪 |  ✅ ||| ✅ |
-| Elia Open Data | 🇧🇪 | ✅ | ✅ |  |  |
-| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ |  |  | ✅ |
+| Source | Country | CSV | Data Platform | Site DB (Legacy) |
+| --- | ---  | --- | --- | --- |
+| PVLive | 🇬🇧 | ✅ | ✅ | |
+| NESO forecast | 🇬🇧 | ✅ | ✅ | |
+| Ned-nl | 🇳🇱 | ✅ | ✅ | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ | | ✅ |
+| Germany (ENTSOE) | 🇩🇪 |  ✅ | | ✅ |
+| Elia Open Data | 🇧🇪 | ✅ | ✅ | |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | | ✅ |
 
 
 ## Requirements
@@ -87,21 +87,20 @@ docker compose logs -f
 The package provides three main functionalities:
 
 1. **Data Fetching**: Retrieves solar forecast data from the NESO API
-2. **Data Formatting**: Processes the data into standardized forecast objects
-3. **Data Storage**: Saves the formatted forecasts to a PostgreSQL database
+2. **Data Formatting**: Processes the data into a standardized forecast objects
+3. **Data Storage**: Saves the data to CSV, the data platform, or the legacy site database
 
 ### Key Components:
 
 - `fetch_data.py`: Handles API data retrieval
-- `format_forecast.py`: Converts raw data into forecast objects
-- `save_forecast.py`: Manages database operations
+- `save/`: Save methods (CSV, data platform, and the legacy site database)
 - `app.py`: Orchestrates the entire pipeline
 
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
-- `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Database Configuration
+- `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Site database configuration (only needed for `SAVE_METHOD="site-db"`)
 - `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
-- `SAVE_METHOD`: Ways to store the data. Options are ["db", "csv", "site-db"].  
+- `SAVE_METHOD`: Ways to store the data. Options are ["csv", "site-db", "data-platform"].  
   `site-db` is supported for NL, DE, and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
