@@ -32,7 +32,8 @@ dev = [
     "pytest",
     "black",
     "ruff",
-    "pandas"
+    "pandas",
+    "freezegun"
 ]
 
 [tool.setuptools-git-versioning]
