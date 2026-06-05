@@ -90,10 +90,8 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         - regime: either 'in-day' or 'day-after'
         - pvlive_updated_utc: timestamp of when pvlive last updated the data
     """
-
-    pvlive = PVLive(domain_url=GB_PVLIVE_DOMAIN_URL)
-    # ignore these gsp ids from PVLive as they are no longer used
-    ignore_gsp_ids = [5, 17, 41, 53, 75, 139, 140, 143, 157, 158, 163, 225, 257, 310]
+    gb_pvlive_domain_url = os.getenv("GB_PVLIVE_DOMAIN_URL", GB_PVLIVE_DOMAIN_URL)
+    pvlive = PVLive(domain_url=gb_pvlive_domain_url)
 
     datetime_utc = datetime.now(timezone.utc)
 
@@ -110,13 +108,14 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         )   - timedelta(minutes=30)  # so we don't include 00:00
 
     all_gsps_yields = []
-    n_gsps = int(os.getenv("UK_PVLIVE_N_GSPS", 342))
-    for gsp_id in range(0, n_gsps + 1):
-        if gsp_id in ignore_gsp_ids:
-            continue
+    gsp_ids = pvlive.gsp_ids
+    n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", 342))
+    if n_gsps is not None:
+        gsp_ids = [id for id in gsp_ids if id < n_gsps]
+    for gsp_id in gsp_ids:
 
         logger.info(
-            f"Getting data for GSP ID {gsp_id}, out of {n_gsps} GSPs, for regime {regime}"
+            f"Getting data for GSP ID {gsp_id}, out of {len(gsp_ids)} GSPs, for regime {regime}"
         )
 
         gsp_yield_df: pd.DataFrame = pvlive.between(

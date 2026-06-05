@@ -9,7 +9,7 @@ from ocf import dp
 import pandas as pd
 
 import asyncio
-import logging
+from loguru import logger
 from collections import defaultdict
 
 import itertools
@@ -29,12 +29,21 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl",
+            "country": "nl"
+        },
+        "nl_no_curtailment": {
+            "id_key": "region_id",
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
+            "metadata_type": "number",  
+            "observer_name": "nednl_no_curtailment",
+            "country": "nl"
         },
         "be": {
             "id_key": "region",
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",  
             "observer_name": "elia_be",
+            "country": "be"
         },
         "gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
@@ -42,6 +51,7 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
             "metadata_type": "number", 
             "observer_name": None, 
+            "country": "gb"
         },
         "ind_rajasthan": {
             "id_key": "name",
@@ -69,9 +79,11 @@ async def _execute_async_tasks(
     if not tasks:
         return []
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    if not ignore_exceptions:
-        for exc in filter(lambda x: isinstance(x, Exception), results):
+    for exc in filter(lambda x: isinstance(x, Exception), results):
+        if not ignore_exceptions:
             raise exc
+        else:
+            logger.warning(f"Task failed: {exc}")
     return results
 
 
@@ -193,13 +205,86 @@ async def _create_locations_from_csv(
         )
         await client.create_location(create_location_request)
     
-    logging.warning(
+    logger.warning(
         f"No {country.upper()} locations found in data platform. Created new locations."
     )
 
 
+async def _filter_existing_observations(
+    joined_df: pd.DataFrame,
+    client: dp.DataPlatformDataServiceStub,
+    observer_name: str,
+) -> pd.DataFrame:
+    """Filter out observations that already exist in the data platform."""
+    if joined_df.empty:
+        return joined_df
+
+    # Get the locations
+    location_uuids = joined_df["location_uuid"].unique()
+    
+    # Get the min and max timestamps
+    min_timestamp = joined_df["target_datetime_utc"].min()
+    max_timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+    # Read generation values from data platform, in parallel for all locations.
+    read_observations_tasks = []
+    for lid in location_uuids:
+        req = dp.GetObservationsAsTimeseriesRequest(
+            location_uuid=lid,
+            observer_name=observer_name,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=min_timestamp,
+                end_timestamp_utc=max_timestamp
+            )
+        )
+        read_observations_tasks.append(asyncio.create_task(client.get_observations_as_timeseries(req)))
+
+    if len(read_observations_tasks) > 0:
+        logger.info(f"reading observations for {len(read_observations_tasks)}  locations")
+        await _execute_async_tasks(read_observations_tasks, ignore_exceptions=True)
+
+    # Compare timestamps already in the data platform
+    # (existing_pairs built below, together with the filter)
+
+    # Build a set of (location_uuid, timestamp) pairs that already exist in the data platform.
+    # We must match on both dimensions so that a timestamp saved for one location does not
+    # accidentally suppress the same timestamp for a different location.
+    existing_rows = []
+    for lid, task in zip(location_uuids, read_observations_tasks):
+        try:
+            for obs in task.result().values:
+                existing_rows.append({"location_uuid": lid, "target_datetime_utc": obs.timestamp_utc})
+        except Exception as e:
+            logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
+
+    # if any (location, timestamp) pairs already in the data-platform, remove from data in app
+    if existing_rows:
+        existing_pairs_df = pd.DataFrame(existing_rows).assign(
+            target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"])
+        )
+        existing_pairs_df["_exists"] = True
+
+        merged = joined_df.merge(
+            existing_pairs_df,
+            on=["location_uuid", "target_datetime_utc"],
+            how="left",
+        )
+        idx = merged["_exists"].fillna(False)
+        if idx.any():
+            duplicate_location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+            logger.warning(
+                f"Found {idx.sum()} values already existing in data platform "
+                f"for location_uuid {duplicate_location_uuids}. "
+                "These values will be dropped."
+            )
+            joined_df = joined_df[~idx.values]
+
+    return joined_df
+
+
 async def save_generation_to_data_platform(
-    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, country: str = "gb"
+    data_df: pd.DataFrame, client: dp.DataPlatformDataServiceStub, config_name: str = "gb"
 ) -> None:
     """
     Saves model data via the data platform.
@@ -220,7 +305,8 @@ async def save_generation_to_data_platform(
         country: Country identifier ('gb', 'nl', or 'be')
     """
     tasks: list[asyncio.Task] = []
-    config = _get_country_config(country)
+    config = _get_country_config(config_name)
+    country = config['country']
     
     id_key = config["id_key"]
     # capacity_col and capacity_multiplier are no longer needed as we standardized on capacity_kw
@@ -251,7 +337,7 @@ async def save_generation_to_data_platform(
             )
         )
     if len(tasks) > 0:
-        logging.info("creating %d observers", len(tasks))
+        logger.info(f"creating {len(tasks)} observers")
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
@@ -276,7 +362,7 @@ async def save_generation_to_data_platform(
     has_capacity_data = "capacity_kw" in data_df.columns
     if not has_capacity_data:
         data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
-        logging.info("No capacity info found, so using max generation")
+        logger.info("No capacity info found, so using max generation")
 
     if country == "ind_rajasthan":
         data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str)
@@ -350,10 +436,9 @@ async def save_generation_to_data_platform(
             f"This is unexpected - locations should have been created or already exist."
         )
 
-    logging.info(
-        "handling %s data for %d matched locations",
-        country.upper(),
-        joined_df["location_uuid"].nunique(),
+    logger.info(
+        f"handling {country.upper()} data "
+        f"for {joined_df['location_uuid'].nunique()} matched locations",
     )
 
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
@@ -367,7 +452,10 @@ async def save_generation_to_data_platform(
             lid = row.location_uuid
             t = row.target_datetime_utc
             new_cap = row.new_effective_capacity_watts
+            old_cap = row.effective_capacity_watts
             metadata = row.metadata
+
+            logger.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
 
             # this is specific to GB consumer at the moment
             if "capacity_no_degradation_kw" in updates_df.columns:
@@ -388,8 +476,15 @@ async def save_generation_to_data_platform(
             tasks.append(asyncio.create_task(client.update_location(req)))
 
         if len(tasks) > 0:
-            logging.info("updating %d %s location capacities", len(tasks), country.upper())
-            await _execute_async_tasks(tasks, ignore_exceptions=False)
+            logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
+            # NL was previously ignoring these exceptions
+            await _execute_async_tasks(tasks, ignore_exceptions=True)
+
+    # Determine observer name based on country
+    observer_name = config["observer_name"]
+    if observer_name is None:  # GB needs regime from data
+        regime: str = data_df["regime"].values[0]
+        observer_name = f"pvlive_{regime.replace('-', '_')}"
 
     # 3. Generate the CreateObservationRequest objects from the DataFrame.
 
@@ -397,13 +492,20 @@ async def save_generation_to_data_platform(
     # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
     if has_capacity_data:
-      idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
-      if idx.any():
-          location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-          logging.warning(f"Found {idx.sum()} values above 109% of capacity \
-                          for location_uuid {location_uuids}. \
-                          These values will be dropped.")
-          joined_df = joined_df[~idx]
+        idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
+        if idx.any():
+            location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+            logger.warning(f"Found {idx.sum()} values above 109% of capacity \
+                            for location_uuid {location_uuids}. \
+                            These values will be dropped.")
+            joined_df = joined_df[~idx]
+
+    # Filter out observations that already exist in the data platform
+    joined_df = await _filter_existing_observations(
+        joined_df=joined_df,
+        client=client,
+        observer_name=observer_name,
+    )
 
 
     observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
@@ -419,11 +521,7 @@ async def save_generation_to_data_platform(
         )
         energy_source_by_loc[lid] = dp.EnergySource[es]
 
-    # Determine observer name based on country
-    observer_name = config["observer_name"]
-    if observer_name is None:  # GB needs regime from data
-        regime: str = data_df["regime"].values[0]
-        observer_name = f"pvlive_{regime.replace('-', '_')}"
+    
 
     tasks = [
         asyncio.create_task(
@@ -440,7 +538,7 @@ async def save_generation_to_data_platform(
     ]
 
     if len(tasks) > 0:
-        logging.info("creating observations for %d %s locations", len(tasks), country.upper())
+        logger.info(f"creating observations for {len(tasks)} {country.upper()} locations")
         await _execute_async_tasks(tasks)
 
 async def save_forecasts_to_data_platform(
@@ -466,8 +564,8 @@ async def save_forecasts_to_data_platform(
     """
     # 1. Ensure the forecaster exists
     forecaster = await create_forecaster_if_not_exists(client, model_tag, model_version)
-    logging.info("Using forecaster: %s (version: %s)", forecaster.forecaster_name, forecaster.forecaster_version)
-    
+    logger.info(f"Using forecaster: {forecaster.forecaster_name} (version: {forecaster.forecaster_version})")
+
     # 2. Get the national location (gsp_id=0)
     locations_data = await _list_locations(
         client,
@@ -532,7 +630,7 @@ async def save_forecasts_to_data_platform(
         )    
     
     if not forecast_values:
-        logging.warning("No valid forecast values to save.")
+        logger.warning("No valid forecast values to save.")
         return
     
     # 4. Save forecast using the forecaster
@@ -546,11 +644,9 @@ async def save_forecasts_to_data_platform(
         )
     )
     
-    logging.info(
-        "Saved %d NESO forecast values to data platform for location %s (init_time: %s)",
-        len(forecast_values),
-        location_uuid,
-        init_time_utc.isoformat(),
+    logger.info(
+        f"Saved {len(forecast_values)} forecast values to data platform for "
+        f"location {location_uuid} (init_time: {init_time_utc})",
     )
 
 async def create_forecaster_if_not_exists(

@@ -165,7 +165,7 @@ async def test_save_generation_to_data_platform(client, config):
     fake_data = pd.DataFrame(config["test_data"])
     
     # Save the data to data platform
-    await save_generation_to_data_platform(fake_data, client=client, country=country)
+    await save_generation_to_data_platform(fake_data, client=client, config_name=country)
 
     # Verify observations were created for each location
     for location_name, location_uuid in location_uuids.items():
@@ -238,7 +238,7 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
         expected_location_name = "be_belgium"
 
     # Save the data - this should create default locations
-    await save_generation_to_data_platform(fake_data, client=client, country=country)
+    await save_generation_to_data_platform(fake_data, client=client, config_name=country)
 
     # Verify that default locations were created and data was saved
     list_locations_request = dp.ListLocationsRequest(
@@ -303,7 +303,7 @@ async def test_save_generation_empty_dataframe(client, country):
         )
 
     # This should not raise an error
-    await save_generation_to_data_platform(empty_data, client=client, country=country)
+    await save_generation_to_data_platform(empty_data, client=client, config_name=country)
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -375,7 +375,7 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
         })
 
     # Save the data
-    await save_generation_to_data_platform(fake_data, client=client, country=country)
+    await save_generation_to_data_platform(fake_data, client=client, config_name=country)
 
     # Verify no observations were created (zero capacity filtered out)
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
@@ -431,7 +431,7 @@ async def test_save_generation_missing_location_raises_error(client, country, ob
 
     # Attempt to save data - should raise ValueError
     with pytest.raises(ValueError) as exc_info:
-        await save_generation_to_data_platform(fake_data, client=client, country=country)
+        await save_generation_to_data_platform(fake_data, client=client, config_name=country)
     
     # Verify the error message contains expected information
     error_message = str(exc_info.value)
