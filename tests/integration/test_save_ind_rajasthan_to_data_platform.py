@@ -37,7 +37,7 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
     )
 
     # Save the data - should create locations from CSV then write observations.
-    await save_generation_to_data_platform(fake_data, client=client, country=COUNTRY)
+    await save_generation_to_data_platform(fake_data, client=client, config_name=COUNTRY)
 
     # Verify both locations were created from the CSV.
     # Query SOLAR and WIND separately since UNSPECIFIED doesn't match either.
@@ -102,4 +102,4 @@ async def test_save_ind_rajasthan_empty_dataframe(client):
     empty_data = pd.DataFrame(
         columns=["energy_type", "target_datetime_utc", "solar_generation_kw", "capacity_kw"]
     )
-    await save_generation_to_data_platform(empty_data, client=client, country=COUNTRY)
+    await save_generation_to_data_platform(empty_data, client=client, config_name=COUNTRY)

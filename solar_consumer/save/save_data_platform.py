@@ -58,6 +58,7 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.STATE],
             "metadata_type": "string",
             "observer_name": "ruvnl",
+            "country": "ind_rajasthan"
         },
     }
     return configs.get(country, configs["gb"])
