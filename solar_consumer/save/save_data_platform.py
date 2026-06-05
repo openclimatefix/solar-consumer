@@ -360,8 +360,9 @@ async def save_generation_to_data_platform(
     # Prepare incoming data copy
     data_df = data_df.copy()
 
-    has_capacity_data = "capacity_kw" in data_df.columns
-    if not has_capacity_data:
+    # If the source data has no capacity, define it as the max generation so capacity_kw is
+    # always present.
+    if "capacity_kw" not in data_df.columns:
         data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
         logger.info("No capacity info found, so using max generation")
 
@@ -445,41 +446,40 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    if has_capacity_data:
-        updates_df = get_update_capacity_df(joined_df)
+    updates_df = get_update_capacity_df(joined_df)
 
-        tasks = []
-        for row in updates_df.itertuples():
-            lid = row.location_uuid
-            t = row.target_datetime_utc
-            new_cap = row.new_effective_capacity_watts
-            old_cap = row.effective_capacity_watts
-            metadata = row.metadata
+    tasks = []
+    for row in updates_df.itertuples():
+        lid = row.location_uuid
+        t = row.target_datetime_utc
+        new_cap = row.new_effective_capacity_watts
+        old_cap = row.effective_capacity_watts
+        metadata = row.metadata
 
-            logger.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
+        logger.info(f"Updating {lid} from {old_cap} to {new_cap} at {t}")
 
-            # this is specific to GB consumer at the moment
-            if "capacity_no_degradation_kw" in updates_df.columns:
-                metadata = format_metadata_from_dict(metadata=row.metadata)
-                metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
-                metadata = Struct(fields=metadata)
-            else:
-                metadata = None
+        # this is specific to GB consumer at the moment
+        if "capacity_no_degradation_kw" in updates_df.columns:
+            metadata = format_metadata_from_dict(metadata=row.metadata)
+            metadata["capacity_no_degradation_kw"] = Value(number_value=int(row.capacity_no_degradation_kw))
+            metadata = Struct(fields=metadata)
+        else:
+            metadata = None
 
-            energy_source = dp.EnergySource[row.energy_source] if hasattr(row, 'energy_source') else dp.EnergySource.SOLAR
-            req = dp.UpdateLocationRequest(
-                location_uuid=lid,
-                energy_source=energy_source,
-                new_effective_capacity_watts=int(new_cap),
-                valid_from_utc=t,
-                new_metadata=metadata,
-            )
-            tasks.append(asyncio.create_task(client.update_location(req)))
+        energy_source = dp.EnergySource[row.energy_source] if hasattr(row, 'energy_source') else dp.EnergySource.SOLAR
+        req = dp.UpdateLocationRequest(
+            location_uuid=lid,
+            energy_source=energy_source,
+            new_effective_capacity_watts=int(new_cap),
+            valid_from_utc=t,
+            new_metadata=metadata,
+        )
+        tasks.append(asyncio.create_task(client.update_location(req)))
 
-        if len(tasks) > 0:
-            logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
-            # NL was previously ignoring these exceptions
-            await _execute_async_tasks(tasks, ignore_exceptions=True)
+    if len(tasks) > 0:
+        logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
+        # NL was previously ignoring these exceptions
+        await _execute_async_tasks(tasks, ignore_exceptions=True)
 
     # Determine observer name based on country
     observer_name = config["observer_name"]
@@ -492,14 +492,13 @@ async def save_generation_to_data_platform(
     # lets check none of the values are above 109% of the capacity
     # the limit is 110% but sometimes there are some rounding errors
     # if they are lets remove them
-    if has_capacity_data:
-        idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
-        if idx.any():
-            location_uuids = joined_df.loc[idx, "location_uuid"].unique()
-            logger.warning(f"Found {idx.sum()} values above 109% of capacity \
-                            for location_uuid {location_uuids}. \
-                            These values will be dropped.")
-            joined_df = joined_df[~idx]
+    idx = joined_df["solar_generation_kw"] > (joined_df["capacity_kw"] * 1.09)
+    if idx.any():
+        location_uuids = joined_df.loc[idx, "location_uuid"].unique()
+        logger.warning(f"Found {idx.sum()} values above 109% of capacity \
+                        for location_uuid {location_uuids}. \
+                        These values will be dropped.")
+        joined_df = joined_df[~idx]
 
     # Filter out observations that already exist in the data platform
     joined_df = await _filter_existing_observations(
