@@ -36,7 +36,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl forecast | 🇳🇱 | ✅ | | ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ | | ✅ |
 | Elia Open Data | 🇧🇪 | ✅ | ✅ | |
-| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | | ✅ |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ | ✅ |
 
 
 ## Requirements
@@ -102,6 +102,7 @@ The package provides three main functionalities:
 - `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
 - `SAVE_METHOD`: Ways to store the data. Options are ["csv", "site-db", "data-platform"].  
   `site-db` is supported for NL, DE, and India (RUVNL).
+  `data-platform` is supported for UK (PVLive, NESO forecast), NL (Ned-nl), BE (Elia), and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
 - `UK_PVLIVE_MAX_GSP_ID=342`: For UK PVLive, the amount of gsps we pull data for.
