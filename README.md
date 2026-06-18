@@ -33,7 +33,7 @@ Here are the different sources of data, and which methods can be used to save th
 | PVLive | 🇬🇧 | ✅ | ✅ | |
 | NESO forecast | 🇬🇧 | ✅ | ✅ | |
 | Ned-nl | 🇳🇱 | ✅ | ✅ | ✅ |
-| Ned-nl forecast | 🇳🇱 | ✅ | | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ | ✅ | ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ | | ✅ |
 | Elia Open Data | 🇧🇪 | ✅ | ✅ | |
 | RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ | ✅ |
