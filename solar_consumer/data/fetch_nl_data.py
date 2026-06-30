@@ -290,7 +290,26 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
     logger.debug(
         f"Fetching day-ahead prices from ENTSOE API for {country_code} from {start} to {end}"
     )
-    data = client.query_day_ahead_prices(country_code, start=start, end=end)
+    # Retry transient failures when fetching ENTSOE day-ahead prices.
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            data = client.query_day_ahead_prices(
+                country_code,
+                start=start,
+                end=end,
+            )
+            break
+
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+
+            if attempt == max_retries - 1:
+                logger.exception("Failed to fetch ENTSOE day-ahead prices after all retries.")
+                raise e
+
+            time.sleep(2**attempt)
 
     # validate data
     if data.empty:
