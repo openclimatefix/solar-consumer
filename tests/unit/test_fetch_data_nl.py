@@ -11,6 +11,7 @@ from solar_consumer.data.fetch_nl_data import (
 )
 from solar_consumer.data.fetch_nl_data import get_entsoe_day_prices, make_potential_generation
 from unittest.mock import MagicMock
+from entsoe.exceptions import NoMatchingDataError
 
 
 @patch("solar_consumer.data.fetch_nl_data.requests.Session.get")
@@ -182,3 +183,27 @@ def test_make_potential_generation(mock_entsoe_pandas_client):
     assert (
         potential_generation.loc[~negative_prices_idx, "solar_generation_no_curtailment_kw"] == 1
     ).all()
+
+
+
+@patch("solar_consumer.data.fetch_nl_data.EntsoePandasClient")
+def test_make_potential_generation_with_enstoe_error(mock_entsoe_pandas_client):
+    start = pd.Timestamp("2026-05-10").tz_localize("UTC")
+    end = pd.Timestamp("2026-05-11").tz_localize("UTC")
+
+    data = pd.DataFrame(
+        {
+            "target_datetime_utc": pd.date_range(start=start, end=end, freq="15min"),
+            "solar_generation_kw": [1] * 97,
+        }
+    )
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    # make mock function raise an exception
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.side_effect = NoMatchingDataError()
+
+    potential_generation = make_potential_generation(data=data)
+    assert potential_generation is not None
+    assert isinstance(potential_generation, pd.DataFrame)
+    assert not potential_generation.empty
+    assert len(potential_generation) == 97  # 15 minute intervals in one day + 1
