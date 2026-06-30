@@ -4,6 +4,7 @@ import os
 import requests
 from datetime import datetime, timedelta, timezone
 from entsoe import EntsoePandasClient
+from entsoe.exceptions import NoMatchingDataError
 import numpy as np
 import pandas as pd
 import time
@@ -302,6 +303,16 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
             )
             break
 
+        except NoMatchingDataError as e:
+            logger.warning(f"No matching data found for ENTSOE API request: {e}")
+
+            if attempt == max_retries - 1:
+                logger.warning("Failed to fetch ENTSOE day-ahead prices after all retries. " \
+                "Using empty DataFrame.")
+                data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh", 
+                                             "target_datetime_utc"])
+                data.index.name = "target_datetime_utc"
+
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
 
@@ -314,7 +325,8 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
     # validate data
     if data.empty:
         logger.warning("No data returned from ENTSOE API.")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=
+            ["NL_day_ahead_prices_euros_per_mwh", "target_datetime_utc"])
 
     # check there are not nans
     if data.isnull().values.any():
@@ -350,7 +362,7 @@ def make_potential_generation(data: pd.DataFrame) -> pd.DataFrame:
     # get prices for that day
     api_key = os.getenv("APIKEY_ENTSOE")
     prices = get_entsoe_day_prices(start=start, end=end, api_key=api_key)
-    data = data.merge(prices, on="target_datetime_utc")
+    data = data.merge(prices, on="target_datetime_utc", how="left")
 
     # curtailment modelling.
     # 2026-05-13
