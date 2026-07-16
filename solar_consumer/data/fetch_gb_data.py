@@ -185,7 +185,12 @@ def reconstruct_gsp_from_weights(
 
         raw_total = fetched_cache[source_id]["generation_mw"].sum()
         weighted = fetched_cache[source_id].copy()
+
+        # scale generation_mw, installedcapacity_mwp, capacity_mwp
         weighted["generation_mw"] = weighted["generation_mw"] * weight
+        weighted["installedcapacity_mwp"] = weighted["installedcapacity_mwp"] * weight
+        weighted["capacity_mwp"] = weighted["capacity_mwp"] * weight
+
         weighted_total = weighted["generation_mw"].sum()
         logger.debug(
             f"  GSP {gsp_id} <- source GSP {source_id}: "
