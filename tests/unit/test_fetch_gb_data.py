@@ -358,6 +358,8 @@ def test_reconstruct_fractional_weight():
 
     assert result is not None
     assert np.allclose(result["generation_mw"].values, 5.0)
+    assert np.allclose(result["capacity_mwp"].values, 45.0)
+    assert np.allclose(result["installedcapacity_mwp"].values, 50.0)
 
 
 def test_reconstruct_negative_weight():
