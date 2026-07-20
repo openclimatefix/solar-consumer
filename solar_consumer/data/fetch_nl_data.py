@@ -156,6 +156,11 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                     df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
                     df = df[df["validto (UTC)"] < 
                             df["lastupdate (UTC)"].max() - pd.Timedelta(minutes=30)]
+                    
+                    logger.info(
+                        f"After trimming, data fetched up to {df['validfrom (UTC)'].max()} "
+                        f"with last update at {df['lastupdate (UTC)'].max()}"
+                    )
 
                 # Append to main DataFrame
                 all_data = pd.concat([all_data, df], ignore_index=True)
