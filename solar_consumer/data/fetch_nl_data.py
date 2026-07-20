@@ -155,7 +155,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
                     # https://github.com/openclimatefix/solar-consumer/issues/237
                     df["validto (UTC)"] = pd.to_datetime(df["validto (UTC)"])
                     df = df[df["validto (UTC)"] < 
-                            df["lastupdate (UTC)"].max() - pd.Timedelta(minutes=30)]
+                            df["lastupdate (UTC)"].max() + pd.Timedelta(minutes=30)]
 
                 # Append to main DataFrame
                 all_data = pd.concat([all_data, df], ignore_index=True)
