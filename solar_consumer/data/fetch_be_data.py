@@ -1,11 +1,13 @@
-import requests
+from datetime import UTC, datetime, timedelta
+
 import pandas as pd
+import requests
 from loguru import logger
-from datetime import datetime, timedelta, timezone
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from solar_consumer.constants import BE_FORECAST_URL, BE_GENERATION_URL
+
 
 def _build_session() -> requests.Session:
     session = requests.Session()
@@ -217,7 +219,7 @@ def fetch_be_data_forecast(days: int = 1) -> pd.DataFrame:
           - forecast_type: Forecast type identifier
           - capacity_mwp: Monitored capacity in MWp
     """
-    end_utc = datetime.now(timezone.utc)
+    end_utc = datetime.now(UTC)
     start_utc = end_utc - timedelta(days=days)
 
     raw_records = _fetch_records_time_window(
@@ -259,7 +261,7 @@ def fetch_be_data_generation(
           - forecast_type: Forecast type identifier
           - capacity_mwp: Monitored capacity in MWp
     """
-    end_utc = datetime.now(timezone.utc)
+    end_utc = datetime.now(UTC)
     start_utc = end_utc - timedelta(days=days)
 
     raw_records = _fetch_records_time_window(

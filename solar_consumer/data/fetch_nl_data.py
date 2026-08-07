@@ -1,14 +1,15 @@
 """Get Ned NL forecast and generation"""
 
 import os
-import requests
-from datetime import datetime, timedelta, timezone
-from entsoe import EntsoePandasClient
-from entsoe.exceptions import NoMatchingDataError
+import time
+from datetime import UTC, datetime, timedelta
+
+import dotenv
 import numpy as np
 import pandas as pd
-import time
-import dotenv
+import requests
+from entsoe import EntsoePandasClient
+from entsoe.exceptions import NoMatchingDataError
 from loguru import logger
 from tqdm import tqdm
 
@@ -50,8 +51,9 @@ def fetch_with_retry(
             logger.info("Response:", response.json())
             return None
 
-        except Exception as e:
-            logger.error(f"Request failed: {str(e)}")
+        # any failure of the request is logged and treated as "no data"
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"Request failed: {e!s}")
             return None
 
     logger.warning("Max retries reached")
@@ -70,7 +72,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
 
     # Initialize empty DataFrame to store all results
     all_data = pd.DataFrame()
-    now = datetime.now(tz=timezone.utc)  # Use UTC timezone
+    now = datetime.now(tz=UTC)  # Use UTC timezone
 
     # Define date range
     if historic_or_forecast == "generation":
@@ -102,7 +104,7 @@ def fetch_nl_data(historic_or_forecast: str = "generation"):
         # if forecast, only get national, if generation get all sub regions
         n_points = 13 if historic_or_forecast == "generation" else 1
 
-        for point in range(0, n_points):
+        for point in range(n_points):
             logger.debug(f"Fetching data for point {point} on {current_date.date()}")
             params = {
                 "point": point,
@@ -325,7 +327,7 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
 
             if attempt == max_retries - 1:
                 logger.exception("Failed to fetch ENTSOE day-ahead prices after all retries.")
-                raise e
+                raise
 
             time.sleep(2**attempt)
 

@@ -1,15 +1,14 @@
-import pandas as pd
-import urllib.request
-import urllib.parse
 import json
 import os
+import urllib.parse
+import urllib.request
+from datetime import UTC, datetime, timedelta
+
+import pandas as pd
 import yaml
 from loguru import logger
-from pydantic import BaseModel, Field
-
-from datetime import datetime, timedelta, timezone
-
 from pvlive_api import PVLive
+from pydantic import BaseModel, Field
 
 from solar_consumer.constants import GB_NESO_FORECAST_URL, GB_PVLIVE_DOMAIN_URL
 
@@ -92,7 +91,7 @@ class GSPMergeConfig(BaseModel):
     pvlive_merge_weights: list[GSPMergeSource] = Field(default_factory=list)
 
 
-def load_gsp_merge_weights(config_path: str = None) -> dict[int, GSPMergeConfig]:
+def load_gsp_merge_weights(config_path: str | None = None) -> dict[int, GSPMergeConfig]:
     """
     Load GSP merge weight config from YAML into validated Pydantic models.
 
@@ -300,10 +299,10 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
         for src in config.pvlive_merge_weights:
             required_source_ids.add(src.gsp_id)
 
-    datetime_utc = datetime.now(timezone.utc)
+    datetime_utc = datetime.now(UTC)
 
     if regime == "in-day":
-        backfill_hours = int(os.getenv("UK_PVLIVE_BACKFILL_HOURS", 2))
+        backfill_hours = int(os.getenv("UK_PVLIVE_BACKFILL_HOURS", "2"))
         start = datetime_utc - timedelta(hours=backfill_hours)
         end = datetime_utc + timedelta(minutes=30)
     else:
@@ -320,7 +319,7 @@ def fetch_gb_data_historic(regime: str) -> pd.DataFrame:
     # This avoids a hardcoded ignore list — IDs that no longer exist in PVLive
     # simply won't appear here.
     gsp_ids = pvlive.gsp_ids
-    n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", 348))
+    n_gsps = int(os.getenv("UK_PVLIVE_MAX_GSP_ID", "348"))
     
     gsp_ids = [id for id in gsp_ids if id <= n_gsps]
 

@@ -1,12 +1,12 @@
+import datetime
+
+import betterproto
 import pandas as pd
 import pytest
-import datetime
 from betterproto.lib.google.protobuf import Struct, Value
-import betterproto
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
-
 from ocf import dp
 
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 # Country-specific configuration for parametrized tests
 NL_NATIONAL_CONFIG = {
@@ -149,7 +149,7 @@ async def test_save_generation_to_data_platform(client, config):
             location_type=location_type,
             effective_capacity_watts=loc_config["capacity"],
             metadata=metadata,
-            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
         )
         create_location_response = await client.create_location(create_location_request)
         location_uuids[loc_config["name"]] = create_location_response.location_uuid
@@ -174,8 +174,8 @@ async def test_save_generation_to_data_platform(client, config):
             observer_name=observer_name,
             energy_source=dp.EnergySource.SOLAR,
             time_window=dp.TimeWindow(
-                start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-                end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+                start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+                end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
             ),
         )
        
@@ -190,7 +190,7 @@ async def test_save_generation_to_data_platform(client, config):
     for location_name, expected_capacity in config.get("capacity_updates", {}).items():
         location_uuid = location_uuids[location_name]
         # Use a pivot time after the update to ensure we see the new capacity
-        pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc)
+        pivot_time = datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC)
         get_location_request = dp.GetLocationRequest(
             location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
@@ -274,8 +274,8 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
         observer_name=observer_name,
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
-            start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-            end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+            start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+            end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
         ),
     )
 
@@ -342,7 +342,7 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
             geometry_wkt="POINT(5.00 50.00)",
             effective_capacity_watts=100_000_000,
             metadata=metadata,
-            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
         )
         create_location_response = await client.create_location(create_location_request)
         location_uuid = create_location_response.location_uuid
@@ -383,8 +383,8 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
         observer_name=observer_name,
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
-            start_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
-            end_timestamp_utc=datetime.datetime(2025, 1, 3, tzinfo=datetime.timezone.utc),
+            start_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
+            end_timestamp_utc=datetime.datetime(2025, 1, 3, tzinfo=datetime.UTC),
         ),
     )
 

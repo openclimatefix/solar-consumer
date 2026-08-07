@@ -2,16 +2,18 @@
 Test Suite for `fetch_data` for the NL
 """
 
-from unittest.mock import patch, Mock
+from unittest.mock import MagicMock, Mock, patch
+
 import numpy as np
 import pandas as pd
-from solar_consumer.data.fetch_nl_data import (
-    fetch_nl_data,
-    check_national_capacity_equals_regional_sum,
-)
-from solar_consumer.data.fetch_nl_data import get_entsoe_day_prices, make_potential_generation
-from unittest.mock import MagicMock
 from entsoe.exceptions import NoMatchingDataError
+
+from solar_consumer.data.fetch_nl_data import (
+    check_national_capacity_equals_regional_sum,
+    fetch_nl_data,
+    get_entsoe_day_prices,
+    make_potential_generation,
+)
 
 
 @patch("solar_consumer.data.fetch_nl_data.requests.Session.get")

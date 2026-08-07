@@ -1,6 +1,7 @@
 import os
-from loguru import logger
+
 import pandas as pd
+from loguru import logger
 
 
 def save_forecasts_to_csv(forecasts: pd.DataFrame, csv_dir: str):
@@ -34,4 +35,4 @@ def save_forecasts_to_csv(forecasts: pd.DataFrame, csv_dir: str):
         logger.info(f"Successfully saved {len(forecasts)} forecasts to CSV.")
     except Exception as e:
         logger.error(f"An error occurred while saving forecasts to CSV: {e}")
-        raise e
+        raise

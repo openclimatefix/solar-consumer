@@ -1,10 +1,11 @@
+from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from typing import Generator
+from pvsite_datamodel.sqlmodels import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from pvsite_datamodel.sqlmodels import Base
 from testcontainers.postgres import PostgresContainer
-from datetime import datetime, timedelta, timezone
 
 # Shared Test Configuration Constants
 RESOURCE_ID = "db6c038f-98af-4570-ab60-24d71ebd0ae5"
@@ -76,7 +77,7 @@ def test_config():
 # Mocking the NL response data
 @pytest.fixture(scope="function")
 def nl_mock_data():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return {
     "hydra:member": [
         {
@@ -99,7 +100,7 @@ def nl_mock_data():
 # Mocking the NL response data
 @pytest.fixture(scope="function")
 def nl_mock_data_small_percentage():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return {
     "hydra:member": [
         {

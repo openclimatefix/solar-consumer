@@ -1,9 +1,10 @@
 import os
-import pandas as pd
-import dotenv
-from datetime import datetime, timedelta, timezone
-import requests
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
+
+import dotenv
+import pandas as pd
+import requests
 from loguru import logger
 
 from solar_consumer.constants import DE_ENTSOE_URL
@@ -27,7 +28,7 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     assert historic_or_forecast == "generation", "Only 'generation' supported for the time being"
 
     # Fetches data from last 24 hours from current time
-    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     start = now - timedelta(hours=24)
     period_start = start.strftime("%Y%m%d%H%M")
     period_end = now.strftime("%Y%m%d%H%M")
