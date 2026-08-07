@@ -4,21 +4,18 @@ https://github.com/openclimatefix/data-platform
 
 """
 
-import datetime
-from ocf import dp
-import pandas as pd
-
 import asyncio
-from loguru import logger
-from collections import defaultdict
-
+import datetime
 import itertools
+from collections import defaultdict
+from importlib.metadata import version
+from pathlib import Path
 
 import betterproto
-
+import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
-from pathlib import Path
-from importlib.metadata import version
+from loguru import logger
+from ocf import dp
 
 
 def _get_country_config(country: str) -> dict:
@@ -202,7 +199,7 @@ async def _create_locations_from_csv(
             geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
             effective_capacity_watts=effective_capacity_watts,
             metadata=metadata,
-            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
         )
         await client.create_location(create_location_request)
     
@@ -225,7 +222,7 @@ async def _filter_existing_observations(
     
     # Get the min and max timestamps
     min_timestamp = joined_df["target_datetime_utc"].min()
-    max_timestamp = datetime.datetime.now(datetime.timezone.utc)
+    max_timestamp = datetime.datetime.now(datetime.UTC)
 
     # Read generation values from data platform, in parallel for all locations.
     read_observations_tasks = []
@@ -256,7 +253,8 @@ async def _filter_existing_observations(
         try:
             for obs in task.result().values:
                 existing_rows.append({"location_uuid": lid, "target_datetime_utc": obs.timestamp_utc})
-        except Exception as e:
+        # best-effort read: any RPC failure just means we skip this location
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
 
     # if any (location, timestamp) pairs already in the data-platform, remove from data in app
@@ -648,7 +646,7 @@ async def save_forecasts_to_data_platform(
             forecaster=forecaster,
             location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
-            init_time_utc=init_time_utc.replace(tzinfo=datetime.timezone.utc),
+            init_time_utc=init_time_utc.replace(tzinfo=datetime.UTC),
             values=forecast_values,
         )
     )

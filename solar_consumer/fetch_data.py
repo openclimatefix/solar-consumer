@@ -5,16 +5,18 @@ The data includes solar generation estimates for embedded solar farms and combin
 date and time fields into a single timestamp for further analysis.
 """
 
-import urllib.request
-import urllib.parse
 import json
+import urllib.parse
+import urllib.request
+
 import pandas as pd
-from solar_consumer.data.fetch_gb_data import fetch_gb_data
-from solar_consumer.data.fetch_nl_data import fetch_nl_data
-from solar_consumer.data.fetch_de_data import fetch_de_data
-from solar_consumer.data.fetch_be_data import fetch_be_data
+
 from solar_consumer.constants import GB_NESO_DATASTORE_URL
+from solar_consumer.data.fetch_be_data import fetch_be_data
+from solar_consumer.data.fetch_de_data import fetch_de_data
+from solar_consumer.data.fetch_gb_data import fetch_gb_data
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
+from solar_consumer.data.fetch_nl_data import fetch_nl_data
 
 
 def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> pd.DataFrame:
@@ -46,7 +48,7 @@ def fetch_data(country: str = "gb", historic_or_forecast: str = "forecast") -> p
             return data
 
         except Exception as e:
-            raise Exception(f"An error occurred while fetching data for {country}: {e}") from e
+            raise RuntimeError(f"An error occurred while fetching data for {country}: {e}") from e
 
     else:
         print("Only UK (gb), Netherlands (nl), Germany (de), Belgium (be), and Rajasthan India (ind_rajasthan) data can be fetched at the moment")
@@ -103,7 +105,8 @@ def fetch_data_using_sql(sql_query: str) -> pd.DataFrame:
 
         return df
 
-    except Exception as e:
+    # any failure of the query is logged and treated as "no data"
+    except Exception as e:  # noqa: BLE001
         print(f"An error occurred: {e}")
         return pd.DataFrame()
 

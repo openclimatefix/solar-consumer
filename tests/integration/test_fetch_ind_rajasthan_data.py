@@ -1,6 +1,8 @@
 # integration test
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
+
 from solar_consumer.data.fetch_ind_rajasthan_data import fetch_ind_rajasthan_data
 
 
@@ -19,10 +21,10 @@ def test_ind_rajasthan_data():
 
     assert not df.empty, "India API returned no forecast data"
 
-    assert set(["target_datetime_utc", "solar_generation_kw", "energy_type"]).issubset(df.columns)
+    assert {"target_datetime_utc", "solar_generation_kw", "energy_type"}.issubset(df.columns)
 
     # Check timestamps are within expected range (last 1 day by default)
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     one_day_ago = now_utc - timedelta(days=1)
 
     assert df["target_datetime_utc"].min() >= one_day_ago

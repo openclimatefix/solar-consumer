@@ -1,17 +1,22 @@
-from solar_consumer.save.save_site_database import save_generation_to_site_db, save_forecasts_to_site_db
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
-from pvsite_datamodel.sqlmodels import GenerationSQL, ForecastSQL, ForecastValueSQL, LocationSQL
-import pandas as pd
-from solar_consumer.save.save_data_platform import _filter_existing_observations
-
-
-import unittest
-from unittest.mock import AsyncMock, patch
 import dataclasses
+import unittest
 import uuid
-from ocf import dp
-from betterproto.lib.google.protobuf import Struct, Value
+from unittest.mock import AsyncMock, patch
+
 import numpy as np
+import pandas as pd
+from betterproto.lib.google.protobuf import Struct, Value
+from ocf import dp
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, GenerationSQL, LocationSQL
+
+from solar_consumer.save.save_data_platform import (
+    _filter_existing_observations,
+    save_generation_to_data_platform,
+)
+from solar_consumer.save.save_site_database import (
+    save_forecasts_to_site_db,
+    save_generation_to_site_db,
+)
 
 
 def test_save_generation_to_site_db(db_site_session):
@@ -284,7 +289,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                         actual_count = len(call.args[0].values)
                         self.assertEqual(actual_count, expected_count)
                 else:
-                    with self.assertRaises(Exception):
+                    with self.assertRaises(ValueError):
                         await save_generation_to_data_platform(case.input_df, client_mock)
 
     @patch("ocf.dp.DataPlatformDataServiceStub")
@@ -457,7 +462,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     for call in client_mock.create_observations.call_args_list:
                         self.assertEqual(call.args[0].observer_name, "nednl")
                 else:
-                    with self.assertRaises(Exception):
+                    with self.assertRaises(ValueError):
                         await save_generation_to_data_platform(case.input_df, client_mock, config_name="nl")
 
     @patch("ocf.dp.DataPlatformDataServiceStub")

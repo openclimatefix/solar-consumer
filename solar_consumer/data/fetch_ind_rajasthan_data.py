@@ -66,15 +66,14 @@ def fetch_ind_rajasthan_data(
             if power_kw < 0:
                 log.warning(f"Ignoring negative power value: {power_kw} kW for asset type: {v}")
                 continue
-            if v == "wind":
-                if start_utc < dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1):
-                    start_ist = start_utc.astimezone(ZoneInfo("Asia/Kolkata"))
-                    start_ist = str(start_ist)
-                    now = dt.datetime.now(ZoneInfo("Asia/Kolkata"))
-                    now = str(now)
-                    timestamp_after_raise = f"Timestamp Now: {now} Timestamp data: {start_ist}"
-                    timestamp_fstring = f"{timestamp_after_raise}"
-                    log.warning("Start time is at least 1 hour old. " + timestamp_fstring)
+            if v == "wind" and start_utc < dt.datetime.now(dt.UTC) - dt.timedelta(hours=1):
+                start_ist = start_utc.astimezone(ZoneInfo("Asia/Kolkata"))
+                start_ist = str(start_ist)
+                now = dt.datetime.now(ZoneInfo("Asia/Kolkata"))
+                now = str(now)
+                timestamp_after_raise = f"Timestamp Now: {now} Timestamp data: {start_ist}"
+                timestamp_fstring = f"{timestamp_after_raise}"
+                log.warning("Start time is at least 1 hour old. " + timestamp_fstring)
 
             data.append(
                 {

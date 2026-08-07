@@ -1,6 +1,7 @@
+import pandas as pd
 import pytest
 import requests
-import pandas as pd
+
 from solar_consumer.data.fetch_de_data import fetch_de_data
 
 # Combined XML fixture: includes wind offshore (B18), wind onshore (B19)

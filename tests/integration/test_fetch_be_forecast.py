@@ -1,7 +1,10 @@
 # integration test
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
+
 from solar_consumer.data.fetch_be_data import fetch_be_data_forecast, fetch_be_data_generation
+
 
 @pytest.mark.integration
 @pytest.mark.skip(
@@ -20,9 +23,7 @@ def test_be_forecast_contains_national_and_regional():
 
     assert not df.empty, "Elia API returned no forecast data"
 
-    assert set(
-        ["target_datetime_utc", "solar_generation_kw", "region", "forecast_type"]
-    ).issubset(df.columns)
+    assert {"target_datetime_utc", "solar_generation_kw", "region", "forecast_type"}.issubset(df.columns)
 
     regions = df["region"].unique()
 
@@ -32,7 +33,7 @@ def test_be_forecast_contains_national_and_regional():
     assert regional_regions, "No regional Belgium forecasts found"
 
     # Check timestamps are within expected range (last 1 day by default)
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     one_day_ago = now_utc - timedelta(days=1)
 
     assert df["target_datetime_utc"].min() >= one_day_ago
@@ -60,9 +61,7 @@ def test_be_generation_contains_national_and_regional():
 
     assert not df.empty, "Elia API returned no generation data"
 
-    assert set(
-        ["target_datetime_utc", "solar_generation_kw", "region"]
-    ).issubset(df.columns)
+    assert {"target_datetime_utc", "solar_generation_kw", "region"}.issubset(df.columns)
 
     regions = df["region"].unique()
 
@@ -72,7 +71,7 @@ def test_be_generation_contains_national_and_regional():
     assert regional_regions, "No regional Belgium generation data found"
 
     # Check timestamps are within expected range (last 1 day by default)
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     one_day_ago = now_utc - timedelta(days=1)
 
     assert df["target_datetime_utc"].min() >= one_day_ago

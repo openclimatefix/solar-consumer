@@ -1,16 +1,16 @@
-import pandas as pd
-import numpy as np
-import pytest
 import datetime
+
+import numpy as np
+import pandas as pd
+import pytest
 from betterproto.lib.google.protobuf import Struct, Value
+from ocf import dp
 
 from solar_consumer.save.save_data_platform import (
     get_update_capacity_df,
-    save_generation_to_data_platform,
     save_forecasts_to_data_platform,
+    save_generation_to_data_platform,
 )
-
-from ocf import dp
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -31,7 +31,7 @@ async def test_save_to_data_platform(client):
         location_type=dp.LocationType.GSP,
         effective_capacity_watts=1_000_000,
         metadata=metadata,
-        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
     )
     create_location_response = await client.create_location(create_location_request)
     location_uuid = create_location_response.location_uuid
@@ -62,8 +62,8 @@ async def test_save_to_data_platform(client):
         observer_name="pvlive_in_day",
         energy_source=dp.EnergySource.SOLAR,
         time_window=dp.TimeWindow(
-            start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-            end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+            start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+            end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
         ),
     )
 
@@ -103,7 +103,7 @@ async def test_save_forecasts_to_data_platform(client):
         effective_capacity_watts=effective_capacity_watts,
         geometry_wkt="POINT(0 0)",
         metadata=metadata,
-        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
     )
     create_location_response = await client.create_location(create_location_request)
     location_uuid = create_location_response.location_uuid

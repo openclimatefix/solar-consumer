@@ -20,23 +20,25 @@ Tests cover:
 16. reconstruct_gsp_from_weights: capacity columns summed across sources
 17. target GSP ID present in registry is skipped from direct fetch and reconstructed
 """
-import pytest
 import textwrap
-import pandas as pd
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
+import pandas as pd
+import pytest
 from pydantic import ValidationError
+
 from solar_consumer.data.fetch_gb_data import (
+    GSPMergeConfig,
+    GSPMergeSource,
+    fetch_gb_data_historic,
     load_gsp_merge_weights,
     reconstruct_gsp_from_weights,
-    fetch_gb_data_historic,
-    GSPMergeSource,
-    GSPMergeConfig
 )
 
-START = datetime(2025, 1, 14, 6, 0, tzinfo=timezone.utc)
-END   = datetime(2025, 1, 14, 8, 0, tzinfo=timezone.utc)
+START = datetime(2025, 1, 14, 6, 0, tzinfo=UTC)
+END   = datetime(2025, 1, 14, 8, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +54,7 @@ def _make_gsp_df(generation_mw: float, n_rows: int = 3) -> pd.DataFrame:
             "generation_mw": [generation_mw] * n_rows,
             "installedcapacity_mwp": [100.0] * n_rows,
             "capacity_mwp": [90.0] * n_rows,
-            "updated_gmt": [datetime(2025, 1, 14, 8, 0, tzinfo=timezone.utc)] * n_rows,
+            "updated_gmt": [datetime(2025, 1, 14, 8, 0, tzinfo=UTC)] * n_rows,
         }
     )
 
@@ -414,8 +416,8 @@ def test_reconstruct_empty_weights_returns_none():
 
 def test_reconstruct_updated_gmt_from_first_source():
     """15. updated_gmt in the result is taken from the first source DataFrame."""
-    t1 = datetime(2025, 1, 14, 7, 0, tzinfo=timezone.utc)
-    t2 = datetime(2025, 1, 14, 9, 0, tzinfo=timezone.utc)
+    t1 = datetime(2025, 1, 14, 7, 0, tzinfo=UTC)
+    t2 = datetime(2025, 1, 14, 9, 0, tzinfo=UTC)
 
     datetimes = pd.date_range("2025-01-14 06:00", periods=2, freq="30min", tz="UTC")
     src_a = pd.DataFrame({

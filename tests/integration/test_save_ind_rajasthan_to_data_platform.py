@@ -3,10 +3,9 @@ import datetime
 import betterproto
 import pandas as pd
 import pytest
-
 from ocf import dp
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 COUNTRY = "ind_rajasthan"
 OBSERVER_NAME = "ruvnl"
@@ -67,8 +66,8 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
 
     # Verify observations exist for each location under the ruvnl observer.
     time_window = dp.TimeWindow(
-        start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-        end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+        start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+        end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
     )
 
     expected_watts = {
@@ -88,7 +87,7 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
         )
         assert len(observations_response.values) >= 1, f"No observations found for {name}"
         values_watts = [
-            int(round(v.value_fraction * v.effective_capacity_watts))
+            round(v.value_fraction * v.effective_capacity_watts)
             for v in observations_response.values
         ]
         assert expected in values_watts, (
