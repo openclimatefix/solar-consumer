@@ -162,8 +162,8 @@ def _fetch_installed_capacity_mw(client: EntsoePandasClient, area: str) -> float
     if series.empty:
         return None
 
-    # the most recent year available
-    return float(series.iloc[-1])
+    # the most recent year available, whatever order ENTSO-E returns the rows in
+    return float(series.loc[series.index.max()])
 
 
 def _get_solar_series(data: pd.DataFrame) -> pd.Series | None:

@@ -98,6 +98,20 @@ def test_fetch_de_data_capacity_unavailable(mock_client_class):
 
 
 @patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
+def test_fetch_de_data_capacity_latest_year_when_out_of_order(mock_client_class):
+    """Capacity comes from the latest year, whatever order ENTSO-E returns the rows in."""
+    # newest year first, so the last row is the oldest capacity
+    capacity_df = make_capacity_df([18000.0, 19000.0, 20000.0]).iloc[::-1]
+    mock_client_class.return_value = make_client(
+        make_generation_df([1.0]), capacity_df
+    )
+
+    df = fetch_de_data()
+
+    assert (df["capacity_kw"] == 20_000_000.0).all()
+
+
+@patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
 def test_fetch_de_data_tso_zones(mock_client_class):
     """The TSO names line up with the regions, and the national values have no TSO."""
     mock_client_class.return_value = make_client(
