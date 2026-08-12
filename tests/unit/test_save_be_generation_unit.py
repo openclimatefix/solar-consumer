@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pandas as pd
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 

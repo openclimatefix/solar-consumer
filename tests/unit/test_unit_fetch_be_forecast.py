@@ -1,11 +1,12 @@
-import pandas as pd
-from freezegun import freeze_time
-import requests
 from unittest.mock import patch
 
+import pandas as pd
+import requests
+from freezegun import freeze_time
+
 from solar_consumer.data.fetch_be_data import (
-    fetch_be_data,
     BASE_URL_FORECAST,
+    fetch_be_data,
 )
 
 pytest_plugins = ["requests_mock"]

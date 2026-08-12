@@ -6,25 +6,27 @@ This script orchestrates the following steps:
 2. Saves the data via the chosen save method (CSV, data platform, or the legacy site database).
 """
 
-import os
 import asyncio
+import os
+import sys
+
 import pandas as pd
+from grpclib.client import Channel
 from loguru import logger
+from ocf import dp
+from pvsite_datamodel.connection import DatabaseConnection
+
+from solar_consumer import __version__  # Import version from __init__.py
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.save.save_csv import save_forecasts_to_csv
-from solar_consumer.save.save_site_database import (
-    save_generation_to_site_db,
-    save_forecasts_to_site_db,
-)
 from solar_consumer.save.save_data_platform import (
-    save_generation_to_data_platform,
     save_forecasts_to_data_platform,
+    save_generation_to_data_platform,
 )
-from pvsite_datamodel.connection import DatabaseConnection
-from solar_consumer import __version__  # Import version from __init__.py
-from ocf import dp
-from grpclib.client import Channel
-
+from solar_consumer.save.save_site_database import (
+    save_forecasts_to_site_db,
+    save_generation_to_site_db,
+)
 
 data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
 data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
@@ -33,7 +35,7 @@ data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 async def app(
     db_url: str,
     save_method: str,
-    csv_dir: str = None,
+    csv_dir: str | None = None,
     country: str = "gb",
     historic_or_forecast: str = "generation",
 ):
@@ -146,10 +148,10 @@ if __name__ == "__main__":
 
     if save_method == "csv" and not csv_dir:
         logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
-        exit(1)
+        sys.exit(1)
     if (save_method == "site-db") and (db_url is None):
         logger.error("DB_URL environment variable is not set. Exiting.")
-        exit(1)
+        sys.exit(1)
 
     # Step 2: Run the application
     asyncio.run(

@@ -16,12 +16,13 @@ Run with verbose output:
 Run tests matching a specific pattern:
     pytest tests/unit/test_fetch_data.py -k "fetch_data"
 """
-import pytest
+import json
 import os
+from unittest.mock import patch
+
+import pytest
 
 from solar_consumer.fetch_data import fetch_data, fetch_data_using_sql
-from unittest.mock import patch
-import json
 
 # TODO update
 #
@@ -88,7 +89,7 @@ def test_fetch_data_mock_failure(test_config):
     with patch("solar_consumer.fetch_data.urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("API failure simulated")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             _ = fetch_data(historic_or_forecast="forecast")
 
 

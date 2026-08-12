@@ -1,12 +1,12 @@
-from loguru import logger
-from pvsite_datamodel.write.generation import insert_generation_values
-from pvsite_datamodel.write.forecast import insert_forecast_values
-from pvsite_datamodel.read.site import get_site_by_client_site_name
-from pvsite_datamodel.write.user_and_site import create_site
-from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
-from sqlalchemy.orm.session import Session
+
 import pandas as pd
-from typing import Optional
+from loguru import logger
+from pvsite_datamodel.pydantic_models import PVSiteEditMetadata as PVSite
+from pvsite_datamodel.read.site import get_site_by_client_site_name
+from pvsite_datamodel.write.forecast import insert_forecast_values
+from pvsite_datamodel.write.generation import insert_generation_values
+from pvsite_datamodel.write.user_and_site import create_site
+from sqlalchemy.orm.session import Session
 
 # Default NL national site, and NL regional
 nl_national = PVSite(client_site_name="nl_national", latitude="52.13", longitude="5.29")
@@ -61,7 +61,7 @@ DE_TSO_CAPACITY = {"TransnetBW": 10_770_000, "50Hertz": 18_175_000, "TenneT": 21
 
 
 def get_or_create_pvsite(
-    session: Session, pvsite: PVSite, country: str, capacity_override_kw: Optional[int] = None,
+    session: Session, pvsite: PVSite, country: str, capacity_override_kw: int | None = None,
 ):
     """
     Retrieve PVsite record by name or create if missing
@@ -85,7 +85,8 @@ def get_or_create_pvsite(
             client_site_name=pvsite.client_site_name,
             client_name=pvsite.client_site_name, # this is not used
         )
-    except Exception:
+    # get_site_by_client_site_name raises a bare Exception when the site is missing
+    except Exception:  # noqa: BLE001
         logger.info(f"Creating site {pvsite.client_site_name} in the database.")
         
         # Choose capacity based on country; per-TSO for de; nl only has 20GW hard‑coded
@@ -112,7 +113,7 @@ def get_or_create_pvsite(
     return site
 
 def update_capacity(
-    session: Session, site, capacity_override_kw: Optional[int],
+    session: Session, site, capacity_override_kw: int | None,
 ):
     """
     Update stored site capacity if the override is higher. Only runs when importing generation
@@ -169,7 +170,7 @@ def save_generation_to_site_db(
     elif country == "ind_rajasthan":
         country_sites = IND_RAJASTHAN_SITES
     else:
-        raise Exception( 
+        raise ValueError(
             "Only generation data from the following countries is supported "
             "when saving: 'nl', 'de', 'ind_rajasthan'"
         )
@@ -259,7 +260,7 @@ def save_forecasts_to_site_db(
     """
 
     if country != "nl":
-        raise Exception("Only NL forecast data is supported when saving (atm).")
+        raise ValueError("Only NL forecast data is supported when saving (atm).")
 
     site = get_or_create_pvsite(session, nl_national, country)
 

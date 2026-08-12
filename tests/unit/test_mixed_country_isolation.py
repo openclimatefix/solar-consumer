@@ -1,12 +1,14 @@
 import unittest
-from unittest.mock import AsyncMock, patch
-import pandas as pd
-from ocf import dp
-from betterproto.lib.google.protobuf import Struct, Value
 import uuid
+from unittest.mock import AsyncMock, patch
+
+import pandas as pd
+from betterproto.lib.google.protobuf import Struct, Value
+from ocf import dp
 
 # Import the function to test
 from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+
 
 class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
     @patch("ocf.dp.DataPlatformDataServiceStub")

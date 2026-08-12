@@ -6,13 +6,13 @@ This downloads all locations from Elia which includes the Belgium national total
 estimates, and the Wallonia and Flanders regional totals which are sums of some provinces.
 """
 
-import requests
-import pandas as pd
-import xarray as xr
 from typing import Literal
-import dask
-from dask.diagnostics import ProgressBar
 
+import dask
+import pandas as pd
+import requests
+import xarray as xr
+from dask.diagnostics import ProgressBar
 
 # USER CONFIGURABLE PARAMETERS
 
