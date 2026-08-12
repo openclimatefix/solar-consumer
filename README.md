@@ -34,7 +34,7 @@ Here are the different sources of data, and which methods can be used to save th
 | NESO forecast | 🇬🇧 | ✅ | ✅ | |
 | Ned-nl | 🇳🇱 | ✅ | ✅ | ✅ |
 | Ned-nl forecast | 🇳🇱 | ✅ | ✅ | ✅ |
-| Germany (ENTSOE) | 🇩🇪 |  ✅ | | ✅ |
+| Germany (ENTSOE) | 🇩🇪 |  ✅ | ✅ | ✅ |
 | Elia Open Data | 🇧🇪 | ✅ | ✅ | |
 | RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ | ✅ |
 
@@ -99,17 +99,18 @@ The package provides three main functionalities:
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
 - `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Site database configuration (only needed for `SAVE_METHOD="site-db"`)
-- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "ind_rajasthan", "nl"] 
+- `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "de", "ind_rajasthan", "nl"] 
 - `SAVE_METHOD`: Ways to store the data. Options are ["csv", "site-db", "data-platform"].  
   `site-db` is supported for NL, DE, and India (RUVNL).
-  `data-platform` is supported for UK (PVLive, NESO forecast), NL (Ned-nl), BE (Elia), and India (RUVNL).
+  `data-platform` is supported for UK (PVLive, NESO forecast), NL (Ned-nl), BE (Elia), DE (ENTSOE), and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
 - `UK_PVLIVE_MAX_GSP_ID=342`: For UK PVLive, the amount of gsps we pull data for.
 - `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
 - `UK_PVLIVE_DOMAIN_URL`: For UK PVLive, the domain URL to fetch data from. Defaults to "api.pvlive.uk"
+- `DE_BACKFILL_HOURS=24`: For DE (ENTSOE), the amount of backfill hours we pull. ENTSOE only publishes settled values, so we always pull a window of recent history and let the save step drop anything already stored.
 - `NL_POTENTIAL_GENERATION`: boolen, to create and save a potential solar generation
-- `APIKEY_ENTSOE`: The ENSTOE api key, needed for get DA prices, used for NL potential generation. 
+- `APIKEY_ENTSOE`: The ENTSOE api key. Needed for DE solar generation, and for NL day-ahead prices (used for NL potential generation). 
 
 ## Adding a New Country
 
