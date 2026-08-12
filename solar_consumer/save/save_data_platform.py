@@ -42,6 +42,13 @@ def _get_country_config(country: str) -> dict:
             "observer_name": "elia_be",
             "country": "be"
         },
+        "de": {
+            "id_key": "region",
+            "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
+            "metadata_type": "string",
+            "observer_name": "entsoe_de",
+            "country": "de"
+        },
         "gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
             "id_key": "gsp_id",
@@ -139,7 +146,7 @@ async def _list_locations(
             if loc_country == "gb" or not loc_country:
                 filtered_locations.append(loc)
         else:
-            # For NL/BE, strict matching
+            # For NL/BE/DE, strict matching
             if loc_country == country:
                 filtered_locations.append(loc)
 
@@ -151,8 +158,16 @@ async def _create_locations_from_csv(
     country: str,
     id_key: str,
     metadata_type: str,
+    capacity_watts_by_id: dict | None = None,
 ) -> None:
-    """Create locations from CSV file for countries that support it (NL, BE)."""
+    """Create locations from CSV file for countries that support it (NL, BE, DE).
+
+    ``capacity_watts_by_id`` maps a join-key value to its capacity in watts, taken from the
+    incoming data, so a new location starts with a realistic capacity. Anything not present
+    falls back to 100 MW, which later gets updated from the incoming data.
+    """
+    capacity_watts_by_id = capacity_watts_by_id or {}
+
     csv_path = Path(__file__).parent.parent / "data" / "locations.csv"
     if not csv_path.exists():
         raise FileNotFoundError(f"Unified locations CSV not found at {csv_path}")
@@ -165,11 +180,12 @@ async def _create_locations_from_csv(
     for location in locations:
         location_name = location["name"]
         location_type_str = location.get("location_type", "NATION")
-
-        effective_capacity_watts = 100_000_000
         
         # Create metadata based on type (number or string)
         id_value = location[id_key]
+
+        effective_capacity_watts = int(capacity_watts_by_id.get(id_value, 100_000_000))
+
         metadata_fields = {
             "country": Value(string_value=country),
         }
@@ -206,6 +222,22 @@ async def _create_locations_from_csv(
     logger.warning(
         f"No {country.upper()} locations found in data platform. Created new locations."
     )
+
+
+def _seed_capacity_watts_by_id(data_df: pd.DataFrame, id_key: str) -> dict:
+    """Capacity (watts) per join key, from the incoming data, to seed new locations.
+
+    Uses the fetched ``capacity_kw`` where available, falling back to the max generation, so a
+    newly created location starts with a realistic capacity rather than an arbitrary default.
+    """
+    if data_df.empty or id_key not in data_df.columns:
+        return {}
+
+    grouped = data_df.groupby(id_key)
+    seed_kw = grouped["solar_generation_kw"].max()
+    if "capacity_kw" in data_df.columns:
+        seed_kw = grouped["capacity_kw"].max().fillna(seed_kw)
+    return {key: int(value * 1000) for key, value in seed_kw.items() if pd.notna(value)}
 
 
 async def _filter_existing_observations(
@@ -296,12 +328,12 @@ async def save_generation_to_data_platform(
 
     For NL: Data is joined via the region_id.
 
-    For BE: Data is joined via the region (string-based matching).
+    For BE and DE: Data is joined via the region (string-based matching).
 
     Args:
         data_df: DataFrame containing the generation data
         client: Data platform client stub
-        country: Country identifier ('gb', 'nl', or 'be')
+        config_name: Country identifier ('gb', 'nl', 'be', 'de' or 'ind_rajasthan')
     """
     tasks: list[asyncio.Task] = []
     config = _get_country_config(config_name)
@@ -340,12 +372,16 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country in ["nl", "be", "ind_rajasthan"]:
-        # NL and BE support CSV-based location creation
+    if country in ["nl", "be", "de", "ind_rajasthan"]:
+        # NL, BE and DE support CSV-based location creation
         locations_data = await _list_locations(client, config["location_type"], country=country)
         
         if not locations_data:
-            await _create_locations_from_csv(client, country, id_key, metadata_type)
+            # Seed new locations with a realistic capacity taken from the incoming data.
+            capacity_watts_by_id = _seed_capacity_watts_by_id(data_df, id_key)
+            await _create_locations_from_csv(
+                client, country, id_key, metadata_type, capacity_watts_by_id
+            )
             # Re-fetch locations after creating them
             locations_data = await _list_locations(client, config["location_type"], country=country)
     else:
@@ -361,15 +397,18 @@ async def save_generation_to_data_platform(
     # If the source data has no capacity, define it as the max generation so capacity_kw is
     # always present.
     if "capacity_kw" not in data_df.columns:
-        data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
+        if id_key in data_df.columns:
+            data_df["capacity_kw"] = data_df.groupby(id_key)["solar_generation_kw"].transform("max")
+        else:
+            data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
         logger.info("No capacity info found, so using max generation")
 
     if country == "ind_rajasthan":
         data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str)
     
     # Extract metadata and create join key based on country
-    if country == "be":
-        # BE uses string matching with normalization
+    if country in ["be", "de"]:
+        # BE and DE use string matching with normalization
         data_df["join_key"] = data_df[id_key]
         
         if locations_df.empty or data_df.empty:

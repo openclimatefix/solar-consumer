@@ -8,8 +8,27 @@ BE_GENERATION_URL = (
     "catalog/datasets/ods087/records"
 )
 
-# Germany (ENTSO-E) API URL
-DE_ENTSOE_URL = "https://web-api.tp.entsoe.eu/api"
+# Germany (ENTSO-E)
+# The ENTSO-E psrType for solar generation
+DE_SOLAR_PSR_TYPE = "B16"
+
+# The ENTSO-E areas we fetch generation for, keyed by the data platform join key.
+# "DE" is the whole of Germany (national), the others are the four German control areas (TSOs).
+DE_AREAS = {
+    "de": "DE",
+    "50hertz": "DE_50HZ",
+    "amprion": "DE_AMPRION",
+    "tennet": "DE_TENNET",
+    "transnetbw": "DE_TRANSNET",
+}
+
+# TSO names, as used by the legacy site database sites
+DE_TSO_NAMES = {
+    "50hertz": "50Hertz",
+    "amprion": "Amprion",
+    "tennet": "TenneT",
+    "transnetbw": "TransnetBW",
+}
 
 # Great Britain - NESO forecast API URL
 GB_NESO_FORECAST_URL = (
