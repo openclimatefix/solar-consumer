@@ -3,10 +3,9 @@ import datetime
 import betterproto
 import pandas as pd
 import pytest
-
 from ocf import dp
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
+from solar_consumer.save.save_data_platform import save_generation_to_data_platform
 
 COUNTRY = "de"
 OBSERVER_NAME = "entsoe_de"
@@ -73,8 +72,8 @@ async def test_save_de_generation_to_data_platform(client):
     }
 
     time_window = dp.TimeWindow(
-        start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-        end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.timezone.utc),
+        start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
+        end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
     )
 
     for region, (_, gens) in DE_FAKE.items():
