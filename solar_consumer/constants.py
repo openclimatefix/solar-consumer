@@ -22,6 +22,13 @@ DE_AREAS = {
     "transnetbw": "DE_TRANSNET",
 }
 
+# The ENTSO-E process types for the three published solar forecasts
+DE_FORECAST_PROCESS_TYPES = {
+    "day_ahead": "A01",
+    "intraday": "A40",
+    "current": "A18",
+}
+
 # TSO names, as used by the legacy site database sites
 DE_TSO_NAMES = {
     "50hertz": "50Hertz",
