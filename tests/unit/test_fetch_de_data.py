@@ -48,6 +48,7 @@ def make_client(gen_df: pd.DataFrame, cap_df: pd.DataFrame | None = None) -> Mag
 @pytest.fixture(autouse=True)
 def _set_api_key(monkeypatch):
     monkeypatch.setenv("APIKEY_ENTSOE", "test-key")
+    monkeypatch.delenv("DE_FORECAST_TYPE", raising=False)
 
 
 @patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
@@ -198,6 +199,71 @@ def test_fetch_de_data_no_api_key(monkeypatch):
         fetch_de_data()
 
 
-def test_fetch_de_data_assert_on_invalid_mode():
-    with pytest.raises(AssertionError):
+@patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
+def test_fetch_de_data_forecast(mock_client_class):
+    """Fetch the German national day ahead solar forecast from ENTSO-E."""
+    client = MagicMock()
+    client.query_wind_and_solar_forecast.return_value = make_generation_df([1.0, 2.0])
+    mock_client_class.return_value = client
+
+    df = fetch_de_data(historic_or_forecast="forecast")
+
+    assert set(df.columns) == {
+        "target_datetime_utc",
+        "solar_generation_kw",
+        "region",
+        "forecast_type",
+    }
+    assert len(df) == 2
+    assert set(df["region"]) == {"de"}
+    assert set(df["forecast_type"]) == {"day_ahead"}
+    assert sorted(df["solar_generation_kw"]) == [1_000.0, 2_000.0]
+    assert str(df["target_datetime_utc"].min()) == "2025-07-11 00:00:00+00:00"
+
+    # the national area, solar only, and the day ahead forecast by default
+    assert client.query_wind_and_solar_forecast.call_args.args[0] == DE_AREAS["de"]
+    assert client.query_wind_and_solar_forecast.call_args.kwargs["psr_type"] == "B16"
+    assert client.query_wind_and_solar_forecast.call_args.kwargs["process_type"] == "A01"
+
+
+@pytest.mark.parametrize(
+    ("forecast_type", "process_type"),
+    [("day_ahead", "A01"), ("intraday", "A40"), ("current", "A18")],
+)
+@patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
+def test_fetch_de_data_forecast_types(mock_client_class, monkeypatch, forecast_type, process_type):
+    """DE_FORECAST_TYPE picks which of the three ENTSO-E forecasts we fetch."""
+    monkeypatch.setenv("DE_FORECAST_TYPE", forecast_type)
+    client = MagicMock()
+    client.query_wind_and_solar_forecast.return_value = make_generation_df([1.0])
+    mock_client_class.return_value = client
+
+    df = fetch_de_data(historic_or_forecast="forecast")
+
+    assert set(df["forecast_type"]) == {forecast_type}
+    assert client.query_wind_and_solar_forecast.call_args.kwargs["process_type"] == process_type
+
+
+def test_fetch_de_data_forecast_unknown_type(monkeypatch):
+    monkeypatch.setenv("DE_FORECAST_TYPE", "next_week")
+
+    with pytest.raises(ValueError, match="Unknown DE forecast type"):
         fetch_de_data(historic_or_forecast="forecast")
+
+
+@patch("solar_consumer.data.fetch_de_data.EntsoePandasClient")
+def test_fetch_de_data_forecast_no_data(mock_client_class):
+    """ENTSO-E having no forecast gives an empty DataFrame, rather than raising an error."""
+    client = MagicMock()
+    client.query_wind_and_solar_forecast.side_effect = NoMatchingDataError()
+    mock_client_class.return_value = client
+
+    df = fetch_de_data(historic_or_forecast="forecast")
+
+    assert df.empty
+    assert list(df.columns) == [
+        "target_datetime_utc",
+        "solar_generation_kw",
+        "region",
+        "forecast_type",
+    ]

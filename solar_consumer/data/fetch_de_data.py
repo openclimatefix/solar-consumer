@@ -1,7 +1,8 @@
-"""Get German solar generation from the ENTSO-E.
+"""Get German solar generation and forecasts from the ENTSO-E.
 
 Generation is published for each German TSO control area and Germany overall, 
 enabling both regional and national values to be saved to the data platform.
+Forecasts are national, and ENTSO-E publishes three of them: day ahead, intraday and current.
 """
 
 import os
@@ -12,7 +13,12 @@ from entsoe import EntsoePandasClient
 from entsoe.exceptions import NoMatchingDataError
 from loguru import logger
 
-from solar_consumer.constants import DE_AREAS, DE_SOLAR_PSR_TYPE, DE_TSO_NAMES
+from solar_consumer.constants import (
+    DE_AREAS,
+    DE_FORECAST_PROCESS_TYPES,
+    DE_SOLAR_PSR_TYPE,
+    DE_TSO_NAMES,
+)
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -28,12 +34,29 @@ def get_entsoe_client() -> EntsoePandasClient:
     return EntsoePandasClient(api_key=api_key)
 
 
+def get_de_forecast_type() -> str:
+    """Get the type of forecast to collect: day_ahead, intraday or current."""
+    forecast_type = os.getenv("DE_FORECAST_TYPE", "day_ahead").lower()
+    if forecast_type not in DE_FORECAST_PROCESS_TYPES:
+        raise ValueError(
+            f"Unknown DE forecast type '{forecast_type}', "
+            f"expected one of {list(DE_FORECAST_PROCESS_TYPES)}"
+        )
+    return forecast_type
+
+
 def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
+    """Fetch German solar forecast from the ENTSO-E API."""
+    if historic_or_forecast == "forecast":
+        return fetch_de_data_forecast()
+
+    return fetch_de_data_generation()
+
+
+def fetch_de_data_generation() -> pd.DataFrame:
     """
     Fetch solar generation from the German control areas (TSOs) and the national
     total via the ENTSO-E API.
-
-    Only 'generation' mode is supported for now
     
     Returns DataFrame with 5 columns:
       - target_datetime_utc (UTC date and time)
@@ -42,8 +65,6 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
       - region (data platform join key, e.g. "de" or "50hertz")
       - tso_zone (TSO name, e.g. "50Hertz", or None for the national values)
     """
-    
-    assert historic_or_forecast == "generation", "Only 'generation' supported for the time being"
 
     # ENTSO-E only publishes settled values, so we always pull a window of recent history and
     # let the save step drop anything we already have.
@@ -95,6 +116,59 @@ def fetch_de_data(historic_or_forecast: str = "generation") -> pd.DataFrame:
     return df
 
 
+def fetch_de_data_forecast() -> pd.DataFrame:
+    """
+    Fetch the German national solar forecast via the ENTSO-E API.
+
+    Which of the three ENTSO-E forecasts is collected is set by DE_FORECAST_TYPE.
+
+    Returns DataFrame with 4 columns:
+      - target_datetime_utc (UTC date and time)
+      - solar_generation_kw (forecast generation in kilowatts)
+      - region (data platform join key, "de")
+      - forecast_type ("day_ahead", "intraday" or "current")
+    """
+    forecast_type = get_de_forecast_type()
+
+    # ENTSO-E publishes the forecast for the day ahead, so we pull today and tomorrow
+    start = pd.Timestamp.now(tz="UTC").floor("D")
+    end = start + pd.Timedelta(days=2)
+
+    logger.info(f"Fetching German {forecast_type} solar forecast from {start} to {end}")
+
+    region = "de"
+    forecast = _fetch_area_forecast(
+        client=get_entsoe_client(),
+        area=DE_AREAS[region],
+        start=start,
+        end=end,
+        process_type=DE_FORECAST_PROCESS_TYPES[forecast_type],
+    )
+
+    if forecast.empty:
+        logger.warning(f"No German {forecast_type} solar forecast data found")
+        return pd.DataFrame(
+            columns=[
+                "target_datetime_utc",
+                "solar_generation_kw",
+                "region",
+                "forecast_type",
+            ]
+        )
+
+    forecast["region"] = region
+    forecast["forecast_type"] = forecast_type
+    forecast = forecast.sort_values("target_datetime_utc").reset_index(drop=True)
+
+    logger.info(f"Assembled {len(forecast)} rows of German {forecast_type} solar forecast")
+    logger.debug(
+        f"Timestamps go from {forecast['target_datetime_utc'].min()} "
+        f"to {forecast['target_datetime_utc'].max()}"
+    )
+
+    return forecast
+
+
 def _fetch_area_generation(
     client: EntsoePandasClient, area: str, start: pd.Timestamp, end: pd.Timestamp
 ) -> pd.DataFrame:
@@ -103,20 +177,58 @@ def _fetch_area_generation(
     Returns a DataFrame with 'target_datetime_utc' and 'solar_generation_kw', which is empty
     if ENTSO-E has no data for this area and time window.
     """
-    empty = pd.DataFrame(columns=["target_datetime_utc", "solar_generation_kw"])
-
     try:
         data = client.query_generation(area, start=start, end=end, psr_type=DE_SOLAR_PSR_TYPE)
     except NoMatchingDataError:
         logger.warning(f"No matching ENTSO-E data for {area} between {start} and {end}")
-        return empty
+        data = None
+
+    return _process_de_data(data, area=area, data_type="generation")
+
+
+def _fetch_area_forecast(
+    client: EntsoePandasClient,
+    area: str,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    process_type: str,
+) -> pd.DataFrame:
+    """Fetch the solar forecast for one ENTSO-E area.
+
+    Returns a DataFrame with 'target_datetime_utc' and 'solar_generation_kw', which is empty
+    if ENTSO-E has no forecast for this area and time window.
+    """
+    try:
+        data = client.query_wind_and_solar_forecast(
+            area, start=start, end=end, psr_type=DE_SOLAR_PSR_TYPE, process_type=process_type
+        )
+    except NoMatchingDataError:
+        logger.warning(f"No matching ENTSO-E forecast for {area} between {start} and {end}")
+        data = None
+
+    return _process_de_data(data, area=area, data_type="forecast")
+
+
+def _process_de_data(data: pd.DataFrame | None, area: str, data_type: str) -> pd.DataFrame:
+    """
+    Common processing logic for both forecast and generation data.
+
+    Parameters:
+        data: Raw entsoe-py DataFrame, in the timezone of the area and in MW
+        area: The ENTSO-E area the data is for
+        data_type: Description for logging ("forecast" or "generation")
+    """
+    empty = pd.DataFrame(columns=["target_datetime_utc", "solar_generation_kw"])
 
     if data is None or data.empty:
         return empty
 
     solar = _get_solar_series(data)
     if solar is None:
-        logger.warning(f"No solar column found in ENTSO-E data for {area}, got {list(data.columns)}")
+        logger.warning(
+            f"No solar column found in ENTSO-E {data_type} data for {area}, "
+            f"got {list(data.columns)}"
+        )
         return empty
 
     solar = solar.dropna()

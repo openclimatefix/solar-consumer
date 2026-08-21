@@ -9,7 +9,7 @@ This code can be used to download solar forecasts and save them to a PostgreSQL 
 We currently collect
 - UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. 
 - NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
-- DE: Generation values from ENTSOE for several TSOs. 
+- DE: Generation values from ENTSOE for several TSOs. National forecast values from ENTSOE too. 
 - BE: Solar PV forecast data (national and regional) from Elia Open Data API.
 - India (Rajasthan): Real-time solar and wind generation data from RUVNL (Rajasthan Urja Vikas Nigam Limited).
 
@@ -35,6 +35,7 @@ Here are the different sources of data, and which methods can be used to save th
 | Ned-nl | 🇳🇱 | ✅ | ✅ | ✅ |
 | Ned-nl forecast | 🇳🇱 | ✅ | ✅ | ✅ |
 | Germany (ENTSOE) | 🇩🇪 |  ✅ | ✅ | ✅ |
+| Germany (ENTSOE) forecast | 🇩🇪 |  ✅ | ✅ | |
 | Elia Open Data | 🇧🇪 | ✅ | ✅ | |
 | RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ | ✅ |
 
@@ -109,6 +110,7 @@ The package provides three main functionalities:
 - `UK_PVLIVE_BACKFILL_HOURS=2`: For UK PVLive, the amount of backfill hours we pull, when regime="in-day"
 - `UK_PVLIVE_DOMAIN_URL`: For UK PVLive, the domain URL to fetch data from. Defaults to "api.pvlive.uk"
 - `DE_BACKFILL_HOURS=24`: For DE (ENTSOE), the amount of backfill hours we pull. ENTSOE only publishes settled values, so we always pull a window of recent history and let the save step drop anything already stored.
+- `DE_FORECAST_TYPE=day_ahead`: For DE (ENTSOE) forecasts, which of the three ENTSOE forecasts to collect. Can be "day_ahead", "intraday" or "current". Each one is saved by its own forecaster, for example `entsoe-de-day-ahead`.
 - `NL_POTENTIAL_GENERATION`: boolen, to create and save a potential solar generation
 - `APIKEY_ENTSOE`: The ENTSOE api key. Needed for DE solar generation, and for NL day-ahead prices (used for NL potential generation). 
 

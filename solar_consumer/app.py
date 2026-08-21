@@ -17,6 +17,7 @@ from ocf import dp
 from pvsite_datamodel.connection import DatabaseConnection
 
 from solar_consumer import __version__  # Import version from __init__.py
+from solar_consumer.data.fetch_de_data import get_de_forecast_type
 from solar_consumer.fetch_data import fetch_data
 from solar_consumer.save.save_csv import save_forecasts_to_csv
 from solar_consumer.save.save_data_platform import (
@@ -57,7 +58,8 @@ async def app(
     elif country == "nl":
         model_tag = "ned-nl-national"
     elif country == "de":
-        model_tag = "entsoe-de"
+        # the three ENTSO-E forecasts each get their own forecaster
+        model_tag = f"entsoe-de-{get_de_forecast_type().replace('_', '-')}"
     elif country == "be":
         model_tag = "elia-be-forecast"
 
