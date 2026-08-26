@@ -176,7 +176,8 @@ async def _create_locations_from_csv(
     # Filter by country code
     locations_df_csv = locations_df_csv[locations_df_csv['country_code'] == country]
     locations = locations_df_csv.to_dict(orient="records")
-    
+
+    created_uuids: dict[str, str] = {}
     for location in locations:
         location_name = location["name"]
         location_type_str = location.get("location_type", "NATION")
@@ -208,6 +209,20 @@ async def _create_locations_from_csv(
             energy_source = dp.EnergySource.WIND
         else:
             energy_source = dp.EnergySource.SOLAR
+
+        # locations listed more than once with different energy sources, so we create one location per energy source
+        if location_name in created_uuids:
+            await client.create_location_energy_source(
+                dp.CreateLocationEnergySourceRequest(
+                    location_uuid=created_uuids[location_name],
+                    energy_source=energy_source,
+                    effective_capacity_watts=effective_capacity_watts,
+                    metadata=metadata,
+                    valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+                )
+            )
+            continue
+
         create_location_request = dp.CreateLocationRequest(
             location_name=location_name,
             energy_source=energy_source,
@@ -217,7 +232,8 @@ async def _create_locations_from_csv(
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
         )
-        await client.create_location(create_location_request)
+        create_location_response = await client.create_location(create_location_request)
+        created_uuids[location_name] = create_location_response.location_uuid
     
     logger.warning(
         f"No {country.upper()} locations found in data platform. Created new locations."
@@ -239,6 +255,18 @@ def _seed_capacity_watts_by_id(data_df: pd.DataFrame, id_key: str) -> dict:
         seed_kw = grouped["capacity_kw"].max().fillna(seed_kw)
     return {key: int(value * 1000) for key, value in seed_kw.items() if pd.notna(value)}
 
+async def _update_location_capacities(
+    client: dp.DataPlatformDataServiceStub,
+    requests: list[dp.UpdateLocationRequest],
+) -> None:
+    """Apply capacity updates for a single location, one after another.
+
+    One location can hold several energy sources, e.g. RUVNL's solar and wind. Updating those
+    concurrently races on the shared location, so one of the updates would be lost.
+    """
+    for request in requests:
+        await client.update_location(request)
+
 
 async def _filter_existing_observations(
     joined_df: pd.DataFrame,
@@ -250,7 +278,7 @@ async def _filter_existing_observations(
         return joined_df
 
     # Get the locations
-    location_uuids = joined_df["location_uuid"].unique()
+    location_sources = joined_df[["location_uuid", "energy_source"]].drop_duplicates()
     
     # Get the min and max timestamps
     min_timestamp = joined_df["target_datetime_utc"].min()
@@ -258,11 +286,11 @@ async def _filter_existing_observations(
 
     # Read generation values from data platform, in parallel for all locations.
     read_observations_tasks = []
-    for lid in location_uuids:
+    for lid, es in location_sources.itertuples(index=False):
         req = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=lid,
             observer_name=observer_name,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=dp.EnergySource[es],
             time_window=dp.TimeWindow(
                 start_timestamp_utc=min_timestamp,
                 end_timestamp_utc=max_timestamp
@@ -277,19 +305,26 @@ async def _filter_existing_observations(
     # Compare timestamps already in the data platform
     # (existing_pairs built below, together with the filter)
 
-    # Build a set of (location_uuid, timestamp) pairs that already exist in the data platform.
-    # We must match on both dimensions so that a timestamp saved for one location does not
-    # accidentally suppress the same timestamp for a different location.
+    # Build a set of (location_uuid, energy_source, timestamp) rows that already exist in the
+    # data platform. We must match on all three dimensions so that a timestamp saved for one
+    # location, or for one energy source of it, does not accidentally suppress the same
+    # timestamp elsewhere.
     existing_rows = []
-    for lid, task in zip(location_uuids, read_observations_tasks):
+    for (lid, es), task in zip(location_sources.itertuples(index=False), read_observations_tasks):
         try:
             for obs in task.result().values:
-                existing_rows.append({"location_uuid": lid, "target_datetime_utc": obs.timestamp_utc})
+                existing_rows.append(
+                    {
+                        "location_uuid": lid, 
+                        "energy_source": es, 
+                        "target_datetime_utc": obs.timestamp_utc
+                    }
+                )
         # best-effort read: any RPC failure just means we skip this location
         except Exception as e:  # noqa: BLE001
-            logger.error(f"Failed to read observations for location_uuid {lid}: {e}")
+            logger.error(f"Failed to read observations for location_uuid {lid} ({es}): {e}")
 
-    # if any (location, timestamp) pairs already in the data-platform, remove from data in app
+    # if any (location, source, timestamp) pairs already in the data-platform, remove from data in app
     if existing_rows:
         existing_pairs_df = pd.DataFrame(existing_rows).assign(
             target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"])
@@ -298,7 +333,7 @@ async def _filter_existing_observations(
 
         merged = joined_df.merge(
             existing_pairs_df,
-            on=["location_uuid", "target_datetime_utc"],
+            on=["location_uuid", "energy_source", "target_datetime_utc"],
             how="left",
         )
         idx = merged["_exists"].fillna(False)
@@ -397,17 +432,24 @@ async def save_generation_to_data_platform(
     # If the source data has no capacity, define it as the max generation so capacity_kw is
     # always present.
     if "capacity_kw" not in data_df.columns:
-        if id_key in data_df.columns:
-            data_df["capacity_kw"] = data_df.groupby(id_key)["solar_generation_kw"].transform("max")
+        capacity_key = "energy_type" if country == "ind_rajasthan" else id_key
+        if capacity_key in data_df.columns:
+            data_df["capacity_kw"] = data_df.groupby(capacity_key)["solar_generation_kw"].transform("max")
         else:
             data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
         logger.info("No capacity info found, so using max generation")
 
-    if country == "ind_rajasthan":
-        data_df["name"] = "ruvnl_" + data_df["energy_type"].astype(str)
-    
     # Extract metadata and create join key based on country
-    if country in ["be", "de"]:
+    if country == "ind_rajasthan":
+        data_df["name"] = "ruvnl"
+        data_df["join_key"] = data_df["name"] + "_" + data_df["energy_type"].astype(str).str.lower()
+
+        if not locations_df.empty:
+            locations_df = locations_df.assign(
+                join_key=lambda df: df["location_name"] + "_" + df["energy_source"].str.lower()
+            )
+
+    elif country in ["be", "de"]:
         # BE and DE use string matching with normalization
         data_df["join_key"] = data_df[id_key]
         
@@ -485,7 +527,9 @@ async def save_generation_to_data_platform(
     # * data platform. The most recent value for a given location is the one that is used.
     updates_df = get_update_capacity_df(joined_df)
 
-    tasks = []
+    # Grouped by location so each location's updates are applied in series, see
+    # _update_location_capacities. Different locations still update in parallel.
+    requests_by_location: dict[str, list[dp.UpdateLocationRequest]] = defaultdict(list)
     for row in updates_df.itertuples():
         lid = row.location_uuid
         t = row.target_datetime_utc
@@ -520,12 +564,19 @@ async def save_generation_to_data_platform(
             valid_from_utc=t,
             new_metadata=metadata,
         )
-        tasks.append(asyncio.create_task(client.update_location(req)))
+        requests_by_location[lid].append(req)
 
-    if len(tasks) > 0:
-        logger.info(f"updating {len(tasks)} {country.upper()} location capacities")
+    if requests_by_location:
+        update_count = sum(len(reqs) for reqs in requests_by_location.values())
+        logger.info(f"updating {update_count} {country.upper()} location capacities")
         # NL was previously ignoring these exceptions
-        await _execute_async_tasks(tasks, ignore_exceptions=True)
+        await _execute_async_tasks(
+            [
+                asyncio.create_task(_update_location_capacities(client, reqs))
+                for reqs in requests_by_location.values()
+            ],
+            ignore_exceptions=True,
+        )
 
     # Determine observer name based on country
     observer_name = config["observer_name"]
@@ -554,7 +605,7 @@ async def save_generation_to_data_platform(
     )
 
 
-    observations_by_loc: dict[str, list[dp.CreateObservationsRequestValue]] = defaultdict(list)
+    observations_by_source: dict[tuple[str, str], list[dp.CreateObservationsRequestValue]] = defaultdict(list)
     energy_source_by_loc: dict[str, dp.EnergySource] = {}
     for lid, t, val, es in zip(
         joined_df["location_uuid"],
@@ -562,7 +613,7 @@ async def save_generation_to_data_platform(
         (joined_df["solar_generation_kw"] * 1000).astype(int),
         joined_df["energy_source"],
     ):
-        observations_by_loc[lid].append(
+        observations_by_source[(lid, es)].append(
             dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=int(val))
         )
         energy_source_by_loc[lid] = dp.EnergySource[es]
@@ -574,13 +625,13 @@ async def save_generation_to_data_platform(
             client.create_observations(
                 dp.CreateObservationsRequest(
                     location_uuid=lid,
-                    energy_source=energy_source_by_loc[lid],
+                    energy_source=dp.EnergySource[es],
                     observer_name=observer_name,
                     values=vals,
                 ),
             )
         )
-        for lid, vals in observations_by_loc.items()
+        for (lid, es), vals in observations_by_source.items()
     ]
 
     if len(tasks) > 0:
@@ -670,7 +721,6 @@ async def save_forecasts_to_data_platform(
             dp.CreateForecastRequestForecastValue(
                 horizon_mins=h,
                 p50_fraction=p50,
-                metadata=Struct().from_pydict({}),
                 other_statistics_fractions={},
             )
         )    
@@ -769,8 +819,11 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
         # we use this in NL for non-validated capacities
         df = df[df['update_capacity']]
 
-    # lets make sure we use the latest timestamp for each location_uuid
-    df = df.sort_values(by="target_datetime_utc", ascending=False).groupby("location_uuid").head(1)
+    # lets make sure we use the latest timestamp for each location_uuid and energy_source
+    identity_cols = ["location_uuid"]
+    if "energy_source" in df.columns:
+        identity_cols.append("energy_source")
+    df = df.sort_values(by="target_datetime_utc", ascending=False).groupby(identity_cols).head(1)
 
     current_cap = df["effective_capacity_watts"]
     new_cap = df["new_effective_capacity_watts"]
@@ -778,11 +831,13 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     # only update if the difference is more than one
     update_idx = (current_cap - new_cap).abs() >= 1
 
-    updates_df = (
-        df.loc[update_idx]
-        .sort_values(by="target_datetime_utc", ascending=False)
-        .groupby(level=0)
-        .head(1)
-        .sort_index()
-    )
+    deduped_df = df.loc[update_idx].sort_values(by="target_datetime_utc", ascending=False)
+
+    # One join_key can hold several energy sources, e.g. RUVNL's solar and wind, so they must
+    # be deduplicated separately or one source's update would be dropped.
+    dedup_keys = [deduped_df.index]
+    if "energy_source" in deduped_df.columns:
+        dedup_keys.append(deduped_df["energy_source"])
+
+    updates_df = deduped_df.groupby(dedup_keys).head(1).sort_index()
     return updates_df

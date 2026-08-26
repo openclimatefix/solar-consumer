@@ -21,5 +21,5 @@ de_50hertz,52.50,13.50,,50hertz,de,STATE,solar
 de_amprion,51.50,7.50,,amprion,de,STATE,solar
 de_tennet,51.00,10.50,,tennet,de,STATE,solar
 de_transnetbw,48.50,9.00,,transnetbw,de,STATE,solar
-ruvnl_solar,26.4499,74.65,1,,ind_rajasthan,STATE,solar
-ruvnl_wind,26.4499,72.65,2,,ind_rajasthan,STATE,wind
+ruvnl,26.4499,74.65,1,,ind_rajasthan,STATE,solar
+ruvnl,26.4499,74.65,1,,ind_rajasthan,STATE,wind

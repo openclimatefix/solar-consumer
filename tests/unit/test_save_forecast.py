@@ -566,7 +566,7 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
         rows = []
         for lid in location_uuids:
             for ts in timestamps:
-                rows.append({"location_uuid": lid, "target_datetime_utc": pd.Timestamp(ts)})
+                rows.append({"location_uuid": lid, "energy_source": "SOLAR", "target_datetime_utc": pd.Timestamp(ts)})
         return pd.DataFrame(rows)
 
     # ------------------------------------------------------------------
@@ -736,8 +736,8 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         # Both locations have the same timestamp in joined_df
         joined_df = pd.DataFrame([
-            {"location_uuid": lid_a, "target_datetime_utc": ts},
-            {"location_uuid": lid_b, "target_datetime_utc": ts},
+            {"location_uuid": lid_a, "energy_source": "SOLAR", "target_datetime_utc": ts},
+            {"location_uuid": lid_b, "energy_source": "SOLAR", "target_datetime_utc": ts},
         ])
 
         # Only location A's timestamp exists in the data platform
