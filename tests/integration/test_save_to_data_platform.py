@@ -112,7 +112,7 @@ async def test_save_forecasts_to_data_platform(client):
     model_tag = "test_model"
     model_version = "1.0.0"
 
-    start_time = pd.to_datetime("2026-03-26T12:00:00Z")
+    start_time = pd.Timestamp.now(tz="UTC").floor("30min") - pd.Timedelta(minutes=30)
     data_df = pd.DataFrame(
         {
             "target_datetime_utc": [
@@ -180,24 +180,34 @@ def test_get_update_capacity_df():
     test_1 = {'effective_capacity_watts': 1, 
                     'new_effective_capacity_watts': 1, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T12:00:00Z"),
-                    'location_uuid': 'location_1'
+                    'location_uuid': 'location_1',
+                    'energy_source': 'SOLAR'
                    }
     # 1. is an increase
     test_2 = {'effective_capacity_watts': 2, 
                     'new_effective_capacity_watts': 4, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T12:30:00Z"),
-                    'location_uuid': 'location_2'
+                    'location_uuid': 'location_2',
+                    'energy_source': 'SOLAR'
                    }
     # 2. is a decreasue
     test_3 = {'effective_capacity_watts': 3, 
                     'new_effective_capacity_watts': 2, 
                     'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z"),
-                    'location_uuid': 'location_3'
+                    'location_uuid': 'location_3',
+                    'energy_source': 'SOLAR'
+                   }
+    # 3. is the wind source of location_3, which is updated separately from its solar one
+    test_4 = {'effective_capacity_watts': 4,
+                    'new_effective_capacity_watts': 6,
+                    'target_datetime_utc': pd.to_datetime("2026-03-26T13:00:00Z"),
+                    'location_uuid': 'location_3',
+                    'energy_source': 'WIND'
                    }
 
-    df = pd.DataFrame([test_1, test_2, test_3])
+    df = pd.DataFrame([test_1, test_2, test_3, test_4])
     updates_df = get_update_capacity_df(df)
     assert not updates_df.empty
-    assert updates_df.index.tolist() == [1, 2]
+    assert updates_df.index.tolist() == [1, 2, 3]
 
 

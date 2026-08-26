@@ -9,6 +9,7 @@ from solar_consumer.save.save_data_platform import save_generation_to_data_platf
 
 COUNTRY = "ind_rajasthan"
 OBSERVER_NAME = "ruvnl"
+LOCATION_NAME = "ruvnl"
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -17,9 +18,9 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
     Test saving RUVNL (Rajasthan, India) solar and wind generation data to the
     Data Platform.
 
-    No locations are pre-created: the save function should create both
-    ``ruvnl_solar`` and ``ruvnl_wind`` from the locations CSV, then
-    store one observation per energy_type against the matching location.
+    No locations are pre-created: the save function should create the ``ruvnl``
+    location and both its energy sources from the locations CSV, then store one
+    observation per energy_type against the matching source.
     """
     # Fake generation data containing one solar and one wind row, matching the
     # shape produced by ``fetch_ind_rajasthan_data``.
@@ -54,29 +55,38 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
             ).get("locations", [])
         )
 
-    loc_by_name = {
-        loc["location_name"]: loc
+    ruvnl_locations = [
+        loc
         for loc in locations_data
-        if loc.get("location_name") in {"ruvnl_solar", "ruvnl_wind"}
+        if loc.get("location_name") == LOCATION_NAME
         and loc.get("metadata", {}).get("country", {}).get("string_value") == COUNTRY
-    }
+    ]
 
-    assert "ruvnl_solar" in loc_by_name, "ruvnl_solar was not created"
-    assert "ruvnl_wind" in loc_by_name, "ruvnl_wind was not created"
+    location_uuids = {loc["location_uuid"] for loc in ruvnl_locations}
+    assert location_uuids, f"{LOCATION_NAME} was not created"
+    assert len(location_uuids) == 1, "solar and wind  should share one location"
+    assert {loc["energy_source"] for loc in ruvnl_locations} == {"SOLAR", "WIND"}
+    location_uuid = next(iter(location_uuids))
 
-    # Verify observations exist for each location under the ruvnl observer.
+    # Each source carries its own capacity. Asserting this catches both a capacity taken
+    # across all sources at once, and a concurrent update to the shared location getting lost.
+    expected_capacity_watts = {"SOLAR": 5_000_000, "WIND": 3_000_000}
+    for loc in ruvnl_locations:
+        energy_source = loc["energy_source"]
+        assert int(float(loc["effective_capacity_watts"])) == expected_capacity_watts[energy_source]
+
+    # Verify observations exist for each energy source under the ruvnl observer.
     time_window = dp.TimeWindow(
         start_timestamp_utc=datetime.datetime(2025, 1, 1, tzinfo=datetime.UTC),
         end_timestamp_utc=datetime.datetime(2025, 1, 2, tzinfo=datetime.UTC),
     )
 
     expected_watts = {
-        "ruvnl_solar": (1_500_000, dp.EnergySource.SOLAR),   # 1500 kW -> W
-        "ruvnl_wind": (800_000, dp.EnergySource.WIND),       # 800 kW -> W
+        dp.EnergySource.SOLAR: 1_500_000,   # 1500 kW -> W
+        dp.EnergySource.WIND: 800_000,       # 800 kW -> W
     }
 
-    for name, (expected, energy_source) in expected_watts.items():
-        location_uuid = loc_by_name[name]["location_uuid"]
+    for energy_source, expected in expected_watts.items():
         observations_response = await client.get_observations_as_timeseries(
             dp.GetObservationsAsTimeseriesRequest(
                 location_uuid=location_uuid,
@@ -85,13 +95,13 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
                 time_window=time_window,
             )
         )
-        assert len(observations_response.values) >= 1, f"No observations found for {name}"
+        assert len(observations_response.values) >= 1, f"No observations found for {energy_source.name}"
         values_watts = [
             round(v.value_fraction * v.effective_capacity_watts)
             for v in observations_response.values
         ]
         assert expected in values_watts, (
-            f"Expected observation {expected} W for {name}, got {values_watts}"
+            f"Expected observation {expected} W for {energy_source.name}, got {values_watts}"
         )
 
 
