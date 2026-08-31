@@ -322,7 +322,7 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
                                              "target_datetime_utc"])
                 data.index.name = "target_datetime_utc"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - prices are optional, generation must still save
             logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
 
             if attempt == max_retries - 1:
