@@ -322,12 +322,21 @@ def get_entsoe_day_prices(start: pd.Timestamp, end: pd.Timestamp, api_key: str) 
                                              "target_datetime_utc"])
                 data.index.name = "target_datetime_utc"
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - prices are optional, generation must still save
             logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
 
             if attempt == max_retries - 1:
-                logger.exception("Failed to fetch ENTSOE day-ahead prices after all retries.")
-                raise
+                # ENTSOE being down should not stop us saving generation data.
+                # Carry on with no prices, so no curtailment adjustment is made.
+                logger.exception(
+                    "Failed to fetch ENTSOE day-ahead prices after all retries. "
+                    "Carrying on without prices, no curtailment adjustment will be made."
+                )
+                data = pd.DataFrame(
+                    columns=["NL_day_ahead_prices_euros_per_mwh", "target_datetime_utc"]
+                )
+                data.index.name = "target_datetime_utc"
+                break
 
             time.sleep(2**attempt)
 
