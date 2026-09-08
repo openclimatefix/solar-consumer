@@ -1,7 +1,13 @@
 """
-Adds a national.
+Adds national.
 
-location_id 0 is national total, 1-4 are four TSOs.
+location_id 0 is the national total, 1-4 are four TSOs in specific order:
+
+    0  National
+    1  50Hertz
+    2  Amprion
+    3  TenneT
+    4  TransnetBW
 """
 
 import numpy as np
