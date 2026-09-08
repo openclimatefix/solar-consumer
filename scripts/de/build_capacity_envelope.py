@@ -5,6 +5,12 @@ ENTSO-E capacity includes rooftop that is missing from generation, so the
 capacity factor drops off over the years. This swaps it for a
 trailing 365 day p99.9 of each TSO's own generation.
 
+The p99.9 is set by the top 35 or so quarter hours in corresponding window, 
+which are always peak summer days - hence no step down.
+
+Be wary of a strong summer dropping out and a weaker one replacing it: this 
+would show up as a step down in August or September.
+
 This one is a rebuild from notes - not original script.
 """
 
