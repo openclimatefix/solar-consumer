@@ -504,11 +504,6 @@ async def save_generation_to_data_platform(
             )
             .assign(target_datetime_utc=lambda df: pd.to_datetime(df["target_datetime_utc"]))
         )
-
-        # if country == "nl" and "NL_day_ahead_prices_euros_per_mwh" in data_df.columns:
-        #     # Make sure prices are also there
-        #     joined_df["NL_day_ahead_prices_euros_per_mwh"] = data_df["NL_day_ahead_prices_euros_per_mwh"]
-
     else:
         joined_df = pd.DataFrame()
 
