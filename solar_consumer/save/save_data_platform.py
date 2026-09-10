@@ -576,7 +576,8 @@ async def save_generation_to_data_platform(
         update_count = sum(len(reqs) for reqs in requests_by_location.values())
         logger.info(f"updating {update_count} {country.upper()} location capacities")
         # Lets up date the locations one by one, otherwise the data-platform has too much load
-        # A build update would help this
+        # and cause some other issues
+        # A bulk-update would speed this up
         # https://github.com/openclimatefix/data-platform/issues/199
         for reqs in requests_by_location.values():
             await _execute_async_tasks(
