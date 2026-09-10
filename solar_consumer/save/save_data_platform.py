@@ -47,7 +47,8 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",
             "observer_name": "entsoe_de",
-            "country": "de"
+            "country": "de",
+            "rolling_capacity": True
         },
         "gb": {
             "required_observers": {"pvlive_in_day", "pvlive_day_after"},
@@ -377,6 +378,11 @@ async def save_generation_to_data_platform(
     id_key = config["id_key"]
     # capacity_col and capacity_multiplier are no longer needed as we standardized on capacity_kw
     metadata_type = config["metadata_type"]
+    rolling_capacity = config.get("rolling_capacity", False)
+
+    # dropping the source capacity makes the max generation fallback below kick in
+    if rolling_capacity:
+        data_df = data_df.drop(columns="capacity_kw", errors="ignore")
     
     # Determine required observers
     # If observer_name is in config (NL/BE), use it as the single required observer
@@ -525,7 +531,7 @@ async def save_generation_to_data_platform(
     # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
-    updates_df = get_update_capacity_df(joined_df)
+    updates_df = get_update_capacity_df(joined_df, rolling_capacity=rolling_capacity)
 
     # Grouped by location so each location's updates are applied in series, see
     # _update_location_capacities. Different locations still update in parallel.
@@ -808,8 +814,11 @@ def format_metadata_from_dict(metadata):
     return metadata
 
 
-def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Get the rows that need to be updated based on capacity change."""
+def get_update_capacity_df(df: pd.DataFrame, rolling_capacity: bool = False) -> pd.DataFrame:
+    """Get the rows that need to be updated based on capacity change.
+
+    With ``rolling_capacity`` the capacity only ever goes up, never down.
+    """
 
     # lets only consider non nans values
     df = df[~df["new_effective_capacity_watts"].isna()]
@@ -823,7 +832,12 @@ def get_update_capacity_df(df: pd.DataFrame) -> pd.DataFrame:
     identity_cols = ["location_uuid"]
     if "energy_source" in df.columns:
         identity_cols.append("energy_source")
-    df = df.sort_values(by="target_datetime_utc", ascending=False).groupby(identity_cols).head(1)
+    if rolling_capacity:
+        # rolling uses the first value above the old capacity instead, so earlier values still fit
+        df = df[df["solar_generation_kw"] * 1000 > df["effective_capacity_watts"]]
+        df = df.sort_values(by="target_datetime_utc").groupby(identity_cols).head(1)
+    else:
+        df = df.sort_values(by="target_datetime_utc", ascending=False).groupby(identity_cols).head(1)
 
     current_cap = df["effective_capacity_watts"]
     new_cap = df["new_effective_capacity_watts"]
