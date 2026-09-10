@@ -834,6 +834,7 @@ def get_update_capacity_df(df: pd.DataFrame, rolling_capacity: bool = False) -> 
         identity_cols.append("energy_source")
     if rolling_capacity:
         # rolling uses the first value above the old capacity instead, so earlier values still fit
+        # effective_capacity_watts is the current capacity in the data platform
         df = df[df["solar_generation_kw"] * 1000 > df["effective_capacity_watts"]]
         df = df.sort_values(by="target_datetime_utc").groupby(identity_cols).head(1)
     else:
