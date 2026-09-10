@@ -575,14 +575,17 @@ async def save_generation_to_data_platform(
     if requests_by_location:
         update_count = sum(len(reqs) for reqs in requests_by_location.values())
         logger.info(f"updating {update_count} {country.upper()} location capacities")
-        # NL was previously ignoring these exceptions
-        await _execute_async_tasks(
-            [
-                asyncio.create_task(_update_location_capacities(client, reqs))
-                for reqs in requests_by_location.values()
-            ],
-            ignore_exceptions=True,
-        )
+        # Lets up date the locations one by one, otherwise the data-platform has too much load
+        # and cause some other issues
+        # A bulk-update would speed this up
+        # https://github.com/openclimatefix/data-platform/issues/199
+        for reqs in requests_by_location.values():
+            await _execute_async_tasks(
+                [
+                    asyncio.create_task(_update_location_capacities(client, reqs))
+                ],
+                ignore_exceptions=True,
+            )
 
     # Determine observer name based on country
     observer_name = config["observer_name"]
