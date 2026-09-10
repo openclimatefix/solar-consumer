@@ -25,8 +25,15 @@ def _get_country_config(country: str) -> dict:
             "id_key": "region_id",
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
-            "observer_name": "nednl",
-            "country": "nl"
+            "required_observers": 
+                {"nednl", 
+                 # These are the observers we need for saving prices data
+                 # This is a temporary solution until we can save negative prices
+                 # Note we are times prices by 1e7 (explained below)
+                 "nl_da_prices_positive_euros_per_mwh_times_1e7", 
+                 "nl_da_prices_negative_euros_per_mwh_times_1e7"},
+            "country": "nl",
+            "observer_name": "nednl"
         },
         "nl_no_curtailment": {
             "id_key": "region_id",
@@ -528,7 +535,22 @@ async def save_generation_to_data_platform(
         f"for {joined_df['location_uuid'].nunique()} matched locations",
     )
 
-    # 2. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
+    # 2. Lets save prices to the data platform
+    # This is just for the NL
+    if country == "nl" and "NL_day_ahead_prices_euros_per_mwh" in joined_df.columns:
+
+        prices = joined_df[["target_datetime_utc", 
+                            "NL_day_ahead_prices_euros_per_mwh", 
+                            "energy_source", 
+                            "location_uuid", 
+                            "region_id"]]
+
+        # just select 0 region_id as we only need to save prices for one location
+        prices_subset = prices[prices["region_id"] == 0]
+
+        await _save_prices_to_data_platform(prices_subset, client)
+
+    # 3. Generate the UpdateLocationCapacityRequest objects from the DataFrame.
     # * Should only occur when the incoming data has a different capacity to that returned by the
     # * data platform. The most recent value for a given location is the one that is used.
     updates_df = get_update_capacity_df(joined_df, rolling_capacity=rolling_capacity)
@@ -593,7 +615,7 @@ async def save_generation_to_data_platform(
         regime: str = data_df["regime"].values[0]
         observer_name = f"pvlive_{regime.replace('-', '_')}"
 
-    # 3. Generate the CreateObservationRequest objects from the DataFrame.
+    # 4. Generate the CreateObservationRequest objects from the DataFrame.
 
     # lets check none of the values are above 109% of the capacity
     # the limit is 110% but sometimes there are some rounding errors
@@ -626,8 +648,6 @@ async def save_generation_to_data_platform(
             dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=int(val))
         )
         energy_source_by_loc[lid] = dp.EnergySource[es]
-
-    
 
     tasks = [
         asyncio.create_task(
@@ -859,3 +879,60 @@ def get_update_capacity_df(df: pd.DataFrame, rolling_capacity: bool = False) -> 
 
     updates_df = deduped_df.groupby(dedup_keys).head(1).sort_index()
     return updates_df
+
+
+async def _save_prices_to_data_platform(prices: pd.DataFrame, client: dp.DataPlatformDataServiceStub) -> None:
+    """Save the price data to the data platform."""
+
+    logger.info(f"Saving prices data for {len(prices)} rows")
+
+    # Currently we can only save positive values to the observer table, 
+    # so we have to split the prices in two
+    # In the future this should be removed
+
+    for pos_or_neg in ['positive','negative']:
+
+        if pos_or_neg == 'positive':
+            prices_subset = prices[prices["NL_day_ahead_prices_euros_per_mwh"] >= 0]
+        else:
+            prices_subset = prices[prices["NL_day_ahead_prices_euros_per_mwh"] < 0]
+
+        logger.info(f"Saving prices data for {len(prices)} rows to {pos_or_neg} prices")
+
+        observations_by_source: dict[tuple[str, str], list[dp.CreateObservationsRequestValue]] = defaultdict(list)
+        energy_source_by_loc: dict[str, dp.EnergySource] = {}
+        for lid, t, val, es in zip(
+            prices_subset["location_uuid"],
+            prices_subset["target_datetime_utc"],
+            (prices_subset["NL_day_ahead_prices_euros_per_mwh"]).astype(int)*1e7,
+            prices_subset["energy_source"],
+        ):
+            # Note that we are multiplying the values by 1e7 
+            # This is becasue the dataplatform saves these values, scaled by the capacity, 
+            # which in the NL is current 25 GW, to 25x1e9 
+            # This is to make sure it works for prices of 0 - 1000 
+            # If we didnt do this, we would end up with very small values, 
+            # and the data-platform would round them to zero
+
+            observations_by_source[(lid, es)].append(
+                dp.CreateObservationsRequestValue(timestamp_utc=t, value_watts=int(val))
+            )
+            energy_source_by_loc[lid] = dp.EnergySource[es]
+
+        tasks = [
+            asyncio.create_task(
+                client.create_observations(
+                    dp.CreateObservationsRequest(
+                        location_uuid=lid,
+                        energy_source=dp.EnergySource[es],
+                        observer_name=f'nl_da_prices_{pos_or_neg}_euros_per_mwh_times_1e7',
+                        values=vals,
+                    ),
+                )
+            )
+            for (lid, es), vals in observations_by_source.items()
+        ]
+
+        if len(tasks) > 0:
+            await _execute_async_tasks(tasks)
+    
