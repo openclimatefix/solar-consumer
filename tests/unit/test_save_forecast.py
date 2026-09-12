@@ -466,36 +466,13 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                         await save_generation_to_data_platform(case.input_df, client_mock, config_name="nl")
 
     @patch("ocf.dp.DataPlatformDataServiceStub")
-    async def test_save_nl_generation_creates_locations_when_none_exist(self, client_mock):
-        """Test that NL locations are created from CSV when none exist in data platform."""
-
-        call_count = 0
-
-        def mock_list_locations(req: dp.ListLocationsRequest) -> dp.ListLocationsResponse:
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                # First call returns empty (no locations exist)
-                return dp.ListLocationsResponse(locations=[])
-            else:
-                # Second call (after creation) returns the created locations
-                all_locations = [
-                        dp.ListLocationsResponseLocationSummary(
-                            location_name="nl_national",
-                            location_uuid=str(uuid.uuid4()),
-                            energy_source=dp.EnergySource.SOLAR,
-                            effective_capacity_watts=100_000_000_000,
-                            location_type=dp.LocationType.NATION,
-                            latlng=dp.LatLng(52.13, 5.29),
-                            metadata=Struct(fields={"region_id": Value(number_value=0), "country": Value(string_value="nl")}),
-                        ),
-                    ]
-                
-                filtered = [loc for loc in all_locations if loc.location_type == req.location_type_filter]
-                return dp.ListLocationsResponse(locations=filtered)
-
-        def mock_list_observers(req: dp.ListObserversRequest) -> dp.ListObserversResponse:
-            return dp.ListObserversResponse(
+    async def test_save_nl_generation_fails_when_no_locations_exist(self, client_mock):
+        """Test that saving fails when no locations exist in data platform."""
+        client_mock.list_locations = AsyncMock(
+            return_value=dp.ListLocationsResponse(locations=[])
+        )
+        client_mock.list_observers = AsyncMock(
+            return_value=dp.ListObserversResponse(
                 observers=[
                     dp.ListObserversResponseObserverSummary(
                         observer_uuid=str(uuid.uuid4()),
@@ -503,31 +480,22 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     )
                 ]
             )
-
-        client_mock.list_locations = AsyncMock(side_effect=mock_list_locations)
+        )
         client_mock.create_location = AsyncMock()
         client_mock.update_location = AsyncMock()
         client_mock.create_observations = AsyncMock()
-        client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
-        client_mock.create_observer = AsyncMock()
-        client_mock.get_observations_as_timeseries = AsyncMock(
-            return_value=dp.GetObservationsAsTimeseriesResponse(values=[])
-        )
 
         input_df = pd.DataFrame({
             "region_id": [0],
             "capacity_kw": [100_000_000],
             "solar_generation_kw": [5000],
-            "target_datetime_utc": [np.datetime64('2023-01-01T00:00:00')],
+            "target_datetime_utc": [np.datetime64("2023-01-01T00:00:00")],
         })
 
-        await save_generation_to_data_platform(input_df, client_mock, config_name="nl")
+        with self.assertRaises(ValueError):
+            await save_generation_to_data_platform(input_df, client_mock, config_name="nl")
 
-        # Verify create_location was called for each location in the CSV (13 locations)
-        self.assertEqual(client_mock.create_location.call_count, 13)
-
-        # Verify list_locations was called twice (once before, once after creation)
-        self.assertEqual(client_mock.list_locations.call_count, 4)
+        client_mock.create_location.assert_not_called()
 
 def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
     generation_data = {
