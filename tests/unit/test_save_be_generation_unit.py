@@ -73,3 +73,70 @@ async def test_save_be_generation_zero_capacity_filtered():
 
     # Verify no observations were created (filtered out)
     mock_client.create_observations.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_save_be_generation_matching_locations_case_insensitive():
+    """
+    Test that incoming region data in mixed casing matches location metadata case-insensitively.
+    """
+    mock_client = AsyncMock()
+
+    mock_observer = MagicMock()
+    mock_observer.observer_name = "elia_be"
+    mock_client.list_observers.return_value = MagicMock(observers=[mock_observer])
+
+    mock_location_response = MagicMock()
+    mock_location_response.to_dict.return_value = {
+        "locations": [{
+            "location_uuid": "existing-uuid",
+            "location_name": "be_belgium",
+            "metadata": {"region": {"string_value": "Belgium"}, "country": {"string_value": "be"}},
+            "effective_capacity_watts": 100_000_000,
+            "energy_source": "SOLAR",
+        }]
+    }
+    mock_client.list_locations.return_value = mock_location_response
+    mock_client.get_observations_as_timeseries.return_value = MagicMock(values=[])
+
+    test_data = pd.DataFrame({
+        "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
+        "solar_generation_kw": [50000.0],
+        "region": ["belgium"],
+        "forecast_type": ["generation"],
+        "capacity_kw": [100_000.0],
+    })
+
+    await save_generation_to_data_platform(test_data, mock_client, config_name="be")
+
+    mock_client.create_observations.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_save_be_generation_fails_when_no_locations_exist():
+    """
+    Test that saving fails with ValueError when no matching locations exist, and create_location is never called.
+    """
+    mock_client = AsyncMock()
+
+    mock_observer = MagicMock()
+    mock_observer.observer_name = "elia_be"
+    mock_client.list_observers.return_value = MagicMock(observers=[mock_observer])
+
+    mock_location_response = MagicMock()
+    mock_location_response.to_dict.return_value = {"locations": []}
+    mock_client.list_locations.return_value = mock_location_response
+    mock_client.create_location = AsyncMock()
+
+    test_data = pd.DataFrame({
+        "target_datetime_utc": [pd.to_datetime("2025-01-01T00:00:00Z")],
+        "solar_generation_kw": [50000.0],
+        "region": ["Belgium"],
+        "forecast_type": ["generation"],
+        "capacity_kw": [100_000.0],
+    })
+
+    with pytest.raises(ValueError):
+        await save_generation_to_data_platform(test_data, mock_client, config_name="be")
+
+    mock_client.create_location.assert_not_called()
