@@ -6,9 +6,9 @@ import pytest
 from betterproto.lib.google.protobuf import Struct, Value
 from ocf import dp
 
-from solar_consumer.save.save_data_platform import (
+from solar_consumer.save.data_platform.save_forecast import save_forecasts_to_data_platform
+from solar_consumer.save.data_platform.save_generation import (
     get_update_capacity_df,
-    save_forecasts_to_data_platform,
     save_generation_to_data_platform,
 )
 

@@ -9,7 +9,7 @@ from betterproto.lib.google.protobuf import Struct, Value
 from ocf import dp
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, GenerationSQL, LocationSQL
 
-from solar_consumer.save.save_data_platform import (
+from solar_consumer.save.data_platform.save_generation import (
     _filter_existing_observations,
     save_generation_to_data_platform,
 )
