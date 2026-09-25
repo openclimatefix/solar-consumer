@@ -19,9 +19,9 @@ from pvsite_datamodel.connection import DatabaseConnection
 from solar_consumer import __version__  # Import version from __init__.py
 from solar_consumer.data.fetch_de_data import get_de_forecast_type
 from solar_consumer.fetch_data import fetch_data
-from solar_consumer.save.save_csv import save_forecasts_to_csv
 from solar_consumer.save.data_platform.save_forecast import save_forecasts_to_data_platform
 from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
+from solar_consumer.save.save_csv import save_forecasts_to_csv
 from solar_consumer.save.save_site_database import (
     save_forecasts_to_site_db,
     save_generation_to_site_db,
