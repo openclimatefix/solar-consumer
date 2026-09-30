@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pandas as pd
 import pytest
 
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
 
 # the capacity already stored in the data platform, 58212 MW
 STORED_CAPACITY_WATTS = 58_212_000_000

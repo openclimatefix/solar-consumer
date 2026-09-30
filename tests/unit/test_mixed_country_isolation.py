@@ -7,7 +7,7 @@ from betterproto.lib.google.protobuf import Struct, Value
 from ocf import dp
 
 # Import the function to test
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
 
 
 class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):

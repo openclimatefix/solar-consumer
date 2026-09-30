@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from ocf import dp
 
-from solar_consumer.save.save_data_platform import save_generation_to_data_platform
+from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
 
 COUNTRY = "de"
 OBSERVER_NAME = "entsoe_de"
