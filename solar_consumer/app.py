@@ -61,11 +61,7 @@ async def app(
     elif country == "be":
         model_tag = "elia-be-forecast"
 
-    # German forecasts are initialized at the start of the day, to keep the values from midnight
-    if country == "de" and historic_or_forecast == "forecast":
-        t0 = pd.Timestamp.utcnow().floor("D")
-    else:
-        t0 = pd.Timestamp.utcnow().floor("30min")
+    t0 = pd.Timestamp.now(tz="UTC").floor("30min")
 
 
     # Step 1: Fetch forecast data (returns as pd.Dataframe)
