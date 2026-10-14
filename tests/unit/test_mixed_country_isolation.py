@@ -63,7 +63,7 @@ class TestMixedCountryHandling(unittest.IsolatedAsyncioTestCase):
             return dp.ListLocationsResponse(locations=filtered)
 
         client_mock.list_locations = AsyncMock(side_effect=mock_list_locations_side_effect)
-        client_mock.update_location = AsyncMock()
+        client_mock.batch_update_location_capacity = AsyncMock()
         client_mock.create_observations = AsyncMock()
         client_mock.list_observers = AsyncMock(return_value=dp.ListObserversResponse(observers=[]))
         client_mock.create_observer = AsyncMock()

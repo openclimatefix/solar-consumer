@@ -11,6 +11,7 @@ from solar_consumer.save.data_platform.save_generation import (
     get_update_capacity_df,
     save_generation_to_data_platform,
 )
+from solar_consumer.save.data_platform.utils import point_to_polygon_wkt
 
 
 @pytest.mark.asyncio(loop_scope="module")
@@ -27,8 +28,9 @@ async def test_save_to_data_platform(client):
     create_location_request = dp.CreateLocationRequest(
         location_name="gsp1",
         energy_source=dp.EnergySource.SOLAR,
-        geometry_wkt="POINT(0 0)",
+        geometry_wkt=point_to_polygon_wkt(0, 0),
         location_type=dp.LocationType.GSP,
+        country_code="GB",
         effective_capacity_watts=1_000_000,
         metadata=metadata,
         valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
@@ -101,7 +103,8 @@ async def test_save_forecasts_to_data_platform(client):
         energy_source=dp.EnergySource.SOLAR,
         location_type=dp.LocationType.NATION,
         effective_capacity_watts=effective_capacity_watts,
-        geometry_wkt="POINT(0 0)",
+        geometry_wkt=point_to_polygon_wkt(0, 0),
+        country_code="GB",
         metadata=metadata,
         valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
     )

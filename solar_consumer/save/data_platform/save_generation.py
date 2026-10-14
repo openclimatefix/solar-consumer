@@ -22,6 +22,9 @@ from solar_consumer.save.data_platform.utils import (
     format_metadata_from_dict,
 )
 
+# the data platform accepts at most 5000 updates per batch
+MAX_BATCH_UPDATE_SIZE = 5000
+
 
 def _seed_capacity_watts_by_id(data_df: pd.DataFrame, id_key: str) -> dict:
     """Capacity (watts) per join key, from the incoming data, to seed new locations.
@@ -38,17 +41,24 @@ def _seed_capacity_watts_by_id(data_df: pd.DataFrame, id_key: str) -> dict:
         seed_kw = grouped["capacity_kw"].max().fillna(seed_kw)
     return {key: int(value * 1000) for key, value in seed_kw.items() if pd.notna(value)}
 
-async def _update_location_capacities(
+async def _batch_update_location_capacities(
     client: dp.DataPlatformDataServiceStub,
-    requests: list[dp.UpdateLocationRequest],
+    updates_by_key: dict[tuple, list[dp.BatchUpdateLocationCapacityRequestUpdate]],
 ) -> None:
-    """Apply capacity updates for a single location, one after another.
+    """Send capacity updates in batches, one batch per (energy source, valid from time).
 
-    One location can hold several energy sources, e.g. RUVNL's solar and wind. Updating those
-    concurrently races on the shared location, so one of the updates would be lost.
+    Batches are sent one after another, so the data platform isn't overloaded, and a location
+    with several energy sources, e.g. RUVNL's solar and wind, isn't updated concurrently.
     """
-    for request in requests:
-        await client.update_location(request)
+    for (energy_source, valid_from_utc), updates in updates_by_key.items():
+        for i in range(0, len(updates), MAX_BATCH_UPDATE_SIZE):
+            await client.batch_update_location_capacity(
+                dp.BatchUpdateLocationCapacityRequest(
+                    energy_source=energy_source,
+                    updates=updates[i : i + MAX_BATCH_UPDATE_SIZE],
+                    valid_from_utc=valid_from_utc,
+                )
+            )
 
 
 async def _filter_existing_observations(
@@ -315,9 +325,10 @@ async def save_generation_to_data_platform(
     # * data platform. The most recent value for a given location is the one that is used.
     updates_df = get_update_capacity_df(joined_df, rolling_capacity=rolling_capacity)
 
-    # Grouped by location so each location's updates are applied in series, see
-    # _update_location_capacities. Different locations still update in parallel.
-    requests_by_location: dict[str, list[dp.UpdateLocationRequest]] = defaultdict(list)
+    # Grouped by energy source and valid from time, as each batch request shares these
+    updates_by_key: dict[tuple, list[dp.BatchUpdateLocationCapacityRequestUpdate]] = (
+        defaultdict(list)
+    )
     for row in updates_df.itertuples():
         lid = row.location_uuid
         t = row.target_datetime_utc
@@ -345,29 +356,17 @@ async def save_generation_to_data_platform(
             metadata = None
 
         energy_source = dp.EnergySource[row.energy_source] if hasattr(row, 'energy_source') else dp.EnergySource.SOLAR
-        req = dp.UpdateLocationRequest(
+        update = dp.BatchUpdateLocationCapacityRequestUpdate(
             location_uuid=lid,
-            energy_source=energy_source,
             new_effective_capacity_watts=int(new_cap),
-            valid_from_utc=t,
             new_metadata=metadata,
         )
-        requests_by_location[lid].append(req)
+        updates_by_key[(energy_source, t)].append(update)
 
-    if requests_by_location:
-        update_count = sum(len(reqs) for reqs in requests_by_location.values())
+    if updates_by_key:
+        update_count = sum(len(updates) for updates in updates_by_key.values())
         logger.info(f"updating {update_count} {country.upper()} location capacities")
-        # Lets up date the locations one by one, otherwise the data-platform has too much load
-        # and cause some other issues
-        # A bulk-update would speed this up
-        # https://github.com/openclimatefix/data-platform/issues/199
-        for reqs in requests_by_location.values():
-            await _execute_async_tasks(
-                [
-                    asyncio.create_task(_update_location_capacities(client, reqs))
-                ],
-                ignore_exceptions=True,
-            )
+        await _batch_update_location_capacities(client, updates_by_key)
 
     # Determine observer name based on country
     observer_name = config["observer_name"]

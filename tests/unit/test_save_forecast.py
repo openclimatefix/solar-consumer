@@ -253,7 +253,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
         for case in testcases:
             client_mock.list_locations = AsyncMock(side_effect=mock_list_locations)
-            client_mock.update_location = AsyncMock()
+            client_mock.batch_update_location_capacity = AsyncMock()
             client_mock.create_observations = AsyncMock()
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
@@ -265,9 +265,14 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 if not case.should_error:
                     await save_generation_to_data_platform(case.input_df, client_mock)
                     # Assert the data platform functioms were called the expected number of times
+                    updates = [
+                        update
+                        for call in client_mock.batch_update_location_capacity.call_args_list
+                        for update in call.args[0].updates
+                    ]
                     self.assertEqual(
-                        client_mock.update_location.call_count,
-                        len(case.expected_update_capacities),
+                        [u.new_effective_capacity_watts for u in updates],
+                        case.expected_update_capacities,
                     )
                     self.assertEqual(
                         client_mock.create_observations.call_count,
@@ -275,13 +280,6 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     )
 
                     # Assert the expected arguments were passed to the data platform functions
-                    for call, expected_capacity in zip(
-                        client_mock.update_location.call_args_list,
-                        case.expected_update_capacities,
-                    ):
-                        actual_capacity = call.args[0].new_effective_capacity_watts
-                        self.assertEqual(actual_capacity, expected_capacity)
-
                     for call, expected_count in zip(
                         client_mock.create_observations.call_args_list,
                         case.expected_create_call_observation_counts,
@@ -421,7 +419,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
         for case in testcases:
             client_mock.list_locations = AsyncMock(side_effect=mock_list_locations)
-            client_mock.update_location = AsyncMock()
+            client_mock.batch_update_location_capacity = AsyncMock()
             client_mock.create_observations = AsyncMock()
             client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
             client_mock.create_observer = AsyncMock()
@@ -434,9 +432,14 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 if not case.should_error:
                     await save_generation_to_data_platform(case.input_df, client_mock, config_name="nl")
                     # Assert the data platform functions were called the expected number of times
+                    updates = [
+                        update
+                        for call in client_mock.batch_update_location_capacity.call_args_list
+                        for update in call.args[0].updates
+                    ]
                     self.assertEqual(
-                        client_mock.update_location.call_count,
-                        len(case.expected_update_capacities),
+                        [u.new_effective_capacity_watts for u in updates],
+                        case.expected_update_capacities,
                     )
                     self.assertEqual(
                         client_mock.create_observations.call_count,
@@ -444,13 +447,6 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                     )
 
                     # Assert the expected arguments were passed to the data platform functions
-                    for call, expected_capacity in zip(
-                        client_mock.update_location.call_args_list,
-                        case.expected_update_capacities,
-                    ):
-                        actual_capacity = call.args[0].new_effective_capacity_watts
-                        self.assertEqual(actual_capacity, expected_capacity)
-
                     for call, expected_count in zip(
                         client_mock.create_observations.call_args_list,
                         case.expected_create_call_observation_counts,
@@ -506,7 +502,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
         client_mock.list_locations = AsyncMock(side_effect=mock_list_locations)
         client_mock.create_location = AsyncMock()
-        client_mock.update_location = AsyncMock()
+        client_mock.batch_update_location_capacity = AsyncMock()
         client_mock.create_observations = AsyncMock()
         client_mock.list_observers = AsyncMock(side_effect=mock_list_observers)
         client_mock.create_observer = AsyncMock()
