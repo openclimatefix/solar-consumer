@@ -62,7 +62,7 @@ async def test_save_de_generation_capacity_not_lowered():
         make_de_data(max_generation_kw=40_000_000), mock_client, config_name="de"
     )
 
-    mock_client.update_location.assert_not_called()
+    mock_client.batch_update_location_capacity.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -74,8 +74,8 @@ async def test_save_de_generation_capacity_raised_to_max_generation():
         make_de_data(max_generation_kw=60_000_000), mock_client, config_name="de"
     )
 
-    mock_client.update_location.assert_called_once()
-    request = mock_client.update_location.call_args.args[0]
-    assert request.new_effective_capacity_watts == 60_000_000_000
+    mock_client.batch_update_location_capacity.assert_called_once()
+    request = mock_client.batch_update_location_capacity.call_args.args[0]
+    assert request.updates[0].new_effective_capacity_watts == 60_000_000_000
     # dated from the peak, not the end of the batch, so the peak fits under the new capacity
     assert request.valid_from_utc == TIMESTAMPS[0]

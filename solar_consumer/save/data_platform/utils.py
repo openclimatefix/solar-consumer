@@ -16,6 +16,16 @@ from loguru import logger
 from ocf import dp
 
 
+def point_to_polygon_wkt(longitude: float, latitude: float, size: float = 0.01) -> str:
+    """A small square polygon around a point, as the data platform only allows POINTs for sites."""
+    west, east = longitude - size, longitude + size
+    south, north = latitude - size, latitude + size
+    return (
+        f"POLYGON(({west} {south}, {east} {south}, {east} {north}, "
+        f"{west} {north}, {west} {south}))"
+    )
+
+
 def _get_country_config(country: str) -> dict:
     """Get country-specific configuration for data platform operations."""
     configs = {
@@ -24,21 +34,24 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl",
-            "country": "nl"
+            "country": "nl",
+            "country_code": "NL",
         },
         "nl_no_curtailment": {
             "id_key": "region_id",
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "number",  
             "observer_name": "nednl_no_curtailment",
-            "country": "nl"
+            "country": "nl",
+            "country_code": "NL",
         },
         "be": {
             "id_key": "region",
             "location_type": [dp.LocationType.NATION, dp.LocationType.STATE],
             "metadata_type": "string",  
             "observer_name": "elia_be",
-            "country": "be"
+            "country": "be",
+            "country_code": "BE",
         },
         "de": {
             "id_key": "region",
@@ -46,6 +59,7 @@ def _get_country_config(country: str) -> dict:
             "metadata_type": "string",
             "observer_name": "entsoe_de",
             "country": "de",
+            "country_code": "DE",
             "rolling_capacity": True
         },
         "gb": {
@@ -54,14 +68,16 @@ def _get_country_config(country: str) -> dict:
             "location_type": [dp.LocationType.GSP, dp.LocationType.NATION],
             "metadata_type": "number", 
             "observer_name": None, 
-            "country": "gb"
+            "country": "gb",
+            "country_code": "GB",
         },
         "ind_rajasthan": {
             "id_key": "name",
             "location_type": [dp.LocationType.STATE],
             "metadata_type": "string",
             "observer_name": "ruvnl",
-            "country": "ind_rajasthan"
+            "country": "ind_rajasthan",
+            "country_code": "IN",
         },
     }
     return configs.get(country, configs["gb"])
@@ -226,10 +242,14 @@ async def _create_locations_from_csv(
             location_name=location_name,
             energy_source=energy_source,
             location_type=location_type,
-            geometry_wkt=f"POINT({location['longitude']} {location['latitude']})",
+            geometry_wkt=point_to_polygon_wkt(location["longitude"], location["latitude"]),
+            associated_latlng=dp.LatLng(
+                latitude=location["latitude"], longitude=location["longitude"]
+            ),
             effective_capacity_watts=effective_capacity_watts,
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+            country_code=_get_country_config(country)["country_code"],
         )
         create_location_response = await client.create_location(create_location_request)
         created_uuids[location_name] = create_location_response.location_uuid

@@ -7,6 +7,7 @@ from betterproto.lib.google.protobuf import Struct, Value
 from ocf import dp
 
 from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
+from solar_consumer.save.data_platform.utils import point_to_polygon_wkt
 
 # Country-specific configuration for parametrized tests
 NL_NATIONAL_CONFIG = {
@@ -18,7 +19,7 @@ NL_NATIONAL_CONFIG = {
             "metadata_key": "region_id",
             "metadata_value": 0,
             "metadata_type": "number",
-            "geometry": "POINT(5.29 52.13)",
+            "geometry": point_to_polygon_wkt(5.29, 52.13),
             "capacity": 100_000_000_000,
         },
     ],
@@ -46,7 +47,7 @@ NL_GRONINGEN_CONFIG = {
             "metadata_key": "region_id",
             "metadata_value": 1,
             "metadata_type": "number",
-            "geometry": "POINT(6.74 53.22)",
+            "geometry": point_to_polygon_wkt(6.74, 53.22),
             "capacity": 50_000_000_000,
         },
     ],
@@ -75,7 +76,7 @@ BE_CONFIG = {
             "metadata_key": "region",
             "metadata_value": "belgium",
             "metadata_type": "string",
-            "geometry": "POINT(4.35 50.85)",
+            "geometry": point_to_polygon_wkt(4.35, 50.85),
             "capacity": 100_000_000,
         },
         {
@@ -83,7 +84,7 @@ BE_CONFIG = {
             "metadata_key": "region",
             "metadata_value": "flanders",
             "metadata_type": "string",
-            "geometry": "POINT(4.46 51.00)",
+            "geometry": point_to_polygon_wkt(4.46, 51.00),
             "capacity": 100_000_000,
         },
         {
@@ -91,7 +92,7 @@ BE_CONFIG = {
             "metadata_key": "region",
             "metadata_value": "wallonia",
             "metadata_type": "string",
-            "geometry": "POINT(4.70 50.50)",
+            "geometry": point_to_polygon_wkt(4.70, 50.50),
             "capacity": 100_000_000,
         },
     ],
@@ -150,6 +151,7 @@ async def test_save_generation_to_data_platform(client, config):
             effective_capacity_watts=loc_config["capacity"],
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+            country_code=country.upper(),
         )
         create_location_response = await client.create_location(create_location_request)
         location_uuids[loc_config["name"]] = create_location_response.location_uuid
@@ -267,6 +269,7 @@ async def test_save_generation_no_matching_locations(client, country, observer_n
     metadata = target_location.get("metadata", {})
     country_meta = metadata.get("country", {}).get("string_value")
     assert country_meta == country, f"Country metadata missing or incorrect for {expected_location_name}"
+    assert target_location["country_code"] == country.upper()
 
     # Verify observations exist
     get_observations_request = dp.GetObservationsAsTimeseriesRequest(
@@ -339,10 +342,11 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
             location_name=location_name,
             energy_source=dp.EnergySource.SOLAR,
             location_type=dp.LocationType.NATION,
-            geometry_wkt="POINT(5.00 50.00)",
+            geometry_wkt=point_to_polygon_wkt(5.00, 50.00),
             effective_capacity_watts=100_000_000,
             metadata=metadata,
             valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
+            country_code=country.upper(),
         )
         create_location_response = await client.create_location(create_location_request)
         location_uuid = create_location_response.location_uuid
