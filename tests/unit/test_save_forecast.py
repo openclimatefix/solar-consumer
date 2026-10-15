@@ -7,115 +7,11 @@ import numpy as np
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
 from ocf import dp
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, GenerationSQL, LocationSQL
 
 from solar_consumer.save.data_platform.save_generation import (
     _filter_existing_observations,
     save_generation_to_data_platform,
 )
-from solar_consumer.save.save_site_database import (
-    save_forecasts_to_site_db,
-    save_generation_to_site_db,
-)
-
-
-def test_save_generation_to_site_db(db_site_session):
-
-    """
-    Test the save_generation_to_site_db function.
-    """
-    # Prepare mock data
-    generation_data = {
-        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
-        "solar_generation_kw": [100, 150],
-        "capacity_kw": [20_000_000, 20_000_002],
-        "region_id": [0,0]
-    }
-
-    # Convert to DataFrame
-    generation_df = pd.DataFrame(generation_data)
-
-    # Call the function
-    save_generation_to_site_db(
-        generation_data=generation_df,
-        session=db_site_session,
-    )
-
-    # Check if data is saved correctly in the database
-    saved_data = db_site_session.query(GenerationSQL).all()
-
-    assert len(saved_data) == len(generation_df)
-
-    sites = db_site_session.query(LocationSQL).all()
-    assert len(sites) == 1
-    assert sites[0].capacity_kw == 20_000_002
-    assert sites[0].client_location_name == "nl_national"
-
-
-def test_save_generation_to_site_db_none_capacity(db_site_session):
-    """
-    Test the save_generation_to_site_db function.
-
-    Add None in capacity_kw column
-    """
-    # Prepare mock data
-    generation_data = {
-        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
-        "solar_generation_kw": [100, 150],
-        "capacity_kw": [None, None],
-        "region_id": [0,0]
-    }
-
-    # Convert to DataFrame
-    generation_df = pd.DataFrame(generation_data)
-
-    # Call the function
-    save_generation_to_site_db(
-        generation_data=generation_df,
-        session=db_site_session,
-    )
-
-    # Check if data is saved correctly in the database
-    saved_data = db_site_session.query(GenerationSQL).all()
-
-    assert len(saved_data) == len(generation_df)
-
-    sites = db_site_session.query(LocationSQL).all()
-    assert len(sites) == 1
-    # default capacity used
-    assert sites[0].capacity_kw == 20_000_000
-    assert sites[0].client_location_name == "nl_national"
-
-
-def test_save_forecasts_to_site_db(db_site_session):
-
-    """
-    Test the save_generation_to_site_db function.
-    """
-    # Prepare mock data
-    forecast_data = {
-        "target_datetime_utc": ["2023-10-01 00:00:00+00:00", "2023-10-01 01:00:00+00:00"],
-        "solar_generation_kw": [100, 150],
-        "capacity_kw": [200, 201],
-    }
-
-    # Convert to DataFrame
-    forecast_df = pd.DataFrame(forecast_data)
-    forecast_df["target_datetime_utc"] = pd.to_datetime(forecast_df["target_datetime_utc"])
-
-    # Call the function
-    save_forecasts_to_site_db(
-        forecast_data=forecast_df,
-        session=db_site_session,
-        model_tag="test-model",
-        model_version="1.0",
-    )
-
-    # Check if data is saved correctly in the database
-    assert len(db_site_session.query(ForecastSQL).all()) == 1
-    saved_data = db_site_session.query(ForecastValueSQL).all()
-
-    assert len(saved_data) == len(forecast_df)
 
 
 class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
@@ -528,30 +424,6 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
 
         # Verify list_locations was called twice (once before, once after creation)
         self.assertEqual(client_mock.list_locations.call_count, 4)
-
-def test_save_generation_to_site_db_ind_rajasthan(db_site_session):
-    generation_data = {
-        "target_datetime_utc": ["2023-10-01 00:00:00", "2023-10-01 01:00:00"],
-        "solar_generation_kw": [100, 200],
-        "capacity_kw": [500, 600],
-        "energy_type": ["solar", "wind"],
-    }
-
-    generation_df = pd.DataFrame(generation_data)
-
-    save_generation_to_site_db(
-        generation_data=generation_df,
-        session=db_site_session,
-        country="ind_rajasthan",
-    )
-
-    saved_data = db_site_session.query(GenerationSQL).all()
-    assert len(saved_data) == len(generation_df)
-
-    sites = db_site_session.query(LocationSQL).all()
-    site_names = sorted([site.client_location_name for site in sites])
-
-    assert site_names == ["runvl_solar_site", "runvl_wind_site"]
 
 
 class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):

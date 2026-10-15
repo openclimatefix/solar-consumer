@@ -11,8 +11,6 @@ name = "solar_consumer"
 dynamic = ["version"]
 dependencies = [
     "pandas",
-    "sqlalchemy",
-    "pvsite-datamodel==1.2.0",
     "testcontainers",
     "pyproj",
     "tqdm",
@@ -25,6 +23,7 @@ dependencies = [
     "pytest-asyncio>=1.2.0",
     "requests-mock>=1.12.1",
     "entsoe-py>=0.8.0",
+    "pydantic>=2",
 ]
 requires-python = ">=3.12.0, <3.13"
 
