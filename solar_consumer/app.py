@@ -3,7 +3,7 @@ Main Script to Fetch, Format, and Save NESO Solar Forecast Data
 
 This script orchestrates the following steps:
 1. Fetches solar generation/forecast data using the `fetch_data` function.
-2. Saves the data via the chosen save method (CSV, data platform, or the legacy site database).
+2. Saves the data via the chosen save method (CSV or data platform).
 """
 
 import asyncio
@@ -14,7 +14,6 @@ import pandas as pd
 from grpclib.client import Channel
 from loguru import logger
 from ocf import dp
-from pvsite_datamodel.connection import DatabaseConnection
 
 from solar_consumer import __version__  # Import version from __init__.py
 from solar_consumer.data.fetch_de_data import get_de_forecast_type
@@ -22,17 +21,12 @@ from solar_consumer.fetch_data import fetch_data
 from solar_consumer.save.data_platform.save_forecast import save_forecasts_to_data_platform
 from solar_consumer.save.data_platform.save_generation import save_generation_to_data_platform
 from solar_consumer.save.save_csv import save_forecasts_to_csv
-from solar_consumer.save.save_site_database import (
-    save_forecasts_to_site_db,
-    save_generation_to_site_db,
-)
 
 data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
 data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 
 
 async def app(
-    db_url: str,
     save_method: str,
     csv_dir: str | None = None,
     country: str = "gb",
@@ -42,8 +36,7 @@ async def app(
     Main application function to fetch, format, and save solar forecast data.
 
     Parameters:
-        db_url (str): Database connection URL from an environment variable.
-        save_method (str): Method to save the forecast data. Options are "db" or "csv".
+        save_method (str): Method to save the forecast data. Options are "data-platform" or "csv".
         csv_dir (str, optional): Directory to save CSV files if save_method is "csv".
         country (str): Country code for fetching data. Default is "gb".
         historic_or_forecast: (str): Type of data to fetch. Default is "generation".
@@ -77,30 +70,7 @@ async def app(
             logger.info(f"Saving {len(data)} rows of forecast data directly to CSV.")
             save_forecasts_to_csv(data, csv_dir=csv_dir)
 
-        # B. Save generation/forecasts to the site database
-        elif save_method == "site-db":
-            # Initialize database connection
-            connection = DatabaseConnection(url=db_url, echo=False)
-
-            with connection.get_session() as session:
-                logger.info("Saving generations to the site database.")
-                if historic_or_forecast == "generation":
-                    save_generation_to_site_db(
-                        session=session,
-                        generation_data=data,
-                        country=country,
-                    )
-
-                elif historic_or_forecast == "forecast":
-                    logger.info("Saving forecasts to the site database.")
-                    save_forecasts_to_site_db(
-                        session=session,
-                        forecast_data=data,
-                        country=country,
-                        model_tag=model_tag,
-                        model_version=__version__,
-                    )
-
+        # B. Save generation/forecasts to the data platform
         elif save_method == "data-platform":
             logger.info("Saving to data platform")
 
@@ -139,8 +109,7 @@ async def app(
 
 
 if __name__ == "__main__":
-    # Step 1: Fetch the database URL from the environment variable
-    db_url = os.getenv("DB_URL")  # Change from "DATABASE_URL" to "DB_URL"
+    # Step 1: Read configuration from environment variables
     country = os.getenv("COUNTRY", "gb")
     save_method = os.getenv("SAVE_METHOD", "data-platform").lower()  # Default to "data-platform"
     csv_dir = os.getenv("CSV_DIR")
@@ -149,14 +118,10 @@ if __name__ == "__main__":
     if save_method == "csv" and not csv_dir:
         logger.error("CSV_DIR environment variable is required for CSV saving. Exiting.")
         sys.exit(1)
-    if (save_method == "site-db") and (db_url is None):
-        logger.error("DB_URL environment variable is not set. Exiting.")
-        sys.exit(1)
 
     # Step 2: Run the application
     asyncio.run(
         app(
-            db_url=db_url,
             save_method=save_method,
             csv_dir=csv_dir,
             country=country,

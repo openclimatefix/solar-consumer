@@ -5,7 +5,7 @@
 
 [![ease of contribution: easy](https://img.shields.io/badge/ease%20of%20contribution:%20easy-32bd50)](https://github.com/openclimatefix#how-easy-is-it-to-get-involved)
 
-This code can be used to download solar forecasts and save them to a PostgreSQL database. It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
+This code can be used to download solar forecasts and save them to the data platform (or CSV). It fetches solar generation estimates for embedded solar farms and processes the data for analysis.
 We currently collect
 - UK: Forecast can be retreived from NESO. Generation Data can be retrevied from PVLive. 
 - NL: Generation values from Ned NL, both national and region. National Forecast values from Ned NL too. 
@@ -19,8 +19,8 @@ The solar consumer supports **RUVNL (Rajasthan, India)** real-time generation da
 
 - Both **solar and wind** generation are supported
 - Data is fetched via `solar-consumer`
-- Generation data can be saved directly to the **site_database**
-- Separate sites are created for solar and wind generation
+- Generation data is saved to the **data platform**
+- Separate locations are created for solar and wind generation
 - No separate `ruvnl-consumer` service is required
 
 
@@ -28,16 +28,16 @@ The solar consumer supports **RUVNL (Rajasthan, India)** real-time generation da
 
 Here are the different sources of data, and which methods can be used to save the results
 
-| Source | Country | CSV | Data Platform | Site DB (Legacy) |
-| --- | ---  | --- | --- | --- |
-| PVLive | 🇬🇧 | ✅ | ✅ | |
-| NESO forecast | 🇬🇧 | ✅ | ✅ | |
-| Ned-nl | 🇳🇱 | ✅ | ✅ | ✅ |
-| Ned-nl forecast | 🇳🇱 | ✅ | ✅ | ✅ |
-| Germany (ENTSOE) | 🇩🇪 |  ✅ | ✅ | ✅ |
-| Germany (ENTSOE) forecast | 🇩🇪 |  ✅ | ✅ | |
-| Elia Open Data | 🇧🇪 | ✅ | ✅ | |
-| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ | ✅ |
+| Source | Country | CSV | Data Platform |
+| --- | ---  | --- | --- |
+| PVLive | 🇬🇧 | ✅ | ✅ |
+| NESO forecast | 🇬🇧 | ✅ | ✅ |
+| Ned-nl | 🇳🇱 | ✅ | ✅ |
+| Ned-nl forecast | 🇳🇱 | ✅ | ✅ |
+| Germany (ENTSOE) | 🇩🇪 |  ✅ | ✅ |
+| Germany (ENTSOE) forecast | 🇩🇪 |  ✅ | ✅ |
+| Elia Open Data | 🇧🇪 | ✅ | ✅ |
+| RUVNL (Rajasthan SLDC) | 🇮🇳 | ✅ | ✅ |
 
 
 ## Requirements
@@ -64,9 +64,7 @@ docker compose up -d
 ```
 
 The above command will:
-- Start a PostgreSQL database container
 - Build and start the NESO Solar Consumer application
-- Configure all necessary networking between containers
 
 To stop the application:
 ```bash
@@ -78,31 +76,24 @@ To view logs:
 docker compose logs -f
 ```
 
-> **Note**: The PostgreSQL data is persisted in a Docker volume. To completely reset the database, use:
-> ```bash
-> docker compose down -v
-> ```
-
 ## Documentation
 
 The package provides three main functionalities:
 
 1. **Data Fetching**: Retrieves solar forecast data from the NESO API
 2. **Data Formatting**: Processes the data into a standardized forecast objects
-3. **Data Storage**: Saves the data to CSV, the data platform, or the legacy site database
+3. **Data Storage**: Saves the data to CSV or the data platform
 
 ### Key Components:
 
 - `fetch_data.py`: Handles API data retrieval
-- `save/`: Save methods (CSV, data platform, and the legacy site database)
+- `save/`: Save methods (CSV and data platform)
 - `app.py`: Orchestrates the entire pipeline
 
 ### Environment Variables: (Can be found in the .example.env / .env file)
 
-- `DB_URL=postgresql://postgres:postgres@localhost:5432/neso_solar` : Site database configuration (only needed for `SAVE_METHOD="site-db"`)
 - `COUNTRY="gb"` : Country code for fetching data. Currently, other options are ["be", "de", "ind_rajasthan", "nl"] 
-- `SAVE_METHOD`: Ways to store the data. Options are ["csv", "site-db", "data-platform"].  
-  `site-db` is supported for NL, DE, and India (RUVNL).
+- `SAVE_METHOD`: Ways to store the data. Options are ["csv", "data-platform"].  
   `data-platform` is supported for UK (PVLive, NESO forecast), NL (Ned-nl), BE (Elia), DE (ENTSOE), and India (RUVNL).
 - `CSV_DIR=None` : Directory to save CSV files if `SAVE_METHOD="csv"`.
 - `UK_PVLIVE_REGIME=in-day`: For UK PVLive, the regime. Can be "in-day" or "day-after"
@@ -217,7 +208,7 @@ This reposistory has 2 main CI workflows - `branch-ci` and `merged-ci`.
 ## FAQ
 
 **Q: What format is the data stored in?**
-A: The data is stored in PostgreSQL using SQLAlchemy models, with timestamps in UTC and power values in megawatts.
+A: The data is saved to the data platform (or CSV), with timestamps in UTC.
 
 **Q: How often should I run the consumer?**
 A: This depends on your use case and the NESO API update frequency. The consumer can be scheduled using cron jobs or other scheduling tools.
