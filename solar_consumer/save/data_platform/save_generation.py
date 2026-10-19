@@ -200,15 +200,12 @@ async def save_generation_to_data_platform(
     # If the source data has no capacity, define it as the max generation so capacity_kw is
     # always present.
     if "capacity_kw" not in data_df.columns:
-        if data_df.empty:
-            data_df["capacity_kw"] = pd.Series(dtype=float)
+        capacity_key = "energy_type" if country == "ind_rajasthan" else id_key
+        if capacity_key in data_df.columns:
+            data_df["capacity_kw"] = data_df.groupby(capacity_key)["solar_generation_kw"].transform("max")
         else:
-            capacity_key = "energy_type" if country == "ind_rajasthan" else id_key
-            if capacity_key in data_df.columns:
-                data_df["capacity_kw"] = data_df.groupby(capacity_key)["solar_generation_kw"].transform("max")
-            else:
-                data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
-            logger.info("No capacity info found, so using max generation")
+            data_df["capacity_kw"] = data_df["solar_generation_kw"].max()
+        logger.info("No capacity info found, so using max generation")
 
     # Extract metadata and create join key based on country
     if country == "ind_rajasthan":
@@ -217,19 +214,16 @@ async def save_generation_to_data_platform(
 
         if not locations_df.empty:
             locations_df = locations_df.assign(
-                join_key=lambda df: df["location_name"].astype(str).str.strip().str.lower()
-                + "_"
-                + df["energy_source"].astype(str).str.strip().str.lower()
+                join_key=lambda df: df["location_name"] + "_" + df["energy_source"].str.lower()
             )
 
     elif country in ["be", "de"]:
         # BE and DE use string matching with normalization
-        if not data_df.empty and id_key in data_df.columns:
-            data_df["join_key"] = data_df[id_key].astype(str).str.strip().str.lower()
+        data_df["join_key"] = data_df[id_key]
+        
+        if locations_df.empty or data_df.empty:
+            joined_df = pd.DataFrame()
         else:
-            data_df["join_key"] = ""
-
-        if not locations_df.empty:
             locations_df = locations_df.assign(
                 join_key=lambda df: df["metadata"].apply(
                     lambda x: _extract_metadata_value(x, id_key, metadata_type)
