@@ -26,14 +26,15 @@ TIMESTAMPS = [
 
 
 @pytest.mark.asyncio(loop_scope="module")
-async def test_save_de_generation_to_data_platform(client):
+async def test_save_de_generation_to_data_platform(client, setup_locations_from_csv):
     """
     Test saving German (per-TSO + national) solar generation to the Data Platform.
 
-    No locations are pre-created: the save function should create the German locations from the
-    locations CSV (seeded with real installed capacity), then store one observation per region
+    Locations are pre-created from the locations CSV, then store one observation per region
     and timestamp against the matching location.
     """
+    await setup_locations_from_csv(COUNTRY)
+
     rows = []
     for region, (capacity_kw, gens) in DE_FAKE.items():
         for ts, gen in zip(TIMESTAMPS, gens):

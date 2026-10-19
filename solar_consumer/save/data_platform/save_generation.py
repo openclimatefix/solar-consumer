@@ -14,7 +14,6 @@ from loguru import logger
 from ocf import dp
 
 from solar_consumer.save.data_platform.utils import (
-    _create_locations_from_csv,
     _execute_async_tasks,
     _extract_metadata_value,
     _get_country_config,
@@ -25,21 +24,6 @@ from solar_consumer.save.data_platform.utils import (
 # the data platform accepts at most 5000 updates per batch
 MAX_BATCH_UPDATE_SIZE = 5000
 
-
-def _seed_capacity_watts_by_id(data_df: pd.DataFrame, id_key: str) -> dict:
-    """Capacity (watts) per join key, from the incoming data, to seed new locations.
-
-    Uses the fetched ``capacity_kw`` where available, falling back to the max generation, so a
-    newly created location starts with a realistic capacity rather than an arbitrary default.
-    """
-    if data_df.empty or id_key not in data_df.columns:
-        return {}
-
-    grouped = data_df.groupby(id_key)
-    seed_kw = grouped["solar_generation_kw"].max()
-    if "capacity_kw" in data_df.columns:
-        seed_kw = grouped["capacity_kw"].max().fillna(seed_kw)
-    return {key: int(value * 1000) for key, value in seed_kw.items() if pd.notna(value)}
 
 async def _batch_update_location_capacities(
     client: dp.DataPlatformDataServiceStub,
@@ -205,21 +189,7 @@ async def save_generation_to_data_platform(
         await _execute_async_tasks(tasks)
 
     # 1. Get locations and join to the incoming data.
-    if country in ["nl", "be", "de", "ind_rajasthan"]:
-        # NL, BE and DE support CSV-based location creation
-        locations_data = await _list_locations(client, config["location_type"], country=country)
-        
-        if not locations_data:
-            # Seed new locations with a realistic capacity taken from the incoming data.
-            capacity_watts_by_id = _seed_capacity_watts_by_id(data_df, id_key)
-            await _create_locations_from_csv(
-                client, country, id_key, metadata_type, capacity_watts_by_id
-            )
-            # Re-fetch locations after creating them
-            locations_data = await _list_locations(client, config["location_type"], country=country)
-    else:
-        # GB - no CSV creation support
-        locations_data = await _list_locations(client, config["location_type"], country=country)
+    locations_data = await _list_locations(client, config["location_type"], country=country)
 
     # Convert locations to DataFrame
     locations_df = pd.DataFrame.from_dict(locations_data)
@@ -267,15 +237,16 @@ async def save_generation_to_data_platform(
         # NL and GB use numeric matching
         data_df["join_key"] = data_df[id_key]
         
-        locations_df = (
-            locations_df
-            .loc[lambda df: df["metadata"].apply(lambda x: id_key in x)]
-            .assign(
-                join_key=lambda df: df["metadata"].apply(
-                    lambda x: _extract_metadata_value(x, id_key, metadata_type)
+        if not locations_df.empty:
+            locations_df = (
+                locations_df
+                .loc[lambda df: df["metadata"].apply(lambda x: id_key in x)]
+                .assign(
+                    join_key=lambda df: df["metadata"].apply(
+                        lambda x: _extract_metadata_value(x, id_key, metadata_type)
+                    )
                 )
             )
-        )
     
     # Common join logic for all countries
     if not (locations_df.empty or data_df.empty):
@@ -312,7 +283,7 @@ async def save_generation_to_data_platform(
             f"No matching {country.upper()} locations found for the incoming data. "
             f"Expected locations to exist in the data platform with {id_key} metadata "
             f"matching the following {id_key} values: {incoming_ids}. "
-            f"This is unexpected - locations should have been created or already exist."
+            f"This is unexpected - locations should already exist in the data platform."
         )
 
     logger.info(

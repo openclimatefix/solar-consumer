@@ -5,13 +5,10 @@ https://github.com/openclimatefix/data-platform
 """
 
 import asyncio
-import datetime
 import itertools
-from pathlib import Path
 
 import betterproto
-import pandas as pd
-from betterproto.lib.google.protobuf import Struct, Value
+from betterproto.lib.google.protobuf import Value
 from loguru import logger
 from ocf import dp
 
@@ -167,96 +164,6 @@ async def _list_locations(
 
     return filtered_locations
 
-
-async def _create_locations_from_csv(
-    client: dp.DataPlatformDataServiceStub,
-    country: str,
-    id_key: str,
-    metadata_type: str,
-    capacity_watts_by_id: dict | None = None,
-) -> None:
-    """Create locations from CSV file for countries that support it (NL, BE, DE).
-
-    ``capacity_watts_by_id`` maps a join-key value to its capacity in watts, taken from the
-    incoming data, so a new location starts with a realistic capacity. Anything not present
-    falls back to 100 MW, which later gets updated from the incoming data.
-    """
-    capacity_watts_by_id = capacity_watts_by_id or {}
-
-    csv_path = Path(__file__).parent.parent.parent / "data" / "locations.csv"
-    if not csv_path.exists():
-        raise FileNotFoundError(f"Unified locations CSV not found at {csv_path}")
-    
-    locations_df_csv = pd.read_csv(csv_path)
-    # Filter by country code
-    locations_df_csv = locations_df_csv[locations_df_csv['country_code'] == country]
-    locations = locations_df_csv.to_dict(orient="records")
-
-    created_uuids: dict[str, str] = {}
-    for location in locations:
-        location_name = location["name"]
-        location_type_str = location.get("location_type", "NATION")
-        
-        # Create metadata based on type (number or string)
-        id_value = location[id_key]
-
-        effective_capacity_watts = int(capacity_watts_by_id.get(id_value, 100_000_000))
-
-        metadata_fields = {
-            "country": Value(string_value=country),
-        }
-        if metadata_type == "number":
-            metadata_fields[id_key] = Value(number_value=id_value)
-        else:  # string
-            metadata_fields[id_key] = Value(string_value=id_value)
-
-        metadata = Struct(fields=metadata_fields)
-        
-        if location_type_str == "NATION":
-             location_type = dp.LocationType.NATION
-        elif location_type_str == "STATE":
-             location_type = dp.LocationType.STATE
-        else:
-             location_type = dp.LocationType.NATION
-
-        energy_source_str = location.get("energy_source", "solar").lower()
-        if energy_source_str == "wind":
-            energy_source = dp.EnergySource.WIND
-        else:
-            energy_source = dp.EnergySource.SOLAR
-
-        # locations listed more than once with different energy sources, so we create one location per energy source
-        if location_name in created_uuids:
-            await client.create_location_energy_source(
-                dp.CreateLocationEnergySourceRequest(
-                    location_uuid=created_uuids[location_name],
-                    energy_source=energy_source,
-                    effective_capacity_watts=effective_capacity_watts,
-                    metadata=metadata,
-                    valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
-                )
-            )
-            continue
-
-        create_location_request = dp.CreateLocationRequest(
-            location_name=location_name,
-            energy_source=energy_source,
-            location_type=location_type,
-            geometry_wkt=point_to_polygon_wkt(location["longitude"], location["latitude"]),
-            associated_latlng=dp.LatLng(
-                latitude=location["latitude"], longitude=location["longitude"]
-            ),
-            effective_capacity_watts=effective_capacity_watts,
-            metadata=metadata,
-            valid_from_utc=datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC),
-            country_code=_get_country_config(country)["country_code"],
-        )
-        create_location_response = await client.create_location(create_location_request)
-        created_uuids[location_name] = create_location_response.location_uuid
-    
-    logger.warning(
-        f"No {country.upper()} locations found in data platform. Created new locations."
-    )
 
 def format_metadata_from_dict(metadata):
     """ Format the dict keys and values to the expected format """
