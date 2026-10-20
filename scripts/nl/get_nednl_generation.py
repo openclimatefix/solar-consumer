@@ -10,7 +10,7 @@ historic data on 16 Dec 2025, so fresh pulls may not match older stored data.
 
 Usage:
     export APIKEY_NEDNL=...
-    python pull_ned_nl_solar_regional.py --start 2025-01-01 --end 2026-01-01 --out nednl_2025.csv
+    python scripts/nl/get_nednl_generation.py --start 2025-01-01 --end 2026-01-01 --out nednl_2025.csv
 """
 
 import argparse
@@ -34,9 +34,8 @@ def fetch(session, params, max_retries=3, initial_delay=5):
             print(f"Request failed: {e}")
             return []
 
-        # Stay under rate limit ( approx 180 requests / 5 min)
         if r.status_code == 200:
-            time.sleep(0.1)
+            time.sleep(0.1)  # stay under the rate limit (~180 requests / 5 min)
             return r.json()["hydra:member"]
         if r.status_code == 429:
             wait = initial_delay * 2**attempt
@@ -67,11 +66,11 @@ def main(start, end, out):
                 nxt = day + timedelta(days=1)
                 rows += fetch(session, {
                     "point": point,
-                    "type": 2,             
-                    "granularity": 4,       
-                    "granularitytimezone": 0, 
-                    "classification": 2,   
-                    "activity": 1,    
+                    "type": 2,  # solar
+                    "granularity": 4,  # 15 min
+                    "granularitytimezone": 0,  # UTC
+                    "classification": 2,  # measured (1 = forecast)
+                    "activity": 1,  # production
                     "validfrom[after]": day.strftime("%Y-%m-%d"),
                     "validfrom[strictly_before]": nxt.strftime("%Y-%m-%d"),
                 })
@@ -91,7 +90,7 @@ def main(start, end, out):
         "lastupdate (UTC)": pd.to_datetime([u["lastupdate"] for u in rows]),
     }).sort_values(["site_id", "validfrom (UTC)"])
 
-    df.to_csv(out, index=False)Expand commentComment on line R94Resolved
+    df.to_csv(out, index=False)
     print(f"Saved {len(df)} rows to {out}")
 
 
