@@ -8,34 +8,43 @@ Note: the API's "capacity" field is actually generation (kW), not installed
 capacity. Installed capacity = capacity / percentage. NED.nl also revised its
 historic data on 16 Dec 2025, so fresh pulls may not match older stored data.
 
+Requests are paced to stay under the API limit of ~180 requests per 5 minutes,
+so a full year (13 points x 365 days) takes around 2 hours.
+
 Usage:
     export APIKEY_NEDNL=...
     python scripts/nl/get_nednl_generation.py --start 2025-01-01 --end 2026-01-01 --out nednl_2025.csv
 """
 
-import argparse
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 
+import click
 import pandas as pd
 import requests
 from tqdm import tqdm
 
+API_KEY = os.getenv("APIKEY_NEDNL")
+
 URL = "https://api.ned.nl/v1/utilizations"
 N_POINTS = 13
+REQUEST_INTERVAL_S = 300 / 180  # at most 180 requests per 5 minutes
 
 
-def fetch(session, params, max_retries=3, initial_delay=5):
+class FetchError(RuntimeError):
+    """Raised when a request fails for good, so the pull stops instead of saving partial data."""
+
+
+def fetch(session, params, max_retries=5, initial_delay=60):
     for attempt in range(max_retries):
         try:
-            r = session.get(URL, params=params, allow_redirects=False)
+            r = session.get(URL, params=params, allow_redirects=False, timeout=60)
         except requests.RequestException as e:
-            print(f"Request failed: {e}")
-            return []
+            raise FetchError(f"Request failed for {params}: {e}") from e
 
         if r.status_code == 200:
-            time.sleep(0.1)  # stay under the rate limit (~180 requests / 5 min)
+            time.sleep(REQUEST_INTERVAL_S)
             return r.json()["hydra:member"]
         if r.status_code == 429:
             wait = initial_delay * 2**attempt
@@ -43,17 +52,22 @@ def fetch(session, params, max_retries=3, initial_delay=5):
             time.sleep(wait)
             continue
 
-        print(f"Error {r.status_code}: {r.text[:200]}")
-        return []
+        raise FetchError(f"Error {r.status_code} for {params}: {r.text[:200]}")
 
-    print("Max retries reached")
-    return []
+    raise FetchError(f"Max retries reached for {params}")
 
 
+@click.command()
+@click.option("--start", required=True, type=click.DateTime(["%Y-%m-%d"]), help="Start date (inclusive)")
+@click.option("--end", required=True, type=click.DateTime(["%Y-%m-%d"]), help="End date (exclusive)")
+@click.option("--out", default="nednl_15m_solar_regional.csv", show_default=True, help="Output CSV path")
 def main(start, end, out):
+    if not API_KEY:
+        raise click.ClickException("APIKEY_NEDNL environment variable is not set")
+
     session = requests.Session()
     session.headers.update({
-        "X-AUTH-TOKEN": os.environ["APIKEY_NEDNL"],
+        "X-AUTH-TOKEN": API_KEY,
         "Accept": "application/ld+json",
     })
 
@@ -78,7 +92,7 @@ def main(start, end, out):
                 pbar.update(1)
 
     if not rows:
-        raise SystemExit("No data returned")
+        raise click.ClickException("No data returned")
 
     df = pd.DataFrame({
         "site_id": [int(u["point"].rsplit("/", 1)[-1]) for u in rows],
@@ -95,9 +109,4 @@ def main(start, end, out):
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("--start", required=True, type=datetime.fromisoformat)
-    p.add_argument("--end", required=True, type=datetime.fromisoformat)
-    p.add_argument("--out", default="nednl_15m_solar_regional.csv")
-    a = p.parse_args()
-    main(a.start, a.end, a.out)
+    main()
