@@ -25,6 +25,9 @@ from solar_consumer.save.save_csv import save_forecasts_to_csv
 data_platform_host = os.getenv("DATA_PLATFORM_HOST", "localhost")
 data_platform_port = int(os.getenv("DATA_PLATFORM_PORT", "50051"))
 
+# Pinned so the Data Platform loads same forecaster version
+MODEL_VERSION = "1.6.0"
+
 
 async def app(
     save_method: str,
@@ -79,7 +82,7 @@ async def app(
 
                 if historic_or_forecast == "forecast":
                     logger.info("Saving forecasts to the Data Platform.")
-                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=__version__, init_time_utc=t0.to_pydatetime(), country=country)
+                    await save_forecasts_to_data_platform(data_df=data, client=client, model_tag=model_tag, model_version=MODEL_VERSION, init_time_utc=t0.to_pydatetime(), country=country)
                 else:
                     logger.info("Saving generation data to the Data Platform.")
                     await save_generation_to_data_platform(data_df=data, client=client, config_name=country)
