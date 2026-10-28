@@ -130,9 +130,11 @@ def fetch_de_data_forecast() -> pd.DataFrame:
     """
     forecast_type = get_de_forecast_type()
 
-    # ENTSO-E publishes the forecast for the day ahead, so we pull today and tomorrow
-    start = pd.Timestamp.now(tz="UTC").floor("D")
-    end = start + pd.Timedelta(days=2)
+    # ENTSO-E publishes a forecast per German day, so we pull one: tomorrow for day ahead
+    start = pd.Timestamp.now(tz="Europe/Berlin").floor("D")
+    if forecast_type == "day_ahead":
+        start += pd.DateOffset(days=1)
+    end = start + pd.DateOffset(days=1)
 
     logger.info(f"Fetching German {forecast_type} solar forecast from {start} to {end}")
 
