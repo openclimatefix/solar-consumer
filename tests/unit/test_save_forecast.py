@@ -6,10 +6,9 @@ from unittest.mock import AsyncMock, patch
 import numpy as np
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
-from ocf import dp
-
 from grpclib import Status
 from grpclib.exceptions import GRPCError
+from ocf import dp
 
 from solar_consumer.save.data_platform.save_generation import (
     _batch_update_location_capacities,
