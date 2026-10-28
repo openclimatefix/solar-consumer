@@ -10,6 +10,8 @@ from collections import defaultdict
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
+from grpclib import Status
+from grpclib.exceptions import GRPCError
 from loguru import logger
 from ocf import dp
 
@@ -49,16 +51,30 @@ async def _batch_update_location_capacities(
 
     Batches are sent one after another, so the data platform isn't overloaded, and a location
     with several energy sources, e.g. RUVNL's solar and wind, isn't updated concurrently.
+
+    A batch rejected because a capacity already exists at that valid from time is skipped,
+    so the observations are still saved.
     """
     for (energy_source, valid_from_utc), updates in updates_by_key.items():
         for i in range(0, len(updates), MAX_BATCH_UPDATE_SIZE):
-            await client.batch_update_location_capacity(
-                dp.BatchUpdateLocationCapacityRequest(
-                    energy_source=energy_source,
-                    updates=updates[i : i + MAX_BATCH_UPDATE_SIZE],
-                    valid_from_utc=valid_from_utc,
+            batch = updates[i : i + MAX_BATCH_UPDATE_SIZE]
+            try:
+                await client.batch_update_location_capacity(
+                    dp.BatchUpdateLocationCapacityRequest(
+                        energy_source=energy_source,
+                        updates=batch,
+                        valid_from_utc=valid_from_utc,
+                    )
                 )
-            )
+            # One conflicting location rejects the whole batch, so every update in it is skipped.
+            # They are caught up on a later run, once PVLive's latest timestamp moves on.
+            except GRPCError as e:
+                if e.status != Status.ALREADY_EXISTS:
+                    raise
+                logger.warning(
+                    f"Skipping {len(batch)} capacity updates at {valid_from_utc}, "
+                    f"a capacity already exists at this time: {e.message}"
+                )
 
 
 async def _filter_existing_observations(

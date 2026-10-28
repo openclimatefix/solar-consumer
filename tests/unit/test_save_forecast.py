@@ -6,9 +6,12 @@ from unittest.mock import AsyncMock, patch
 import numpy as np
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
+from grpclib import Status
+from grpclib.exceptions import GRPCError
 from ocf import dp
 
 from solar_consumer.save.data_platform.save_generation import (
+    _batch_update_location_capacities,
     _filter_existing_observations,
     save_generation_to_data_platform,
 )
@@ -730,3 +733,40 @@ class TestFilterExistingObservations(unittest.IsolatedAsyncioTestCase):
 
         # C: nothing survives
         self.assertEqual(len(result_c), 0)
+
+
+class TestBatchUpdateLocationCapacities(unittest.IsolatedAsyncioTestCase):
+    """Unit tests for _batch_update_location_capacities."""
+
+    def _make_updates_by_key(self) -> dict:
+        """Two batches, at two different valid from times."""
+        t1 = pd.Timestamp("2026-10-27T19:00:00Z")
+        t2 = pd.Timestamp("2026-10-27T19:30:00Z")
+        update = dp.BatchUpdateLocationCapacityRequestUpdate(
+            location_uuid=str(uuid.uuid4()), new_effective_capacity_watts=1_000_000
+        )
+        return {
+            (dp.EnergySource.SOLAR, t1): [update],
+            (dp.EnergySource.SOLAR, t2): [update],
+        }
+
+    async def test_already_exists_is_skipped(self):
+        """A batch rejected with ALREADY_EXISTS is skipped and the next batch is still sent."""
+        client_mock = AsyncMock()
+        client_mock.batch_update_location_capacity = AsyncMock(
+            side_effect=[GRPCError(Status.ALREADY_EXISTS, "duplicate key"), None]
+        )
+
+        await _batch_update_location_capacities(client_mock, self._make_updates_by_key())
+
+        self.assertEqual(client_mock.batch_update_location_capacity.call_count, 2)
+
+    async def test_other_errors_are_raised(self):
+        """Any other gRPC error still stops the pipeline."""
+        client_mock = AsyncMock()
+        client_mock.batch_update_location_capacity = AsyncMock(
+            side_effect=GRPCError(Status.UNAVAILABLE, "down")
+        )
+
+        with self.assertRaises(GRPCError):
+            await _batch_update_location_capacities(client_mock, self._make_updates_by_key())
