@@ -13,15 +13,16 @@ LOCATION_NAME = "ruvnl"
 
 
 @pytest.mark.asyncio(loop_scope="module")
-async def test_save_ind_rajasthan_generation_to_data_platform(client):
+async def test_save_ind_rajasthan_generation_to_data_platform(client, setup_locations_from_csv):
     """
     Test saving RUVNL (Rajasthan, India) solar and wind generation data to the
     Data Platform.
 
-    No locations are pre-created: the save function should create the ``ruvnl``
-    location and both its energy sources from the locations CSV, then store one
+    Locations are pre-created from the locations CSV, then store one
     observation per energy_type against the matching source.
     """
+    await setup_locations_from_csv(COUNTRY)
+
     # Fake generation data containing one solar and one wind row, matching the
     # shape produced by ``fetch_ind_rajasthan_data``.
     fake_data = pd.DataFrame(
@@ -36,7 +37,7 @@ async def test_save_ind_rajasthan_generation_to_data_platform(client):
         }
     )
 
-    # Save the data - should create locations from CSV then write observations.
+    # Save the data - write observations to existing locations.
     await save_generation_to_data_platform(fake_data, client=client, config_name=COUNTRY)
 
     # Verify both locations were created from the CSV.
