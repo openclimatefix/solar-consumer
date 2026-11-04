@@ -271,10 +271,10 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "region_id": [0, 1],
                     "capacity_kw": [80_000_000, 60_000_000],  # Different from mock (100B and 50B)
-                    "solar_generation_kw": [5000, 2500],
+                    "solar_generation_kw": [102_000_000, 103_000_000],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=2, freq="h"),
                 }),
-                expected_update_capacities=[80_000_000_000, 60_000_000_000],
+                expected_update_capacities=[102_000_000_000, 103_000_000_000],
                 expected_create_call_observation_counts=[1, 1],
                 should_error=False,
             ),
@@ -283,7 +283,7 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "region_id": [0, 0, 1, 1],
                     "capacity_kw": [100_000_000, 100_000_000, 0, 0],
-                    "solar_generation_kw": [5000, 6000, 2500, 3000],
+                    "solar_generation_kw": [5000, 6000, 0, 0],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=4, freq="h"),
                 }),
                 expected_update_capacities=[],
@@ -307,10 +307,10 @@ class TestSaveGenerationToDataPlatform(unittest.IsolatedAsyncioTestCase):
                 input_df=pd.DataFrame({
                     "region_id": [0, 0, 0],
                     "capacity_kw": [50_000_000, 80_000_000, 60_000_000],
-                    "solar_generation_kw": [5000, 6000, 7000],
+                    "solar_generation_kw": [5000, 6000, 101_000_000],
                     "target_datetime_utc": pd.date_range(start="2023-01-01", periods=3, freq="h"),
                 }),
-                expected_update_capacities=[60_000_000_000],
+                expected_update_capacities=[101_000_000_000],
                 expected_create_call_observation_counts=[3],
                 should_error=False,
             ),
