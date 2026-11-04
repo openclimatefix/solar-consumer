@@ -33,7 +33,8 @@ NL_NATIONAL_CONFIG = {
         "capacity_kw": [80_000_000, 80_000_000],
     },
     "capacity_updates": {
-        "nl_national": 80_000_000_000,
+        # capacity for from location capacity
+        "nl_national": 100_000_000_000,
     },
     "id_column": "region_id",
 }
@@ -61,7 +62,8 @@ NL_GRONINGEN_CONFIG = {
         "capacity_kw": [60_000_000, 60_000_000],
     },
     "capacity_updates": {
-        "nl_groningen": 60_000_000_000,
+        # from original capacity of location
+        "nl_groningen": 50_000_000_000,
     },
     "id_column": "region_id",
 }
@@ -365,7 +367,7 @@ async def test_save_generation_zero_capacity(client, country, observer_name, id_
     if country == "nl":
         fake_data = pd.DataFrame({
             "target_datetime_utc": [pd.to_datetime("2025-01-02T00:00:00Z")],
-            "solar_generation_kw": [5000.0],
+            "solar_generation_kw": [0.0],
             "region_id": [metadata_value],
             "capacity_kw": [0.0],  # Zero capacity
         })
