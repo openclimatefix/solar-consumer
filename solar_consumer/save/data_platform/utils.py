@@ -36,6 +36,7 @@ def _get_country_config(country: str) -> dict:
             "observer_name": "nednl",
             "country": "nl",
             "country_code": "NL",
+            "rolling_capacity": True
         },
         "nl_no_curtailment": {
             "id_key": "region_id",
@@ -44,6 +45,7 @@ def _get_country_config(country: str) -> dict:
             "observer_name": "nednl_no_curtailment",
             "country": "nl",
             "country_code": "NL",
+            "rolling_capacity": True
         },
         "be": {
             "id_key": "region",
