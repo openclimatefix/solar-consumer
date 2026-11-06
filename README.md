@@ -76,6 +76,13 @@ To view logs:
 docker compose logs -f
 ```
 
+## Running the app with python
+
+To run the solar consumer application, execute:
+
+```bash
+uv run python solar_consumer/app.py
+```
 ## Documentation
 
 The package provides three main functionalities:
