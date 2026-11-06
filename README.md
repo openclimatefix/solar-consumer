@@ -76,7 +76,7 @@ To view logs:
 docker compose logs -f
 ```
 
-## Running the App
+## Running the app with python
 
 To run the solar consumer application, execute:
 
